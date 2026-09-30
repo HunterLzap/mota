@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-full h-full">
+<defs>
+  <linearGradient id="g_runestone" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#334155"/>
+    <stop offset="50%" stop-color="#1e293b"/>
+    <stop offset="100%" stop-color="#0f172a"/>
+  </linearGradient>
+  <radialGradient id="g_runeglow" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#38bdf8"/>
+    <stop offset="60%" stop-color="#0284c7"/>
+    <stop offset="100%" stop-color="transparent"/>
+  </radialGradient>
+</defs>
+  <polygon points="32,6 54,18 54,46 32,58 10,46 10,18" fill="url(#g_runestone)" stroke="#caa048" stroke-width="2.5"/>
+  <polygon points="32,12 48,22 48,42 32,52 16,42 16,22" fill="#0b1120" stroke="#475569" stroke-width="1.5"/>
+  <path d="M32,18 L32,46 M24,26 L40,38 M24,38 L40,26" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="6" fill="url(#g_runeglow)"/>
+</svg>

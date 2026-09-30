@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-full h-full">
+<defs>
+  <linearGradient id="g_storm" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#38bdf8"/>
+    <stop offset="50%" stop-color="#0284c7"/>
+    <stop offset="100%" stop-color="#0c4a6e"/>
+  </linearGradient>
+</defs>
+  <path d="M12 56 L12 24 Q12 8 32 8 Q52 8 52 24 L52 56 Z" fill="url(#g_storm)" stroke="#7dd3fc" stroke-width="2"/>
+  <rect x="18" y="24" width="12" height="30" rx="2" fill="#082f49" stroke="#0369a1" stroke-width="1.5"/>
+  <rect x="34" y="24" width="12" height="30" rx="2" fill="#082f49" stroke="#0369a1" stroke-width="1.5"/>
+  <polyline points="31,12 34,17 30,19 33,24" stroke="#fef08a" stroke-width="2" fill="none"/>
+  <line x1="8" y1="56" x2="56" y2="56" stroke="#0284c7" stroke-width="3" stroke-linecap="round"/>
+</svg>

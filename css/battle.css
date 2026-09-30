@@ -1,0 +1,55 @@
+/* 战斗与战报特写视觉样式 */
+.battle-screen-shake {
+  animation: screen-shake 0.35s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes screen-shake {
+  10%, 90% { transform: translate3d(-2px, 0, 0); }
+  20%, 80% { transform: translate3d(4px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+  40%, 60% { transform: translate3d(6px, 0, 0); }
+}
+
+/* 浮动伤害数字 */
+.damage-number-pop {
+  animation: dmg-float 0.8s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes dmg-float {
+  0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+  20% { opacity: 1; transform: translateY(-10px) scale(1.3); }
+  80% { opacity: 1; transform: translateY(-25px) scale(1.0); }
+  100% { opacity: 0; transform: translateY(-40px) scale(0.9); }
+}
+
+/* 战报单行划入特效 */
+.combat-log-line {
+  animation: log-fade-slide 0.2s ease-out forwards;
+}
+
+@keyframes log-fade-slide {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* 暴击高亮行 */
+.log-crit {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.25) 0%, transparent 100%);
+  border-left: 3px solid #ef4444;
+}
+
+.log-heal {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.25) 0%, transparent 100%);
+  border-left: 3px solid #22c55e;
+}
+
+.log-counter {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.25) 0%, transparent 100%);
+  border-left: 3px solid #f59e0b;
+}
+
+.log-pet {
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.25) 0%, transparent 100%);
+  border-left: 3px solid #a855f7;
+}

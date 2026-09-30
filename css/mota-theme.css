@@ -1,0 +1,465 @@
+/* =========================================================
+   《魔塔世界》2010经典页游极致拟真视觉样式 (Skeuomorphic Retro Web Game)
+   ========================================================= */
+
+:root {
+  --mota-stone-dark: #0a0807;
+  --mota-stone-base: #14100d;
+  --mota-parchment-bg: #1c1713;
+  --mota-parchment-border: #4d3a24;
+  --mota-gold-primary: #f5c042;
+  --mota-gold-deep: #b37e1b;
+  --mota-gold-border: #d4a742;
+  --mota-gold-glow: rgba(245, 192, 66, 0.45);
+}
+
+body {
+  background: radial-gradient(circle at 50% 15%, #251d16 0%, #120e0a 50%, #060504 100%);
+  background-attachment: fixed;
+  color: #e5ded3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "SimSun", sans-serif;
+  user-select: none;
+  overflow-x: hidden;
+}
+
+/* 2010 经典页游古典石雕花纹主面板 */
+.mota-parchment-panel {
+  background: linear-gradient(180deg, #221b16 0%, #191410 40%, #110e0b 100%);
+  border: 2px solid #caa048;
+  border-radius: 8px;
+  box-shadow: 
+    inset 0 0 12px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 235, 160, 0.3),
+    0 4px 18px rgba(0, 0, 0, 0.75),
+    0 0 8px rgba(179, 126, 27, 0.3);
+  position: relative;
+}
+
+/* 经典卷轴火漆印章 */
+.mota-wax-seal {
+  background: radial-gradient(circle at 35% 35%, #ef4444, #991b1b, #450a0a);
+  border: 2px solid #fca5a5;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+/* 2010 经典页游立体高光凸起金质大按键 */
+.mota-btn-gold {
+  background: linear-gradient(180deg, #ffe58f 0%, #e6a827 25%, #bf7a11 65%, #7a4605 100%);
+  color: #2b1400;
+  font-weight: 800;
+  border: 1px solid #ffecaa;
+  border-bottom: 2px solid #4a2800;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6), 0 -1px 0 rgba(0, 0, 0, 0.3);
+  box-shadow: 
+    0 2px 5px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.6),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
+  transition: all 0.12s ease;
+  cursor: pointer;
+}
+
+.mota-btn-gold:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fff1b8 0%, #ffc53d 25%, #d48806 65%, #874d00 100%);
+  transform: translateY(-1px);
+  box-shadow: 
+    0 4px 10px rgba(230, 168, 39, 0.5),
+    inset 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+.mota-btn-gold:active:not(:disabled) {
+  transform: translateY(1px);
+  background: linear-gradient(180deg, #d48806 0%, #ad6800 65%, #613400 100%);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* 经典玄铁冷铸按键 */
+.mota-btn-dark {
+  background: linear-gradient(180deg, #473e35 0%, #2b251f 45%, #181512 100%);
+  color: #dfd7cc;
+  border: 1px solid #756553;
+  border-bottom: 2px solid #14110e;
+  text-shadow: 0 1px 2px #000;
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: all 0.12s ease;
+  cursor: pointer;
+}
+
+.mota-btn-dark:hover:not(:disabled) {
+  background: linear-gradient(180deg, #5e5246 0%, #3d352c 45%, #241f1a 100%);
+  border-color: #b0997e;
+  color: #fff;
+}
+
+.mota-btn-dark:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.7);
+}
+
+/* 2010 经典页游金属拉丝血槽、法力槽与经验槽 */
+.mota-bar-frame {
+  background: #090706;
+  border: 1px solid #5a452c;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+.mota-hp-fill {
+  background: 
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.12) 0px, rgba(255, 255, 255, 0.12) 5px, transparent 5px, transparent 10px),
+    linear-gradient(180deg, #f87171 0%, #dc2626 40%, #991b1b 100%);
+  box-shadow: 0 0 8px rgba(220, 38, 38, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  position: relative;
+}
+
+.mota-mp-fill {
+  background: 
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.12) 0px, rgba(255, 255, 255, 0.12) 5px, transparent 5px, transparent 10px),
+    linear-gradient(180deg, #60a5fa 0%, #2563eb 40%, #1e40af 100%);
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  position: relative;
+}
+
+.mota-exp-fill {
+  background: 
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.12) 0px, rgba(255, 255, 255, 0.12) 5px, transparent 5px, transparent 10px),
+    linear-gradient(180deg, #34d399 0%, #059669 40%, #064e3b 100%);
+  box-shadow: 0 0 8px rgba(5, 150, 105, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  position: relative;
+}
+
+/* 金属流光扫过动效 (Shine Sweep) */
+.mota-hp-fill::after,
+.mota-mp-fill::after,
+.mota-exp-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  animation: bar-shine-sweep 3.5s infinite ease-in-out;
+}
+
+@keyframes bar-shine-sweep {
+  0% { left: -100%; }
+  30%, 100% { left: 200%; }
+}
+
+/* 装备品质边框与流光 (2010年最经典的六大阶梯品质) */
+.quality-white { border-color: #a8a29e; color: #f5f5f4; }
+.quality-green { border-color: #22c55e; color: #4ade80; box-shadow: 0 0 6px rgba(34, 197, 94, 0.35); }
+.quality-blue { border-color: #3b82f6; color: #60a5fa; box-shadow: 0 0 8px rgba(59, 130, 246, 0.4); }
+.quality-purple { border-color: #c084fc; color: #e9d5ff; box-shadow: 0 0 12px rgba(192, 132, 252, 0.5); }
+.quality-darkgold {
+  border-color: #fbbf24;
+  color: #fef08a;
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.65);
+  animation: darkgold-glow 2.5s infinite ease-in-out;
+}
+.quality-purplegold {
+  border-color: #e879f9;
+  color: #fdf4ff;
+  box-shadow: 0 0 18px rgba(232, 121, 249, 0.8);
+  animation: purplegold-glow 2s infinite ease-in-out;
+}
+
+@keyframes darkgold-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.85); }
+}
+
+@keyframes purplegold-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(232, 121, 249, 0.6); }
+  50% { box-shadow: 0 0 24px rgba(232, 121, 249, 1.0); }
+}
+
+/* 2010 拟真石刻内嵌装备槽 */
+.mota-slot-socket {
+  background: radial-gradient(circle at 50% 50%, #1c1611 0%, #0c0907 100%);
+  border: 1.5px solid #4a3824;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  position: relative;
+  transition: all 0.15s ease;
+}
+.mota-slot-socket:hover {
+  border-color: #d4a742;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.95), 0 0 10px rgba(212, 167, 66, 0.45);
+}
+
+/* ================= 2010 页游独立客户端外框视口 ================= */
+.mota-client-shell {
+  max-width: 1366px;
+  width: 100%;
+  height: calc(100vh - 12px);
+  max-height: 920px;
+  min-height: 600px;
+  margin: 0 auto;
+  background: #100c09;
+  border: 3px solid #5a401e;
+  outline: 2px solid #1a130a;
+  border-radius: 12px;
+  box-shadow: 
+    0 0 0 1px #8c6a38,
+    0 12px 48px rgba(0, 0, 0, 0.95),
+    inset 0 0 24px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 235, 175, 0.35);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-height: 960px) {
+  .mota-client-shell {
+    height: 890px;
+  }
+}
+
+/* 客户端四角暗金龙纹铆钉与包角 */
+.mota-client-shell::before,
+.mota-client-shell::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  z-index: 40;
+  border-color: #d4a742;
+  border-style: solid;
+}
+.mota-client-shell::before {
+  top: 4px;
+  left: 4px;
+  border-width: 3px 0 0 3px;
+  box-shadow: -1px -1px 3px rgba(245, 192, 66, 0.6);
+}
+.mota-client-shell::after {
+  bottom: 4px;
+  right: 4px;
+  border-width: 0 3px 3px 0;
+  box-shadow: 1px 1px 3px rgba(245, 192, 66, 0.6);
+}
+
+/* 古典青铜饰品铭牌 */
+.mota-metal-plaque {
+  background: linear-gradient(180deg, #241d17 0%, #15110d 100%);
+  border: 1px solid #785a35;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 175, 0.2), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* 经典页游系统滚动机 */
+.mota-system-ticker {
+  background: #0d0b09;
+  border-top: 1px solid #3d2f1f;
+  color: #f59e0b;
+  font-size: 11px;
+}
+
+/* 羊皮纸探险沙盘微光脉动 */
+.mota-map-pulse {
+  animation: map-pulse 2s infinite ease-in-out;
+}
+
+@keyframes map-pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(245, 192, 66, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(245, 192, 66, 0.7);
+  }
+}
+
+/* 彻底杜绝内置滚轮，100% 达成 2011 纯正页游单屏全显 */
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+  display: none !important;
+}
+
+/* ================= 2011 Flash 经典页游质感特效库 ================= */
+
+/* 1. 装备高光扫掠 (Shine Sweep) 模拟 Flash 遮罩扫光 */
+.equip-sweep-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.equip-sweep-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -100%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(
+    105deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0.05) 70%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(25deg);
+  animation: sweep-light 3.5s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes sweep-light {
+  0% { left: -100%; }
+  25% { left: 160%; }
+  100% { left: 160%; }
+}
+
+/* 2. 强化星级微光脉冲 (+3、+5、+8 呼吸光晕) */
+.equip-star-glow-gold {
+  box-shadow: 0 0 10px rgba(245, 192, 66, 0.6), inset 0 0 8px rgba(245, 192, 66, 0.3) !important;
+  animation: star-glow-pulse 2s infinite ease-in-out;
+}
+
+.equip-star-glow-purple {
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.8), inset 0 0 8px rgba(168, 85, 247, 0.4) !important;
+  animation: star-glow-purple-pulse 1.8s infinite ease-in-out;
+}
+
+@keyframes star-glow-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(245, 192, 66, 0.4), inset 0 0 4px rgba(245, 192, 66, 0.2); }
+  50% { box-shadow: 0 0 14px rgba(245, 192, 66, 0.8), inset 0 0 8px rgba(245, 192, 66, 0.5); }
+}
+
+@keyframes star-glow-purple-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(168, 85, 247, 0.5), inset 0 0 4px rgba(168, 85, 247, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(168, 85, 247, 0.9), inset 0 0 10px rgba(168, 85, 247, 0.6); }
+}
+
+/* 3. 战斗震屏动效 (Screen Shake) */
+.mota-shake {
+  animation: battle-shake 0.35s ease-in-out;
+}
+
+@keyframes battle-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-3px, 3px); }
+  40% { transform: translate(3px, -2px); }
+  60% { transform: translate(-2px, -3px); }
+  80% { transform: translate(2px, 1px); }
+}
+
+/* 4. 2011 经典暴击立体大红/金字 */
+.crit-pop-text {
+  font-family: Impact, 'Arial Black', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  color: #ffea00;
+  text-shadow: 
+    -2px -2px 0 #850000,
+    2px -2px 0 #850000,
+    -2px 2px 0 #850000,
+    2px 2px 0 #850000,
+    0 4px 8px rgba(0, 0, 0, 0.9);
+  animation: crit-scale-fade 0.7s ease-out forwards;
+  letter-spacing: 1px;
+}
+
+@keyframes crit-scale-fade {
+  0% {
+    transform: scale(0.6) translateY(10px);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.3) translateY(-4px);
+    opacity: 1;
+  }
+  60% {
+    transform: scale(1.0) translateY(-8px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9) translateY(-18px);
+    opacity: 0;
+  }
+}
+
+/* 5. 2011 经典悬浮装备属性九宫格对比框 (Tooltip) */
+.mota-tooltip-panel {
+  background: linear-gradient(180deg, #18120c 0%, #0c0906 100%);
+  border: 2px solid #ca9a3e;
+  box-shadow: 
+    0 0 0 1px #4a3418,
+    0 8px 24px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 235, 175, 0.25);
+  border-radius: 8px;
+}
+
+/* 6. 2011 纯正页游羊皮纸内部通用弹窗 */
+#game-modal-overlay {
+  transition: opacity 0.2s ease-in-out;
+}
+
+#game-modal-box {
+  background: linear-gradient(180deg, #241910 0%, #150f0a 100%);
+  border: 2px solid #ca9a3e;
+  box-shadow: 
+    0 0 0 1px #4a3418,
+    0 16px 48px rgba(0, 0, 0, 0.95),
+    inset 0 1px 0 rgba(255, 235, 175, 0.2);
+}
+
+/* 7. 2011 经典面包屑层级导航条 */
+.mota-breadcrumb {
+  background: linear-gradient(90deg, #2a1c11 0%, #1d130b 50%, #120b06 100%);
+  border: 1px solid #caa048;
+  border-left: 3px solid #f5c042;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 175, 0.2), 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* 8. 宏伟建筑与工坊全屏传送大卡片 */
+.mota-building-card {
+  background: linear-gradient(180deg, #251c14 0%, #18120c 60%, #100c08 100%);
+  border: 2px solid #caa048;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8), 0 6px 20px rgba(0, 0, 0, 0.7);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.mota-building-card:hover {
+  transform: translateY(-2px);
+  border-color: #ffd666;
+  box-shadow: inset 0 0 16px rgba(245, 192, 66, 0.25), 0 10px 28px rgba(0, 0, 0, 0.85), 0 0 12px rgba(245, 192, 66, 0.4);
+}
+
+/* 9. 勇者核心常用功能高光停靠按键 */
+.mota-btn-dock {
+  background: linear-gradient(180deg, #3a2c1a 0%, #241a0e 45%, #140d06 100%);
+  color: #f5c042;
+  border: 1px solid #caa048;
+  border-bottom: 2px solid #8c6b22;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 235, 175, 0.3);
+  transition: all 0.15s ease;
+}
+
+.mota-btn-dock:hover {
+  background: linear-gradient(180deg, #4d3a22 0%, #302213 45%, #1c1308 100%);
+  border-color: #ffd666;
+  color: #fff1b8;
+  transform: translateY(-1px);
+}
+
+.mota-btn-dock.active {
+  background: linear-gradient(180deg, #d4a742 0%, #b8860b 50%, #8c6a1e 100%) !important;
+  color: #fffde6 !important;
+  border-color: #ffe58f !important;
+  box-shadow: 0 0 12px rgba(245, 192, 66, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+

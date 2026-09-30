@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" class="w-full h-full">
+<defs>
+  <linearGradient id="map_bg_swamp" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#022c22"/><stop offset="100%" stop-color="#020617"/>
+  </linearGradient>
+  <filter id="f_mglow_swamp">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+  </filter>
+</defs>
+<rect width="320" height="180" fill="url(#map_bg_swamp)"/>
+<!-- 地貌与建筑剪影 -->
+<path d="M0 130 Q160 150 320 130 L320 180 L0 180 Z" fill="#064e3b"/><circle cx="100" cy="140" r="15" fill="#10b981" opacity="0.4" filter="url(#f_mglow_swamp)"/>
+<!-- 暗黑哥特暗角 -->
+<rect width="320" height="180" fill="none" stroke="#000000" stroke-width="6" opacity="0.7"/>
+</svg>

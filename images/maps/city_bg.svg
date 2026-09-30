@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" class="w-full h-full">
+<defs>
+  <linearGradient id="map_bg_city" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#020617"/>
+  </linearGradient>
+  <filter id="f_mglow_city">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+  </filter>
+</defs>
+<rect width="320" height="180" fill="url(#map_bg_city)"/>
+<!-- 地貌与建筑剪影 -->
+<polygon points="0,180 80,110 160,140 240,90 320,180" fill="#0f172a"/><polygon points="120,140 140,70 160,70 180,140" fill="#1e293b" stroke="#eab308" stroke-width="1.5"/>
+<!-- 暗黑哥特暗角 -->
+<rect width="320" height="180" fill="none" stroke="#000000" stroke-width="6" opacity="0.7"/>
+</svg>

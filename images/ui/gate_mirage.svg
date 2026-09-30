@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-full h-full">
+<defs>
+  <linearGradient id="g_mirage" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#c084fc"/>
+    <stop offset="50%" stop-color="#7e22ce"/>
+    <stop offset="100%" stop-color="#3b0764"/>
+  </linearGradient>
+</defs>
+  <path d="M12 56 L12 24 Q12 10 32 10 Q52 10 52 24 L52 56 Z" fill="url(#g_mirage)" stroke="#d8b4fe" stroke-width="2"/>
+  <rect x="18" y="24" width="12" height="30" rx="2" fill="#2e1065" stroke="#a855f7" stroke-width="1.5"/>
+  <rect x="34" y="24" width="12" height="30" rx="2" fill="#2e1065" stroke="#a855f7" stroke-width="1.5"/>
+  <circle cx="32" cy="18" r="5" fill="#38bdf8" stroke="#e0e7ff" stroke-width="1.5"/>
+  <ellipse cx="32" cy="38" rx="4" ry="10" fill="#c084fc" opacity="0.5"/>
+  <line x1="8" y1="56" x2="56" y2="56" stroke="#7e22ce" stroke-width="3" stroke-linecap="round"/>
+</svg>

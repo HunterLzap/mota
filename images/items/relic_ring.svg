@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-full h-full">
+<defs>
+  <radialGradient id="g_ring_gem" cx="40%" cy="40%" r="60%">
+    <stop offset="0%" stop-color="#c084fc"/>
+    <stop offset="60%" stop-color="#7e22ce"/>
+    <stop offset="100%" stop-color="#3b0764"/>
+  </radialGradient>
+</defs>
+  <ellipse cx="32" cy="38" rx="18" ry="14" fill="none" stroke="#eab308" stroke-width="4.5"/>
+  <polygon points="32,14 40,22 32,30 24,22" fill="url(#g_ring_gem)" stroke="#d8b4fe" stroke-width="1.5"/>
+  <circle cx="32" cy="22" r="2.5" fill="#f5d0fe"/>
+</svg>

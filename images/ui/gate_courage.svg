@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-full h-full">
+<defs>
+  <linearGradient id="g_courage" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#fde047"/>
+    <stop offset="50%" stop-color="#d97706"/>
+    <stop offset="100%" stop-color="#78350f"/>
+  </linearGradient>
+</defs>
+  <path d="M12 56 L12 24 Q12 8 32 8 Q52 8 52 24 L52 56 Z" fill="url(#g_courage)" stroke="#f59e0b" stroke-width="2"/>
+  <rect x="18" y="24" width="12" height="30" rx="2" fill="#451a03" stroke="#b45309" stroke-width="1.5"/>
+  <rect x="34" y="24" width="12" height="30" rx="2" fill="#451a03" stroke="#b45309" stroke-width="1.5"/>
+  <polygon points="32,12 36,20 28,20" fill="#ef4444" stroke="#fde047" stroke-width="1"/>
+  <line x1="8" y1="56" x2="56" y2="56" stroke="#b45309" stroke-width="3" stroke-linecap="round"/>
+</svg>

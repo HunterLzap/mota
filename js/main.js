@@ -1,0 +1,346 @@
+// 游戏总控制器与主事件总线 (2010经典页游深度纯单机版)
+import { gameState } from './core/state.js';
+import { storage } from './core/storage.js';
+import { sound } from './core/sound.js';
+import { TownView } from './ui/townView.js';
+import { TowerView } from './ui/towerView.js';
+import { BagView } from './ui/bagView.js';
+import { PetView } from './ui/petView.js';
+import { WildView } from './ui/wildView.js';
+import { EstateView } from './ui/estateView.js';
+import { BattleView } from './ui/battleView.js';
+import { QuestTracker } from './ui/questTracker.js';
+import { SystemLogView } from './ui/systemLogView.js';
+import { CharSelectModal } from './ui/charSelectModal.js';
+import { ArchiveModal } from './ui/archiveModal.js';
+import { CLASSES, NATIONS } from './config/classes.js';
+import { HeroView, EquipView } from './ui/heroView.js';
+import { renderGameIcon } from './ui/iconHelper.js';
+import { atmosphere } from './effects/atmosphere.js';
+import { gameModal } from './ui/modal.js';
+
+class GameApp {
+  constructor() {
+    this.currentTab = 'tower';
+    this.views = {};
+    this.battleView = null;
+    this.questTracker = null;
+    this.systemLogView = null;
+    this.charSelectModal = null;
+    this.archiveModal = null;
+  }
+
+  init() {
+    window.appInstance = this;
+    gameModal.init();
+    gameState.loadOrInit();
+
+    // 启动 2010 纯代码 2D 粒子微光环境引擎
+    atmosphere.init('atmosphere-canvas');
+
+    window.gameState = gameState;
+    window.addStat = (type) => this.addStatPoint(type);
+    window.switchMainTab = (tab) => this.switchTab(tab);
+
+    this.battleView = new BattleView('battle-overlay');
+    this.charSelectModal = new CharSelectModal('char-select-overlay');
+    this.archiveModal = new ArchiveModal(
+      'game-archive-overlay', 
+      () => this.onReloadGame(), 
+      () => this.onStartNewGame()
+    );
+
+    // 核心功能系统挂载 (4大冒险场景 + 4大勇者核心功能)
+    this.views.tower = new TowerView('tab-content-tower', (params) => this.battleView.start(params));
+    this.views.town = new TownView('tab-content-town', (params) => this.battleView.start(params));
+    this.views.wild = new WildView('tab-content-wild', (params) => this.battleView.start(params));
+    this.views.estate = new EstateView('tab-content-estate');
+    this.views.hero = new HeroView('tab-content-hero');
+    this.views.equip = new EquipView('tab-content-equip');
+    this.views.bag = new BagView('tab-content-bag', (tab) => this.switchTab(tab));
+    this.views.pets = new PetView('tab-content-pets');
+
+    // 挂载常驻右侧任务追踪与自动寻路指引
+    this.questTracker = new QuestTracker('quest-tracker-mount', (targetTab, targetAction) => {
+      this.handleQuestNavigation(targetTab, targetAction);
+    });
+
+    // 挂载常驻右侧系统提示与动态日志
+    this.systemLogView = new SystemLogView('system-log-mount');
+
+    gameState.subscribe(() => {
+      this.updateTopBar();
+      if (this.questTracker) this.questTracker.render();
+      if (this.systemLogView) this.systemLogView.render();
+      const curView = this.views[this.currentTab];
+      if (curView && curView.render) curView.render();
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialTab = urlParams.get('tab');
+    if (initialTab && this.views[initialTab]) {
+      this.currentTab = initialTab;
+    }
+
+    this.bindHeaderEvents();
+    this.switchTab(this.currentTab);
+    this.updateTopBar();
+    if (this.questTracker) this.questTracker.render();
+    if (this.systemLogView) this.systemLogView.render();
+
+    this.pushSystemTicker('【系统】欢迎来到《魔塔世界》！请留意右侧【任务追踪】，跟随主线一步步打造至强神装与神兽！');
+  }
+
+  // 任务一键自动寻路逻辑
+  handleQuestNavigation(targetTab, targetAction) {
+    this.switchTab(targetTab);
+
+    // 细分建筑或子页面智能精准聚焦
+    if (targetTab === 'town') {
+      if (targetAction === 'enhance') {
+        this.views.town.currentView = 'smithy_enhance';
+        this.views.town.render();
+      } else if (targetAction === 'claim_salary') {
+        this.views.town.currentView = 'palace_salary';
+        this.views.town.render();
+      } else if (targetAction === 'socket_gem') {
+        this.views.town.currentView = 'smithy_socket';
+        this.views.town.render();
+      } else if (targetAction === 'slay_dragon' || targetAction === 'slay_silver_dragon') {
+        this.views.town.currentView = 'dragons';
+        this.views.town.render();
+      } else if (targetAction === 'royal_trials') {
+        this.views.town.currentView = 'palace_trials';
+        this.views.town.render();
+      } else if (targetAction === 'arena_duel') {
+        this.views.town.currentView = 'palace_arena';
+        this.views.town.render();
+      } else if (targetAction === 'reforge_gear') {
+        this.views.town.currentView = 'smithy_reforge';
+        this.views.town.render();
+      }
+    } else if (targetTab === 'wild') {
+      if (targetAction === 'slay_wild_boss') {
+        this.views.wild.selectedMapId = 'forest';
+        this.views.wild.render();
+      } else if (targetAction === 'catch_thief') {
+        this.views.wild.render();
+      }
+    } else if (targetTab === 'pets') {
+      if (targetAction === 'wash_aptitude') {
+        this.views.pets.currentSubTab = 'wash';
+        this.views.pets.render();
+      } else if (targetAction === 'learn_skill') {
+        this.views.pets.currentSubTab = 'skills';
+        this.views.pets.render();
+      } else if (targetAction === 'set_active_pet' || targetAction === 'evolve_purplegold') {
+        this.views.pets.currentSubTab = 'overview';
+        this.views.pets.render();
+      }
+    } else if (targetTab === 'estate') {
+      if (targetAction === 'brew_potion') {
+        this.views.estate.currentView = 'alchemy';
+        this.views.estate.render();
+      } else if (targetAction === 'hire_merc') {
+        this.views.estate.currentView = 'mercenaries';
+        this.views.estate.render();
+      }
+    } else if (targetTab === 'tower') {
+      if (targetAction === 'clear_tower_1') {
+        this.views.tower.subTab = 'castle';
+        this.views.tower.selectedFloor = 1;
+        this.views.tower.render();
+      } else if (targetAction === 'clear_tower_10') {
+        this.views.tower.subTab = 'castle';
+        this.views.tower.selectedFloor = 10;
+        this.views.tower.render();
+      } else if (targetAction === 'clear_tower_20') {
+        this.views.tower.subTab = 'castle';
+        this.views.tower.selectedFloor = 20;
+        this.views.tower.render();
+      } else if (targetAction === 'clear_dungeon') {
+        this.views.tower.subTab = 'dungeons';
+        this.views.tower.render();
+      }
+    }
+  }
+
+  updateTopBar() {
+    const data = gameState.data;
+    const stats = gameState.getEffectiveStats();
+    const cls = CLASSES[data.classId];
+    const nextExp = gameState.getNextLevelExp(data.level);
+    const expPercent = Math.min(100, Math.floor((data.exp / nextExp) * 100));
+
+    const hpPercent = Math.min(100, Math.floor((stats.hp / stats.maxHp) * 100));
+    const mpPercent = Math.min(100, Math.floor((stats.mp / stats.maxMp) * 100));
+
+    const elName = document.getElementById('header-player-name');
+    const elNation = document.getElementById('header-nation-badge');
+    const elTitle = document.getElementById('header-title-badge');
+    const elClass = document.getElementById('header-player-class');
+    const elClassIcon = document.getElementById('header-class-icon');
+    const elLevel = document.getElementById('header-player-level');
+    const elExpBar = document.getElementById('header-exp-bar');
+    const elExpText = document.getElementById('header-exp-text');
+    const elGold = document.getElementById('header-gold');
+    const elCrystal = document.getElementById('header-crystal');
+    const elPrestige = document.getElementById('header-prestige');
+    const elHpBar = document.getElementById('header-hp-bar');
+    const elHpText = document.getElementById('header-hp-text');
+    const elMpBar = document.getElementById('header-mp-bar');
+    const elMpText = document.getElementById('header-mp-text');
+
+    const nation = NATIONS[data.nation] || NATIONS.aden;
+    if (elName) elName.innerText = data.name;
+    if (elNation) elNation.innerText = nation.name.split(' ')[0];
+    if (elTitle) elTitle.innerText = data.royalTrials ? data.royalTrials.currentTitle : '见习勇者';
+    if (elClass) elClass.innerText = gameState.getPromotedClassName();
+    if (elClassIcon) elClassIcon.innerHTML = renderGameIcon(cls.id, { size: 'w-full h-full' });
+    if (elLevel) elLevel.innerText = `Lv.${data.level}`;
+    if (elExpBar) elExpBar.style.width = `${expPercent}%`;
+    if (elExpText) elExpText.innerText = `${data.exp} / ${nextExp}`;
+    const elExpSub = document.getElementById('header-exp-sub');
+    if (elExpSub) elExpSub.innerText = `${expPercent}%`;
+    if (elGold) elGold.innerText = data.gold.toLocaleString();
+    if (elCrystal) elCrystal.innerText = data.crystal.toLocaleString();
+    if (elPrestige) elPrestige.innerText = data.prestige.toLocaleString();
+
+    if (elHpBar) elHpBar.style.width = `${hpPercent}%`;
+    if (elHpText) elHpText.innerText = `${stats.hp} / ${stats.maxHp}`;
+    if (elMpBar) elMpBar.style.width = `${mpPercent}%`;
+    if (elMpText) elMpText.innerText = `${stats.mp} / ${stats.maxMp}`;
+
+    const elActiveSlot = document.getElementById('header-active-slot-text');
+    if (elActiveSlot) elActiveSlot.innerText = `存档 ${storage.getActiveSlotId()}`;
+  }
+
+  pushSystemTicker(msg) {
+    if (gameState && gameState.addSystemLog) {
+      gameState.addSystemLog(msg, 'system');
+    }
+  }
+
+  switchTab(tabName) {
+    this.currentTab = tabName;
+    sound.playSlash();
+
+    // 根据场景即时切换 2010 氛围微光粒子 (熔炉/王城/林地/奥术)
+    if (tabName === 'tower') {
+      atmosphere.setPreset('tower');
+    } else if (tabName === 'wild' || tabName === 'estate' || tabName === 'pets') {
+      atmosphere.setPreset('forest');
+    } else if (tabName === 'bag' || tabName === 'hero' || tabName === 'equip') {
+      atmosphere.setPreset('palace');
+    } else if (tabName === 'town') {
+      const bld = this.views.town ? this.views.town.currentView : 'hub';
+      if (bld && (bld.startsWith('smithy') || bld === 'dragons')) atmosphere.setPreset('forge');
+      else if (bld === 'fishing') atmosphere.setPreset('forest');
+      else atmosphere.setPreset('palace');
+    }
+
+    const worldTabs = ['tower', 'town', 'wild', 'estate'];
+    const dockTabs = ['hero', 'equip', 'bag', 'pets'];
+    const allTabs = [...worldTabs, ...dockTabs];
+
+    allTabs.forEach(t => {
+      const btn = document.getElementById(`nav-tab-${t}`);
+      const pane = document.getElementById(`tab-content-${t}`);
+      const isActive = (t === tabName);
+
+      if (isActive) {
+        if (btn) {
+          btn.className = 'mota-btn-gold px-2 py-1 rounded-lg text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1 border-[#ffe58f]';
+        }
+        if (pane) {
+          pane.classList.remove('hidden');
+          pane.classList.add('block');
+        }
+        if (this.views[t]) {
+          this.views[t].render();
+        }
+      } else {
+        if (btn) {
+          if (dockTabs.includes(t)) {
+            btn.className = 'mota-btn-dock px-2 py-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1';
+          } else {
+            btn.className = 'mota-btn-dark px-2 py-1 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 hover:border-[#b0997e]';
+          }
+        }
+        if (pane) {
+          pane.classList.add('hidden');
+          pane.classList.remove('block');
+        }
+      }
+    });
+  }
+
+  addStatPoint(type) {
+    if (gameState.data.freeStatPoints <= 0) return;
+    gameState.data.freeStatPoints--;
+    gameState.data.allocatedStats[type]++;
+    sound.playCoin();
+    gameState.notify();
+    if (this.views.hero) this.views.hero.render();
+  }
+
+  bindHeaderEvents() {
+    ['tower', 'town', 'wild', 'estate', 'hero', 'equip', 'bag', 'pets'].forEach(t => {
+      const btn = document.getElementById(`nav-tab-${t}`);
+      if (btn) {
+        btn.addEventListener('click', () => this.switchTab(t));
+      }
+    });
+
+    // 圣堂档案馆 · 存档管理
+    const btnArchive = document.getElementById('btn-open-archive');
+    if (btnArchive) {
+      btnArchive.addEventListener('click', () => {
+        this.archiveModal.open();
+      });
+    }
+
+    // 开启全新冒险
+    const btnNewGame = document.getElementById('btn-new-game-entry');
+    if (btnNewGame) {
+      btnNewGame.addEventListener('click', () => {
+        this.archiveModal.promptNewGame();
+      });
+    }
+
+    const headerCharBox = document.getElementById('header-char-box');
+    if (headerCharBox) {
+      headerCharBox.addEventListener('click', () => {
+        this.switchTab('hero');
+      });
+    }
+  }
+
+  // 读档/导入后即时刷新整个游戏
+  onReloadGame() {
+    this.updateTopBar();
+    if (this.questTracker) this.questTracker.render();
+    const curView = this.views[this.currentTab];
+    if (curView && curView.render) curView.render();
+  }
+
+  // 新开游戏：重置并开启创角誓约
+  onStartNewGame() {
+    this.updateTopBar();
+    if (this.questTracker) this.questTracker.render();
+    this.switchTab('tower');
+    setTimeout(() => {
+      this.charSelectModal.open(true);
+    }, 150);
+  }
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', () => {
+    const app = new GameApp();
+    app.init();
+  });
+} else {
+  const app = new GameApp();
+  app.init();
+}

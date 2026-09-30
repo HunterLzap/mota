@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" class="w-full h-full">
+<defs>
+  <linearGradient id="map_bg_fishing" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#0e7490"/><stop offset="100%" stop-color="#020617"/>
+  </linearGradient>
+  <filter id="f_mglow_fishing">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+  </filter>
+</defs>
+<rect width="320" height="180" fill="url(#map_bg_fishing)"/>
+<!-- 地貌与建筑剪影 -->
+<path d="M0 140 Q160 110 320 140 L320 180 L0 180 Z" fill="#083344"/><rect x="40" y="130" width="80" height="8" fill="#78350f"/>
+<!-- 暗黑哥特暗角 -->
+<rect width="320" height="180" fill="none" stroke="#000000" stroke-width="6" opacity="0.7"/>
+</svg>

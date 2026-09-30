@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" class="w-full h-full">
+<defs>
+  <linearGradient id="map_bg_tower" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#1e1b4b"/><stop offset="100%" stop-color="#020617"/>
+  </linearGradient>
+  <filter id="f_mglow_tower">
+    <feGaussianBlur stdDeviation="3" result="blur"/>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+  </filter>
+</defs>
+<rect width="320" height="180" fill="url(#map_bg_tower)"/>
+<!-- 地貌与建筑剪影 -->
+<polygon points="130,180 145,30 175,30 190,180" fill="#111827" stroke="#a855f7" stroke-width="2"/><circle cx="160" cy="30" r="8" fill="#ef4444" filter="url(#f_mglow_tower)"/>
+<!-- 暗黑哥特暗角 -->
+<rect width="320" height="180" fill="none" stroke="#000000" stroke-width="6" opacity="0.7"/>
+</svg>
