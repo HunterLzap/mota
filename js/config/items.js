@@ -36,7 +36,7 @@ export const OFFICIAL_SETS = {
     reqLevel: 30,
     source: '剧情任务/魔塔前段',
     bonus2: { atk: 60, hp: 500, desc: '2件套：攻击+60，生命值上限+500' },
-    bonus4: { allSkillLv: 2, desc: '4件套：全职业初阶技能等级+2，命中率+10%' }
+    bonus4: { allSkillLv: 2, hit: 10, desc: '4件套：职业技能等级+2，命中率+10%' }
   },
   guardian_knight: {
     id: 'guardian_knight',
@@ -44,8 +44,8 @@ export const OFFICIAL_SETS = {
     quality: 'gold',
     reqLevel: 50,
     source: '竞技场/战场',
-    bonus2: { def: 120, hit: 100, desc: '2件套：物理防御+120，命中值+100' },
-    bonus4: { hp: 1200, allSkillLv: 3, desc: '4件套：生命上限+1200，二阶技能等级+3' }
+    bonus2: { def: 120, hit: 10, desc: '2件套：物理防御+120，命中率+10%' },
+    bonus4: { hp: 1200, allSkillLv: 3, desc: '4件套：生命上限+1200，职业技能等级+3' }
   },
   sagael_set: {
     id: 'sagael_set',
@@ -54,7 +54,7 @@ export const OFFICIAL_SETS = {
     reqLevel: 50,
     source: '古堡探险/死亡之门',
     bonus2: { mp: 500, atk: 120, desc: '2件套：魔法值上限+500，攻击力+120' },
-    bonus4: { counter: 20, allSkillLv: 4, desc: '4件套：反击率+20%，全职业核心技能+4级' }
+    bonus4: { counter: 20, allSkillLv: 4, desc: '4件套：反击率+20%，职业技能等级+4' }
   },
   judge: {
     id: 'judge',
@@ -63,7 +63,7 @@ export const OFFICIAL_SETS = {
     reqLevel: 50,
     source: '变幻之门/死亡之门',
     bonus2: { hp: 600, speed: 20, desc: '2件套：生命上限+600，攻击速度+20' },
-    bonus4: { lifesteal: 15, allSkillLv: 3, desc: '4件套：生命偷取+15%，队伍光环技能+3级' }
+    bonus4: { lifesteal: 15, allSkillLv: 3, desc: '4件套：生命偷取+15%，职业技能等级+3' }
   },
   kester_set: {
     id: 'kester_set',
@@ -71,8 +71,8 @@ export const OFFICIAL_SETS = {
     quality: 'darkgold',
     reqLevel: 70,
     source: '古堡探险/巨龙之门',
-    bonus2: { crit: 100, atk: 100, desc: '2件套：暴击值+100，基础攻击力+100' },
-    bonus4: { dodge: 15, allSkillLv: 5, desc: '4件套：闪避率+15%，三阶绝技等级+5' }
+    bonus2: { crit: 10, atk: 100, desc: '2件套：暴击率+10%，基础攻击力+100' },
+    bonus4: { dodge: 15, allSkillLv: 5, desc: '4件套：闪避率+15%，职业技能等级+5' }
   },
   punisher: {
     id: 'punisher',
@@ -81,7 +81,7 @@ export const OFFICIAL_SETS = {
     reqLevel: 70,
     source: '风暴之门/巨龙之门',
     bonus2: { armorBreak: 100, atk: 120, desc: '2件套：破击值+100，攻击力+120' },
-    bonus4: { critDmg: 45, allSkillLv: 5, desc: '4件套：暴击伤害+45%，战争艺术+5级' }
+    bonus4: { critDmg: 45, allSkillLv: 5, desc: '4件套：暴击伤害+45%，职业技能等级+5' }
   },
   aden_set: {
     id: 'aden_set',
@@ -99,7 +99,7 @@ export const OFFICIAL_SETS = {
     reqLevel: 80,
     source: '时空之门/古堡深层',
     bonus2: { atk: 180, hp: 1000, desc: '2件套：攻击力+180，生命上限+1000' },
-    bonus4: { dmgBonus: 25, allSkillLv: 6, desc: '4件套：造成的全部伤害提升 25%，全绝技+6' }
+    bonus4: { dmgBonus: 25, allSkillLv: 6, desc: '4件套：主动攻击伤害+25%，职业技能等级+6' }
   },
   destiny_goddess: {
     id: 'destiny_goddess',
@@ -107,7 +107,7 @@ export const OFFICIAL_SETS = {
     quality: 'purplegold',
     reqLevel: 40,
     source: '屠银龙产出',
-    bonus2: { dodge: 150, speed: 25, desc: '2件套：闪避值+150，先手速度+25' },
+    bonus2: { dodge: 15, speed: 25, desc: '2件套：闪避率+15%，先手速度+25' },
     bonus4: { allSkillLv: 1, doubleStrike: 20, desc: '4件套：全部职业技能等级+1，普攻连击率+20%' }
   },
   wisdom_goddess: {
@@ -135,7 +135,7 @@ export const OFFICIAL_SETS = {
     reqLevel: 80,
     source: '屠金龙巅峰产出',
     bonus2: { atk: 300, crit: 25, desc: '2件套：物理与魔法攻击力+300，暴击率+25%' },
-    bonus4: { allSkillLv: 3, finishDmg: 40, desc: '4件套：全部技能提升3级，对残血目标伤害+40%' }
+    bonus4: { allSkillLv: 3, finishDmg: 40, desc: '4件套：职业技能等级+3，对生命不高于30%的目标攻击伤害+40%' }
   },
   karlis_set: {
     id: 'karlis_set',
@@ -309,7 +309,7 @@ export const SPECIAL_ITEMS = {
     name: '开孔水晶',
     icon: 'images/items/socket_crystal.svg',
     quality: 'blue',
-    desc: '为装备开凿宝石孔洞，武器最多开 3 孔，防具最多开 2 孔。'
+    desc: '为装备开凿宝石孔洞，每件装备最多开启 4 孔。'
   },
   diamond_1: {
     id: 'diamond_1',

@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-自动化前端浏览器环境真实编译与组件实例化回归测试套件 (利用 macOS 原生 JavaScriptCore 引擎)
+自动化前端浏览器环境真实编译与组件实例化回归测试套件 (利用 跨平台 Node.js 引擎)
 """
 import os
 import subprocess
+import shutil
+
+NODE = shutil.which('node')
+if not NODE:
+    raise RuntimeError('Node.js is required for JavaScript runtime checks')
+ENGINE = [NODE, 'tests/js_engine.mjs']
 
 def test_syntax_and_init():
-    jsc = '/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc'
+    jsc = NODE
     
     # 1. 扫描所有 JS 文件，确保 JSC 编译 0 语法错误
     files = []
@@ -17,10 +23,10 @@ def test_syntax_and_init():
                 files.append(os.path.join(root, f))
     
     for path in files:
-        res = subprocess.run([jsc, '-m', path], capture_output=True, text=True)
-        if 'SyntaxError' in res.stderr:
+        res = subprocess.run([NODE, '--check', path], capture_output=True, text=True, encoding='utf-8')
+        if res.returncode != 0:
             raise AssertionError(f'SyntaxError found in {path}: {res.stderr.strip()}')
-    print(f'✓ 全部 {len(files)} 个前端 JS 脚本通过 JavaScriptCore 真实引擎语法编译！')
+    print(f'✓ 全部 {len(files)} 个前端 JS 脚本通过 Node.js 语法检查！')
 
     # 2. 模拟前端 DOM 环境与完整 GameApp 初始化
     test_runner_js = """
@@ -81,13 +87,12 @@ def test_syntax_and_init():
     };
     """
     
-    cmd = [
-        jsc,
+    cmd = ENGINE + [
         '-e', test_runner_js,
         '-m', 'js/main.js',
-        '-e', 'print("✓ 浏览器环境 GameApp 成功启动并渲染完成！");'
+        '-e', 'print("✓ 模拟 DOM 环境 GameApp 初始化完成！");'
     ]
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8')
     if res.returncode != 0:
         raise AssertionError(f'GameApp init failed: {res.stderr}\n{res.stdout}')
     print(res.stdout.strip())
@@ -117,7 +122,7 @@ def test_zero_emojis():
     print('✓ 全局代码库与样式 100% 零 Unicode Emoji！')
 
 def test_new_features_runtime():
-    jsc = '/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc'
+    jsc = NODE
     feature_test_js = """
     globalThis.console = { log: print, error: print, warn: print, info: print };
     globalThis.window = globalThis;
@@ -277,7 +282,7 @@ def test_new_features_runtime():
       gameState.claimQuestReward('quest_20');
       print('  ✓ 主线20(终章巅峰传奇·紫金神兽终极觉醒)圆满交卷领受战神守护圣剑！');
 
-      print('✓ 新阶段核心功能与主线任务链端到端验证全部通过！');
+      print('✓ 生产 JS 方法与手动任务触发验证全部通过！');
     }).catch(err => {
       print('ERROR: ' + err);
       throw err;
@@ -287,7 +292,7 @@ def test_new_features_runtime():
     with open(tmp_file, 'w', encoding='utf-8') as f:
         f.write(feature_test_js)
     try:
-        res = subprocess.run([jsc, '-m', tmp_file], capture_output=True, text=True)
+        res = subprocess.run(ENGINE + ['-m', tmp_file], capture_output=True, text=True, encoding='utf-8')
         if res.returncode != 0 or 'ERROR' in res.stdout or 'Error' in res.stderr:
             print("Output:\n", res.stdout)
             print("Stderr:\n", res.stderr)
@@ -298,7 +303,7 @@ def test_new_features_runtime():
             os.remove(tmp_file)
 
 def test_class_advancement_and_sets_and_pets():
-    jsc = '/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc'
+    jsc = NODE
     test_js = """
     globalThis.console = { log: print, error: print, warn: print, info: print };
     globalThis.window = globalThis;
@@ -354,7 +359,7 @@ def test_class_advancement_and_sets_and_pets():
           throw new Error(`战士阶段 ${stage} 转职称号不符合预期: 得到 ${actual}, 预期 ${expectedTitle}`);
         }
       });
-      print('  ✓ 战士 0~7 阶西方魔幻转职称号链完全契合原著《魔塔世界》设定！');
+      print('  ✓ 战士 0~7 阶西方魔幻转职称号链符合当前七阶配置！');
 
       const mageStages = [
         '见习法师',
@@ -372,7 +377,7 @@ def test_class_advancement_and_sets_and_pets():
           throw new Error(`法师阶段 ${stage} 转职称号不符合预期: 得到 ${actual}, 预期 ${expectedTitle}`);
         }
       });
-      print('  ✓ 法师 0~7 阶西方魔幻转职称号链完全契合原著《魔塔世界》设定！');
+      print('  ✓ 法师 0~7 阶西方魔幻转职称号链符合当前七阶配置！');
 
       const hunterStages = [
         '见习猎人',
@@ -390,11 +395,11 @@ def test_class_advancement_and_sets_and_pets():
           throw new Error(`猎人阶段 ${stage} 转职称号不符合预期: 得到 ${actual}, 预期 ${expectedTitle}`);
         }
       });
-      print('  ✓ 猎人 0~7 阶西方魔幻转职称号链完全契合原著《魔塔世界》设定！');
+      print('  ✓ 猎人 0~7 阶西方魔幻转职称号链符合当前七阶配置！');
 
       // 2. 测试职业只选一次且永不弹窗切换、旧档迁移与刷新不弹出
-      if (gameState.createDefaultData().hasChosenClass !== true) {
-        throw new Error('createDefaultData 必须默认锁定 hasChosenClass: true');
+      if (gameState.createDefaultData().hasChosenClass !== false) {
+        throw new Error('新角色必须等待创角确认后锁定职业');
       }
 
       // 测试模拟旧存档（缺失 hasChosenClass 字段）在 loadOrInit 后自动固化为 true
@@ -489,7 +494,7 @@ def test_class_advancement_and_sets_and_pets():
     with open(tmp_file, 'w', encoding='utf-8') as f:
         f.write(test_js)
     try:
-        res = subprocess.run([jsc, '-m', tmp_file], capture_output=True, text=True)
+        res = subprocess.run(ENGINE + ['-m', tmp_file], capture_output=True, text=True, encoding='utf-8')
         if res.returncode != 0 or 'ERROR' in res.stdout or 'Error' in res.stderr:
             print("Output:\n", res.stdout)
             print("Stderr:\n", res.stderr)
@@ -504,5 +509,5 @@ if __name__ == '__main__':
     test_zero_emojis()
     test_new_features_runtime()
     test_class_advancement_and_sets_and_pets()
-    print('🎉 真实前端编译、Emoji扫描与新阶段核心功能端到端测试 100% 通过！')
+    print('🎉 生产 JS 执行、模拟 DOM 与配置检查 100% 通过！')
 

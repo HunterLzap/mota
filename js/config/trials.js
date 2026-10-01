@@ -160,7 +160,7 @@ export const ROYAL_TRIALS = [
     bossName: '绝地炼狱破坏神',
     bossStats: { hp: 320000, atk: 2300, def: 1350 },
     statsBonus: { atk: 800, def: 600, maxHp: 10000, dmgBonus: 20, counter: 15 },
-    rewardDesc: '获得传世【绝地】封号，攻击+800，防御+600，生命+10000，免伤与伤害加成大幅提升',
+    rewardDesc: '获得传世【绝地】封号，攻击+800，防御+600，生命+10000，主动攻击伤害+20%，反击+15%',
     classPromotions: {
       warrior: {
         title: '绝地战士',

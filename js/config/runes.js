@@ -30,7 +30,7 @@ export const RUNES = {
     quality: "gold",
     icon: "images/items/star_crystal.svg",
     stats: { agi: 15, dodge: 4 },
-    desc: "凝结万年玄霜的轻盈符文石，铭刻可增加 15 点敏捷身法与 4% 闪避几率。"
+    desc: "凝结极地寒霜的轻盈符文石，铭刻可增加 15 点敏捷身法与 4% 闪避几率。"
   },
   rune_lo: {
     id: "rune_lo",
@@ -89,7 +89,7 @@ export const RUNIC_WORDS = [
     id: "oath",
     name: "【符文之语】誓约 (Oath)",
     runes: ["rune_sol", "rune_cham"],
-    validSlots: ["weapon", "chest"],
+    validSlots: ["weapon", "armor"],
     minSockets: 2,
     bonus: { atk: 50, armorPierce: 18 },
     desc: "以炽炎与泰坦神力铸成坚不可摧的古老誓约。攻击力提升 50 点，无视目标 18% 护甲抗性。"
@@ -98,7 +98,7 @@ export const RUNIC_WORDS = [
     id: "redemption",
     name: "【符文之语】救赎 (Redemption)",
     runes: ["rune_lo", "rune_el"],
-    validSlots: ["shield", "chest", "ring"],
+    validSlots: ["gloves", "armor", "ring"],
     minSockets: 2,
     bonus: { hp: 800, healChance: 25, healAmount: 300 },
     desc: "圣光与奥术交融的恩泽庇护。生命值暴涨 800 点，受击时有 25% 几率自愈 300 点生命。"
@@ -116,7 +116,7 @@ export const RUNIC_WORDS = [
     id: "lionheart",
     name: "【符文之语】狮心守护 (Lionheart)",
     runes: ["rune_cham", "rune_lo"],
-    validSlots: ["chest", "shield", "helmet"],
+    validSlots: ["armor", "gloves", "helmet"],
     minSockets: 2,
     bonus: { def: 80, dmgReduce: 12 },
     desc: "泰坦金汤与圣光壁垒铸造。防御力暴增 80 点，常驻最终伤害减免 12%。"
@@ -125,7 +125,7 @@ export const RUNIC_WORDS = [
     id: "aurora",
     name: "【符文之语】极光之语 (Aurora)",
     runes: ["rune_dol", "rune_el"],
-    validSlots: ["weapon", "chest"],
+    validSlots: ["weapon", "armor"],
     minSockets: 2,
     bonus: { atk: 65, dodge: 10 },
     desc: "霜魄寒霜与远古奥术交织的光辉。魔法伤害增加 65 点，闪避率提升 10%。"
@@ -143,7 +143,7 @@ export const RUNIC_WORDS = [
     id: "divine_wrath",
     name: "【符文之语】天罚审判 (Divine Wrath)",
     runes: ["rune_ber", "rune_jah", "rune_sol"],
-    validSlots: ["weapon", "shield"],
+    validSlots: ["weapon", "gloves"],
     minSockets: 3,
     bonus: { atk: 80, allStats: 30, smiteChance: 20 },
     desc: "远古诸神的终极天谴神罚。全四维潜能 +30，攻击时有 20% 概率降下神圣天罚造成巨额伤害。"

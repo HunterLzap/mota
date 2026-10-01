@@ -69,6 +69,7 @@ export const MERCENARIES = [
     icon: 'merc_bard',
     avatar: 'merc_bard',
     hireCostGold: 6000,
+    rewardBonus: { goldMultiplier: 1.4, crystalBonus: 1 },
     desc: '周游列国的传奇乐手，他的琴音能点燃战士的潜能。',
     aura: '疾风战歌',
     auraDesc: '全队先手速度提升 25 点；野外探索与魔塔征伐获得的金币提升 40%，魔晶掉落 +1！'

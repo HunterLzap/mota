@@ -88,7 +88,7 @@ export const PRESTIGE_SHOP_ITEMS = [
     quality: 'purple',
     costPrestige: 150,
     desc: '装备强化升星时使用，升星失败时确保绝不掉星。',
-    itemData: { id: 'crystal_protect', name: '保护水晶', type: 'material', quality: 'purple', icon: 'images/items/crystal_protect.svg', desc: '强化保护' }
+    itemData: { id: 'protect_crystal', name: '保护水晶', type: 'material', quality: 'purple', icon: 'images/items/crystal_protect.svg', desc: '强化失败时消耗1颗保护水晶，成功时不消耗' }
   },
   {
     id: 'gem_atk',
@@ -143,5 +143,15 @@ export const PRESTIGE_SHOP_ITEMS = [
     costPrestige: 300,
     desc: '神兽研习后获得【高级连击】，普攻时有 35% 几率触发双连击！',
     itemData: { id: 'book_multihit', name: '远古魔导书·【高级连击】', bookId: 'book_multihit', count: 1, type: 'skill_book', quality: 'purplegold', icon: 'images/items/skill_book.svg', desc: '双连击神技' }
+  },
+  {
+    id: 'book_poison', name: '远古魔导书·【腐蚀毒刺】', icon: 'images/items/skill_book.svg', quality: 'darkgold', costPrestige: 300,
+    desc: '命中后施加15%毒伤，持续2回合；可与梦魇的感染或翼蛇女的持久组合。',
+    itemData: { id: 'book_poison', name: '远古魔导书·【腐蚀毒刺】', bookId: 'book_poison', count: 1, type: 'skill_book', quality: 'darkgold', icon: 'images/items/skill_book.svg', desc: '命中后施加毒伤，重击刷新不叠加' }
+  },
+  {
+    id: 'book_purify', name: '远古魔导书·【神圣净化】', icon: 'images/items/skill_book.svg', quality: 'darkgold', costPrestige: 300,
+    desc: '免疫首领造成的剧毒、虚弱、减速与控制；须由体力不少于60的出战神兽携带。',
+    itemData: { id: 'book_purify', name: '远古魔导书·【神圣净化】', bookId: 'book_purify', count: 1, type: 'skill_book', quality: 'darkgold', icon: 'images/items/skill_book.svg', desc: '用于反制首领毒伤与控制；仍占用一个魔典槽' }
   }
 ];

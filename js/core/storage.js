@@ -187,17 +187,66 @@ export const storage = {
     URL.revokeObjectURL(url);
   },
 
+  parseBackupText(text) {
+    const parsed = JSON.parse(text);
+    const data = parsed?.saveData || parsed?.data;
+    if (!data || typeof data !== 'object' || Array.isArray(data) ||
+      !['warrior', 'hunter', 'mage'].includes(data.classId) ||
+      !Number.isInteger(data.level) || data.level < 1 || data.level > 100 ||
+      (data.bag !== undefined && !Array.isArray(data.bag)) ||
+      (data.pets !== undefined && !Array.isArray(data.pets)) ||
+      (data.equipped !== undefined && (!data.equipped || typeof data.equipped !== 'object' || Array.isArray(data.equipped)))) {
+      throw new Error('无效的《魔塔世界》存档数据：请检查职业、等级与物品格式');
+    }
+    for (const key of ['gold', 'crystal', 'prestige', 'exp']) {
+      if (data[key] !== undefined && (!Number.isFinite(data[key]) || data[key] < 0)) {
+        throw new Error('无效的存档资源数值');
+      }
+    }
+    const validRecord = value => value && typeof value === 'object' && !Array.isArray(value);
+    if (data.factionWar !== undefined && (!validRecord(data.factionWar) ||
+      (data.factionWar.totalMerit !== undefined && (!Number.isSafeInteger(data.factionWar.totalMerit) || data.factionWar.totalMerit < 0)))) {
+      throw new Error('无效的累计战功');
+    }
+    if (data.dungeon !== undefined && (!validRecord(data.dungeon) ||
+      (data.dungeon.expeditionId !== undefined && data.dungeon.expeditionId !== null && (typeof data.dungeon.expeditionId !== 'string' || !data.dungeon.expeditionId)))) {
+      throw new Error('无效的地下城探索身份');
+    }
+    if (data.bagCapacity !== undefined && (!Number.isInteger(data.bagCapacity) || data.bagCapacity < 40 || data.bagCapacity > 120 || (data.bagCapacity - 40) % 20 !== 0)) {
+      throw new Error('无效的行囊扩容记录');
+    }
+    if (data.castle !== undefined && (!validRecord(data.castle) ||
+      (data.castle.claimedBossRewards !== undefined && (!Array.isArray(data.castle.claimedBossRewards) ||
+        !data.castle.claimedBossRewards.every(floor => [10, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100].includes(floor)))))) {
+      throw new Error('无效的魔塔首通领取记录');
+    }
+    if (data.wildVictories !== undefined && (!Number.isSafeInteger(data.wildVictories) || data.wildVictories < 0)) {
+      throw new Error('无效的野外讨伐计数');
+    }
+    const validNumbers = value => validRecord(value) && Object.values(value).every(n => Number.isFinite(n));
+    const validItem = item => validRecord(item) && typeof item.id === 'string' &&
+      (item.count === undefined || (Number.isInteger(item.count) && item.count > 0)) &&
+      (item.stats === undefined || validNumbers(item.stats));
+    if ((data.bag && !data.bag.every(validItem)) ||
+      (data.pets && !data.pets.every(pet => validRecord(pet) && typeof pet.id === 'string' &&
+        Number.isInteger(pet.level) && pet.level >= 1 && pet.level <= 100 &&
+        validNumbers(pet.apt) && ['str', 'int', 'dex', 'con'].every(key => Number.isFinite(pet.apt[key])) &&
+        (pet.skills === undefined || (Array.isArray(pet.skills) && pet.skills.every(id => typeof id === 'string'))))) ||
+      (data.equipped && !Object.values(data.equipped).every(item => item === null || validItem(item))) ||
+      (data.allocatedStats !== undefined && (!validNumbers(data.allocatedStats) ||
+        !['str', 'int', 'dex', 'con'].every(key => Number.isFinite(data.allocatedStats[key]))))) {
+      throw new Error('无效的存档物品、神兽或潜能数据');
+    }
+    return data;
+  },
+
   // 导入外部 JSON 恢复数据
   importJSON(file, callback) {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const parsed = JSON.parse(event.target.result);
-        if (parsed && (parsed.saveData || parsed.data)) {
-          callback(null, parsed.saveData || parsed.data);
-        } else {
-          callback(new Error('无效的《魔塔世界》存档文件格式'));
-        }
+        const data = this.parseBackupText(event.target.result);
+        callback(null, data);
       } catch (err) {
         callback(err);
       }

@@ -350,3 +350,13 @@ export const CLASSES = {
     ]
   }
 };
+
+// 单机重制规则：套装每级提高技能倍率、被动和光环数值5%，不改变蓝耗与触发概率。
+export function getClassSkills(classId, bonusLevels = 0) {
+  const scale = 1 + Math.max(0, bonusLevels) * 0.05;
+  return (CLASSES[classId] || CLASSES.warrior).skills.map(skill => ({
+    ...skill,
+    ...(skill.category === 'attack' ? { multiplier: (skill.multiplier || 1) * scale } : {}),
+    ...(skill.effect ? { effect: Object.fromEntries(Object.entries(skill.effect).map(([key, value]) => [key, typeof value === 'number' ? value * scale : value])) } : {})
+  }));
+}

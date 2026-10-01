@@ -540,8 +540,7 @@ export class TownView {
 
     const starItem = data.bag.find(i => i.id === 'star_crystal');
     const starCount = starItem ? (starItem.count || 0) : 0;
-    const protItem = data.bag.find(i => i.id === 'protect_crystal');
-    const protCount = protItem ? (protItem.count || 0) : 0;
+    const protCount = data.bag.filter(i => i.id === 'protect_crystal').reduce((sum, item) => sum + (item.count || 0), 0);
 
     return `
       <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
@@ -782,6 +781,7 @@ export class TownView {
   renderSmithySmelt() {
     const data = gameState.data;
     const item = data.equipped[this.selectedEquipSlot];
+    const quote = gameState.getEquipmentDisassemblyQuote(this.selectedEquipSlot);
 
     return `
       <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
@@ -806,7 +806,7 @@ export class TownView {
             <div class="flex items-center justify-between pb-3 border-b border-[#4a3520]">
               <div>
                 <h3 class="text-sm font-black text-amber-300">神兵分解熔炉 · 晶石萃取</h3>
-                <p class="text-[11px] text-slate-400">分解身上不需要的装备，提炼为珍贵的黄金晶石！</p>
+                <p class="text-[11px] text-slate-400">闲置装备提炼黄金晶石，暗金/紫金装备提炼暗金晶石；须先摘除宝石与符文。</p>
               </div>
             </div>
 
@@ -819,7 +819,7 @@ export class TownView {
                 <h4 class="text-base font-black text-amber-200">${item.name}</h4>
                 <div class="text-xs text-slate-400 font-mono">部位: ${SLOT_MAP[item.slot]?.name || item.slot}</div>
                 <div class="p-3 bg-black/60 rounded-xl border border-slate-800 text-xs text-amber-300 font-mono">
-                  分解预计产出：<b class="text-amber-400 text-sm">黄金晶石 x 3</b>
+                  ${quote.success ? `分解预计产出：<b class="text-amber-400 text-sm">${quote.materialName} x ${quote.count}</b>` : quote.msg}
                 </div>
               ` : `
                 <div class="py-8 text-slate-500 text-xs italic">
@@ -1841,16 +1841,16 @@ export class TownView {
 
                   <div class="p-3 rounded-xl bg-black/60 border border-slate-800 text-xs space-y-1.5 font-mono">
                     <div class="text-slate-300 flex justify-between">
-                      <span>生命:</span><b class="text-red-400">${dragon.stats.hp.toLocaleString()}</b>
+                      <span>生命:</span><b class="text-red-400">${dragon.hp.toLocaleString()}</b>
                     </div>
                     <div class="text-slate-300 flex justify-between">
-                      <span>攻击:</span><b class="text-amber-400">${dragon.stats.atk.toLocaleString()}</b>
+                      <span>攻击:</span><b class="text-amber-400">${dragon.atk.toLocaleString()}</b>
                     </div>
                     <div class="text-slate-300 flex justify-between">
-                      <span>防御:</span><b class="text-blue-400">${dragon.stats.def.toLocaleString()}</b>
+                      <span>防御:</span><b class="text-blue-400">${dragon.def.toLocaleString()}</b>
                     </div>
                     <div class="pt-1 border-t border-slate-800 text-[11px] text-purple-300">
-                      爆落：${dragon.dropDesc}
+                      爆落：${dragon.rewardDesc}
                     </div>
                   </div>
                 </div>
@@ -2552,15 +2552,14 @@ export class TownView {
     const btnDis = document.getElementById('btn-disassemble-gear');
     if (btnDis) {
       btnDis.addEventListener('click', () => {
-        const item = gameState.data.equipped[this.selectedEquipSlot];
-        if (!item) return;
+        const slotKey = this.selectedEquipSlot;
+        const quote = gameState.getEquipmentDisassemblyQuote(slotKey);
+        if (!quote.success) return gameModal.alert(quote.msg, '熔炉分解');
         gameModal.confirm(
-          `确定要分解【${item.name}】吗？分解后装备将彻底消失，返还黄金晶石！`, 
+          `确定要分解【${quote.name}】吗？装备将彻底消失，返还【${quote.materialName}】x${quote.count}。\n${quote.stars ? `强化 +${quote.stars} 星也将消失。\n` : ''}分解无法撤销。`,
           () => {
-            gameState.data.equipped[this.selectedEquipSlot] = null;
-            gameState.data.bag.push({ ...SPECIAL_ITEMS.crystal_gold, count: 3, uid: 'dis_' + Date.now() });
-            gameModal.alert('分解完成！获得黄金晶石 x3！', '熔炉分解成功');
-            gameState.notify();
+            const result = gameState.disassembleEquipment(slotKey, quote.uid);
+            gameModal.alert(result.msg, '熔炉分解结果');
             this.render();
           },
           () => {},
@@ -2584,13 +2583,9 @@ export class TownView {
           enemyStats: { hp: trial.bossStats.hp, atk: trial.bossStats.atk, def: trial.bossStats.def, speed: 18 },
           onFinish: (victory) => {
             if (victory) {
-              gameState.data.royalTrials.completedStage++;
-              gameState.data.royalTrials.currentTitle = trial.title;
-              gameState.data.title = trial.title;
-              const newTitle = gameState.getPromotedClassName();
-              gameState.addExp(trial.level * 200);
-              gameState.gainCurrency(trial.level * 100, 50, 0);
-              gameState.triggerQuestAction('royal_trials', 1);
+              const result = gameState.completeRoyalTrial(curStage);
+              if (!result.success) return;
+              const newTitle = result.title;
 
               gameModal.alert(`转职册封大捷！你成功战胜 ${trial.bossName}，荣获【${trial.title}】之封号，成功转职晋阶为【${newTitle}】！全队威压战力大幅暴涨！`, '转职册封大捷');
               gameState.notify();
@@ -2607,24 +2602,25 @@ export class TownView {
         const dId = btn.getAttribute('data-dragon-id');
         const dragon = DRAGON_TRIALS.find(d => d.id === dId);
         if (!dragon) return;
+        gameState.resetDailyActivities();
         if (gameState.data.level < dragon.minLevel) return gameModal.alert(`等级不足！需达到 Lv.${dragon.minLevel}`, '屠龙圣域等级限制');
         if ((gameState.data.dragon?.trialsLeft ?? 3) <= 0) return gameModal.alert('今日 3 次屠龙讨伐次数已耗尽！', '屠龙次数耗尽');
 
         gameState.data.dragon.trialsLeft--;
         this.onOpenBattle({
           enemyData: { name: `【远古巨龙】${dragon.name}`, icon: dragon.icon },
-          enemyStats: { hp: dragon.stats.hp, atk: dragon.stats.atk, def: dragon.stats.def, speed: 20 },
+          enemyStats: { hp: dragon.hp, atk: dragon.atk, def: dragon.def, speed: 20 },
           onFinish: (victory) => {
             if (victory) {
               gameState.addExp(dragon.minLevel * 250);
               gameState.gainCurrency(5000, 100, 100);
-              gameState.triggerQuestAction('slay_dragon', 1);
-              if (dragon.id === 'dragon_silver') {
+              if (dragon.id === 'slay_red_dragon') gameState.triggerQuestAction('slay_dragon', 1);
+              if (dragon.id === 'slay_silver_dragon') {
                 gameState.triggerQuestAction('slay_silver_dragon', 1);
                 gameState.data.bag.push({ ...SPECIAL_ITEMS.destiny_stone, count: 1, uid: 'dg_s_' + Date.now() });
                 gameModal.alert('屠银龙大捷！斩杀耀光秘银巨龙！成功夺取传世【天命石】x1！', '屠龙大捷');
-              } else if (dragon.id === 'dragon_gold') {
-                gameState.data.bag.push({ ...SPECIAL_ITEMS.crystal_gold, count: 5, uid: 'dg_g_' + Date.now() });
+              } else if (dragon.id === 'slay_golden_dragon') {
+                gameState.data.bag.push({ ...SPECIAL_ITEMS.crystal_purplegold, count: 2, uid: 'dg_g_' + Date.now() });
                 gameModal.alert('斩杀远古灭世金龙！爆出传世紫金晶石 x2！', '屠龙大捷');
               } else {
                 gameState.data.bag.push({ ...SPECIAL_ITEMS.star_crystal, count: 5, uid: 'dg_r_' + Date.now() });
@@ -2811,6 +2807,7 @@ export class TownView {
         const oppId = btn.getAttribute('data-opp-id');
         const opp = ARENA_OPPONENTS.find(o => o.id === oppId);
         if (!opp) return;
+        gameState.resetDailyActivities();
 
         if ((gameState.data.arena?.challengesLeft ?? 5) <= 0) {
           gameModal.alert('今日 5 次角斗挑战已全额耗尽！明日拂晓早朝重置！', '挑战次数耗尽');
@@ -2818,7 +2815,7 @@ export class TownView {
         }
 
         this.onOpenBattle({
-          enemyData: { name: `【天梯对手】${opp.name}`, icon: opp.avatar },
+          enemyData: { name: `【天梯对手】${opp.name}`, icon: opp.avatar, isPvp: true },
           enemyStats: { hp: opp.hp, atk: opp.atk, def: opp.def, speed: opp.speed },
           onFinish: (victory) => {
             if (victory) {
@@ -2945,7 +2942,8 @@ export class TownView {
       btn.addEventListener('click', () => {
         const mId = btn.getAttribute('data-merc-id');
         const merc = MERCENARIES.find(m => m.id === mId);
-        gameState.data.estate.hiredMercId = mId;
+        const hired = gameState.hireMercenary(mId);
+        if (!hired.success) return gameModal.alert(hired.msg, '佣兵誓约');
         sound.playCoin();
         gameState.addSystemLog(`【皇家酒馆】与传奇佣兵【${merc?.name}】立下随行誓约！随行光环【${merc?.aura}】生效！`, 'estate');
         gameModal.alert(`随行誓约达成！传奇战友【${merc?.name}】（${merc?.role}）已列入先锋战阵，为你提供【${merc?.aura}】绝强庇护！`, '佣兵誓约');
@@ -3310,8 +3308,9 @@ export class TownView {
           </div>
           <div class="flex items-center gap-2">
             <div class="text-right font-mono text-xs">
-              <div class="text-slate-400 text-[10px]">当前帝国军勋</div>
+              <div class="text-slate-400 text-[10px]">可兑换军勋</div>
               <div class="text-amber-400 font-bold text-sm">${fw.merit || 0} 点</div>
+              <div class="text-slate-400 text-[10px]">累计战功: ${gameState.getTotalFactionMerit()} · 晋衔不扣战功</div>
             </div>
             <button id="btn-claim-faction-salary" class="mota-btn-gold px-3 py-1.5 rounded-lg text-xs font-bold shadow ${fw.dailyClaimed ? "opacity-40 cursor-not-allowed" : ""}">
               ${fw.dailyClaimed ? "今日军饷已领" : `领受军饷 (${curRank.dailySalary}金)`}

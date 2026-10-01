@@ -26,7 +26,7 @@ export class PetView {
     const selectedOwned = this.selectedPetId ? ownedPets.find(p => p.id === this.selectedPetId) : null;
 
     this.container.innerHTML = `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
+      <div class="w-full h-full min-h-0 overflow-y-auto p-1.5 sm:p-2 flex flex-col select-none">
         <!-- 顶部面包屑导航与子玩法切换 -->
         <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-1.5 flex-shrink-0">
           <div class="flex items-center gap-2 text-xs">
@@ -89,7 +89,7 @@ export class PetView {
         </div>
 
         <!-- 详细面板主体 (自适应全屏无滚条) -->
-        <div id="pet-panel-body" class="flex-1 min-h-0">
+        <div id="pet-panel-body" class="flex-1 min-h-0 overflow-y-auto">
           ${this.renderSubTab(selectedOwned, selectedConf)}
         </div>
       </div>
@@ -484,7 +484,7 @@ export class PetView {
 
         sound.playCoin();
         gameState.triggerQuestAction('wash_pet');
-        gameState.addSystemLog(`【神兽】本命神兽【${pet.name}】潜能重铸大吉！四维天资突破提升！`, 'pet');
+        gameState.addSystemLog(`【神兽】本命神兽【${PET_CONFIGS[pet.id]?.name || '神兽'}】潜能重铸大吉！四维天资突破提升！`, 'pet');
 
         if (gameState.data.currentQuestId === 'quest_4') {
           gameModal.confirm(
@@ -525,20 +525,10 @@ export class PetView {
     const btnHatch = document.getElementById('btn-hatch-egg');
     if (btnHatch) {
       btnHatch.addEventListener('click', () => {
-        const allKeys = Object.keys(PET_CONFIGS);
-        const unowned = allKeys.filter(k => !gameState.data.pets.some(p => p.id === k));
-        const pickKey = unowned.length > 0 ? unowned[Math.floor(Math.random() * unowned.length)] : allKeys[Math.floor(Math.random() * allKeys.length)];
+        const result = gameState.hatchPetEgg();
+        if (!result.success) return gameModal.alert(result.msg, '神兽孵化');
+        const pickKey = result.petId;
         const cfg = PET_CONFIGS[pickKey];
-
-        gameState.data.pets.push({
-          id: pickKey,
-          level: 1,
-          exp: 0,
-          tier: cfg.defaultTier || 'gold',
-          stamina: 100,
-          apt: { ...cfg.defaultApt },
-          skills: []
-        });
 
         sound.playFanfare();
         gameState.addSystemLog(`【神兽】灵光迸发！破壳孵化出全新神兽【${cfg.name}】！`, 'pet');
@@ -555,23 +545,13 @@ export class PetView {
         const bookId = btn.getAttribute('data-book-id');
         const pet = gameState.data.pets.find(p => p.id === this.selectedPetId);
         if (!pet) return;
-        if (!pet.skills) pet.skills = [];
-        if (pet.skills.length >= 4) return gameModal.alert('技能槽已满 4 格！无法打入更多魔导书！', '技能槽已满');
-
-        pet.skills.push(bookId);
-        const bookItem = gameState.data.bag.find(i => (i.id === bookId || i.bookId === bookId));
-        const bookName = bookItem ? bookItem.name : bookId;
-        if (bookItem) {
-          if (bookItem.count > 1) {
-            bookItem.count--;
-          } else {
-            gameState.data.bag = gameState.data.bag.filter(i => i !== bookItem);
-          }
-        }
+        const result = gameState.learnPetSkill(this.selectedPetId, bookId);
+        if (!result.success) return gameModal.alert(result.msg, '神兽研习');
+        const bookName = PET_SKILL_BOOKS[bookId].name;
 
         sound.playFanfare();
         gameState.triggerQuestAction('learn_skill');
-        gameState.addSystemLog(`【神兽】本命神兽【${pet.name}】领悟神技【${bookName}】！`, 'pet');
+        gameState.addSystemLog(`【神兽】本命神兽【${PET_CONFIGS[pet.id]?.name || '神兽'}】领悟神技【${bookName}】！`, 'pet');
 
         if (gameState.data.currentQuestId === 'quest_5') {
           gameModal.confirm(

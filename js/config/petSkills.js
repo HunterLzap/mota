@@ -1,5 +1,11 @@
 // 宠物打书魔典库配置 (2010魔塔经典契约魔导书系统)
 export const PET_SKILL_BOOKS = {
+  book_poison: {
+    id: 'book_poison', name: '远古魔导书·【腐蚀毒刺】', skillId: 'high_poison', skillName: '腐蚀毒刺',
+    icon: 'images/items/skill_book.svg', quality: 'darkgold',
+    desc: '命中后附加实际生命伤害15%的毒伤，持续2回合；再次命中刷新，不叠加。',
+    effect: { poisonRate: 0.15, poisonDuration: 2 }
+  },
   book_counter: {
     id: 'book_counter',
     name: '远古魔导书·【高级反击】',

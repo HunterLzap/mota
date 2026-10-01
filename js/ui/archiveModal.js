@@ -217,7 +217,7 @@ export class ArchiveModal {
             if (err) return gameModal.alert('导入失败：' + err.message);
             const activeId = storage.getActiveSlotId();
             storage.saveToSlot(activeId, loadedData);
-            gameState.data = loadedData;
+            gameState.loadOrInit();
             gameState.notify();
             gameModal.alert(`成功将外部备份导入至【存档位 ${activeId}】！`, '导入成功', () => {
               this.render();
@@ -248,8 +248,7 @@ export class ArchiveModal {
             return gameModal.alert('读取存档失败：槽位数据损坏或不存在！');
           }
           storage.setActiveSlotId(slotId);
-          gameState.data = loadedData;
-          gameState.data.hasChosenClass = true;
+          gameState.loadOrInit();
           gameState.notify();
           gameModal.alert(`成功载入【存档位 ${slotId}】的英雄记录！祝你战无不胜！`, '读档成功', () => {
             this.close();

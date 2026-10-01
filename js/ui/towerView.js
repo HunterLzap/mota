@@ -1,12 +1,11 @@
 // 100% 还原《魔塔世界》百度百科：【古堡探险·钥匙破界】与【地下城七大门】
 import { gameState } from '../core/state.js';
 import { getTowerFloorData, LANDMARK_BOSSES } from '../config/towerLevels.js';
-import { DUNGEON_GATES, getDungeonFloorGuard, generateDungeonDrop } from '../config/dungeons.js';
+import { DUNGEON_GATES, getDungeonFloorGuard } from '../config/dungeons.js';
 import { ART_ASSETS } from '../assets/icons.js';
 import { sound } from '../core/sound.js';
 import { getVectorIcon } from '../assets/vectorIcons.js';
 import { renderGameIcon } from './iconHelper.js';
-import { SPECIAL_ITEMS } from '../config/items.js';
 import { HOLY_RELICS, getRelicsTotalStats } from '../config/relics.js';
 import { gameModal } from './modal.js';
 
@@ -273,7 +272,7 @@ export class TowerView {
             <div class="p-3 rounded-xl bg-black/40 border border-slate-800 text-xs space-y-1">
               <div class="font-semibold text-amber-300 text-xs">关卡珍藏掉落</div>
               <p class="text-[11px] text-slate-300 leading-relaxed">
-                击破守卫注入巨额经验与金币；逢整10层BOSS概率掉落极品暗金/紫金套装散件！
+                经验与金币累计至撤离领取，魔晶即时入账；守关首领首次击破必得珍藏物品，重复讨伐按普通层级结算。
               </p>
             </div>
           </div>
@@ -610,6 +609,7 @@ export class TowerView {
       const btn = document.getElementById(btnId);
       if (btn) {
         btn.addEventListener('click', () => {
+          gameState.resetDailyActivities();
           const keyItem = gameState.data.bag.find(i => i.id === keyId && i.count > 0);
           if (!keyItem) return gameModal.alert(`缺少对应钥匙，无法破界！`, '钥匙不足');
           if (gameState.data.castle.entriesLeft <= 0) return gameModal.alert('今日 3 次古堡探险次数已耗尽！', '探险次数耗尽');
@@ -618,6 +618,7 @@ export class TowerView {
           if (keyItem.count <= 0) gameState.data.bag = gameState.data.bag.filter(i => i !== keyItem);
 
           gameState.data.castle.isExploring = true;
+          gameState.data.castle.finished = false;
           gameState.data.castle.floor = startFloor;
           gameState.data.castle.accumulatedExp = 0;
           gameState.data.castle.accumulatedGold = 0;
@@ -662,38 +663,31 @@ export class TowerView {
     const btnChallengeCastle = document.getElementById('btn-challenge-castle-floor');
     if (btnChallengeCastle) {
       btnChallengeCastle.addEventListener('click', () => {
+        if (gameState.data.castle.finished) return gameModal.alert('本次探险已登顶，请领取累计收益并离开。', '魔塔登顶');
         const floor = gameState.data.castle.floor || 1;
         const floorInfo = getTowerFloorData(floor);
 
         gameState.data.isCastleExplore = true; // 激活每场1次免费复活
 
         this.onStartBattle({
-          enemyData: { name: floorInfo.name, icon: '' },
+          enemyData: { name: floorInfo.name, icon: '', abilities: floorInfo.abilities, rebirth: floorInfo.rebirth },
           enemyStats: {
             hp: floorInfo.hp,
             maxHp: floorInfo.maxHp || floorInfo.hp,
-            mp: floorInfo.mp || 50,
-            maxMp: floorInfo.maxMp || 50,
+            mp: floorInfo.mp ?? 50,
+            maxMp: floorInfo.maxMp ?? 50,
             atk: floorInfo.atk,
             def: floorInfo.def,
-            speed: floorInfo.speed || 15,
-            crit: floorInfo.crit || 5,
-            dodge: floorInfo.dodge || 5
+            speed: floorInfo.speed ?? 15,
+            crit: floorInfo.crit ?? 5,
+            dodge: floorInfo.dodge ?? 5
           },
           onFinish: (victory) => {
             gameState.data.isCastleExplore = false;
             if (victory) {
-              const expReward = floorInfo.expReward || (Math.floor(floorInfo.hp * 0.15) + 120);
-              const goldReward = floorInfo.goldReward || (Math.floor(floorInfo.atk * 1.5) + 80);
-              gameState.data.castle.accumulatedExp += expReward;
-              gameState.data.castle.accumulatedGold += goldReward;
-              gameState.data.castle.maxReachedFloor = Math.max(gameState.data.castle.maxReachedFloor || 1, floor);
-              gameState.data.castle.floor = Math.min(100, floor + 1);
-
-              gameState.triggerQuestAction('clear_tower', 1);
-              if (floor === 1) gameState.triggerQuestAction('clear_tower_1', 1);
-              if (floor === 10) gameState.triggerQuestAction('clear_tower_10', 1);
-              if (floor === 20) gameState.triggerQuestAction('clear_tower_20', 1);
+              const reward = gameState.settleCastleVictory(floor);
+              if (!reward.success) return;
+              if (reward.firstClear) gameState.addSystemLog(`魔塔第 ${floor} 层首通：魔晶 +${reward.crystal}，${reward.item.name}已存入行囊；经验与金币计入探险累计收益。`, 'loot');
               sound.playCoin();
 
               // 检查远古神圣圣遗物觉醒
@@ -714,10 +708,10 @@ export class TowerView {
 
               if (floor === 1 && gameState.data.currentQuestId === 'quest_6') {
                 gameModal.confirm(
-                  `凯歌高奏！成功击溃魔塔第 1 层守卫！\n\n【主线任务达成】初试锋芒 · 踏入魔塔！\n奖赏：经验 +2800，金币 +5000，魔晶 +80，【勇气精钢塔盾】！\n\n是否立即领受犒赏并开启下一阶段主线【领地开拓 · 炼金魔药】？`,
+                  `凯歌高奏！成功击溃魔塔第 1 层守卫！\n\n【主线任务达成】初试锋芒 · 踏入魔塔！\n奖赏：经验 +2800，金币 +5000，魔晶 +80，【勇气精钢护手】！\n\n是否立即领受犒赏并开启下一阶段主线【领地开拓 · 炼金魔药】？`,
                   () => {
                     gameState.claimQuestReward('quest_6');
-                    gameModal.alert('勇气精钢塔盾已存入行囊！已为你开启下一阶段主线【领地开拓 · 炼金魔药】，前往城郊领地庄园调配魔药吧！', '主线推进', () => {
+                    gameModal.alert('勇气精钢护手已存入行囊！已为你开启下一阶段主线【领地开拓 · 炼金魔药】，前往城郊领地庄园调配魔药吧！', '主线推进', () => {
                       if (window.switchMainTab) window.switchMainTab('estate');
                     });
                   },
@@ -780,19 +774,12 @@ export class TowerView {
     const btnEnterDungeon = document.getElementById('btn-enter-dungeon');
     if (btnEnterDungeon) {
       btnEnterDungeon.addEventListener('click', () => {
-        const dung = gameState.data.dungeon;
-        const gate = DUNGEON_GATES.find(g => g.id === this.selectedGateId);
-        if (!gate) return;
-        if (gameState.data.level < gate.minLevel) return gameModal.alert(`等级不足！需达到 Lv.${gate.minLevel}`, '地下城等级限制');
-        if (dung.entriesLeft <= 0) return gameModal.alert('今日 5 次副本挑战次数已耗尽！', '挑战次数耗尽');
-
-        dung.entriesLeft--;
-        dung.activeGateId = gate.id;
-        dung.activeGateFloor = 1;
+        const result = gameState.startDungeonExpedition(this.selectedGateId);
+        if (!result.success) return gameModal.alert(result.msg, '地下城入场');
+        const gate = result.gate;
 
         sound.playSlash();
         gameModal.alert(`远古结界轰然开启！你已踏入【${gate.name}】第 1 层！破除全部 ${gate.totalFloors} 层守卫即可决战关底领主！`, '踏入地下城');
-        gameState.notify();
         this.render();
       });
     }
@@ -802,11 +789,10 @@ export class TowerView {
     if (btnDungeonRetreat) {
       btnDungeonRetreat.addEventListener('click', () => {
         const dung = gameState.data.dungeon;
-        dung.activeGateId = null;
-        dung.activeGateFloor = 1;
-        sound.playShield();
-        gameModal.alert('已安全退出副本结界，当前探索进度已重置。', '撤离副本');
-        gameState.notify();
+        const result = gameState.retreatDungeonExpedition(dung.expeditionId);
+        if (!result.success) return gameModal.alert(result.msg, '地下城撤离');
+        sound.playBlock();
+        gameModal.alert(result.msg, '撤离副本');
         this.render();
       });
     }
@@ -816,10 +802,11 @@ export class TowerView {
     if (btnDungeonFight) {
       btnDungeonFight.addEventListener('click', () => {
         const dung = gameState.data.dungeon;
-        const gate = DUNGEON_GATES.find(g => g.id === dung.activeGateId || g.id === this.selectedGateId);
+        const gate = DUNGEON_GATES.find(g => g.id === dung.activeGateId);
         if (!gate) return;
 
         const floor = dung.activeGateFloor || 1;
+        const expeditionId = dung.expeditionId;
         const guard = getDungeonFloorGuard(gate.id, floor);
 
         // 设置侍从助战
@@ -853,43 +840,27 @@ export class TowerView {
           onFinish: (victory) => {
             gameState.data.assistingSlave = null;
             if (victory) {
-              if (floor < gate.totalFloors) {
+              const result = gameState.settleDungeonVictory(gate.id, floor, expeditionId);
+              if (!result.success) return gameModal.alert(result.msg, '地下城结算');
+              const expGain = result.exp;
+              const goldGain = result.gold;
+              if (!result.final) {
                 // 中间层胜利
-                const expGain = Math.floor(guard.hp * 0.12) + 120;
-                const goldGain = Math.floor(guard.atk * 1.5) + 60;
-                gameState.addExp(expGain);
-                gameState.gainCurrency(goldGain, 0, 0);
-                dung.activeGateFloor = floor + 1;
                 sound.playCoin();
-                gameModal.alert(`大捷！成功肃清【${gate.name}】第 ${floor} 层！\n获得经验 +${expGain}，金币 +${goldGain}！\n结界通道已通往第 ${floor + 1} 层！`, '地下城推进');
+                gameModal.alert(`大捷！成功肃清【${gate.name}】第 ${floor} 层！\n获得经验 +${expGain}，金币 +${goldGain}，魔晶 +${result.crystal}！\n结界通道已通往第 ${floor + 1} 层！`, '地下城推进');
               } else {
                 // 关底领主大圆满！
-                const expGain = Math.floor(guard.hp * 0.25);
-                const goldGain = Math.floor(guard.atk * 4);
-                gameState.addExp(expGain);
-                gameState.gainCurrency(goldGain, 40, 120);
-
-                const dropItem = generateDungeonDrop(gate.id);
-                gameState.data.bag.push(dropItem);
-                gameState.data.bag.push({ ...SPECIAL_ITEMS.crystal_darkgold, count: 2, uid: 'dung_' + Date.now() });
-
-                dung.clearedGates[gate.id] = (dung.clearedGates[gate.id] || 0) + 1;
-                dung.activeGateId = null;
-                dung.activeGateFloor = 1;
-
-                gameState.triggerQuestAction('clear_dungeon', 1);
+                const dropItem = result.drop;
                 sound.playFanfare();
-                gameModal.alert(`【史诗大捷 · 荡平神门】\n你成功荡平了【${gate.name}】全境，斩灭终极领主【${guard.name}】！\n\n缴获传世神装：【${dropItem.name}】(${dropItem.setName})！\n斩获赏赐：经验 +${expGain.toLocaleString()}，金币 +${goldGain.toLocaleString()}，暗金晶石x2，魔晶+40，声望+120！`, '地下城史诗大捷');
+                gameModal.alert(`【史诗大捷 · 荡平神门】\n你成功荡平了【${gate.name}】全境，斩灭终极领主【${guard.name}】！\n\n缴获传世神装：【${dropItem.name}】(${dropItem.setName})！\n斩获赏赐：经验 +${expGain.toLocaleString()}，金币 +${goldGain.toLocaleString()}，暗金晶石x2，魔晶+${result.crystal}，声望+120！`, '地下城史诗大捷');
               }
-              gameState.notify();
               this.render();
             } else {
               // 战败退却
-              dung.activeGateId = null;
-              dung.activeGateFloor = 1;
-              sound.playShield();
+              const result = gameState.retreatDungeonExpedition(expeditionId);
+              if (!result.success) return gameModal.alert(result.msg, '地下城结算');
+              sound.playBlock();
               gameModal.alert(`在与【${guard.name}】的激战中力竭负伤，被结界灵力安全送出。可在休整后重新进入。`, '地下城退却');
-              gameState.notify();
               this.render();
             }
           }

@@ -29,6 +29,7 @@ export const LANDMARK_BOSSES = {
     crit: 16,
     dodge: 12,
     skills: ['剧毒风暴', '龙翼强袭'],
+    abilities: [{ name: '剧毒风暴', interval: 3, mpCost: 20, multiplier: 1.1, damageType: 'magic', statuses: [{ type: 'poison', rate: 0.12, duration: 2 }] }],
     dialogue: '在空中，你的铠甲不过是沉重的铁棺材！',
     firstClearReward: { exp: 3500, gold: 8000, crystal: 120, item: 'courage_armor' }
   },
@@ -61,8 +62,9 @@ export const LANDMARK_BOSSES = {
     crit: 18,
     dodge: 10,
     skills: ['死灵龙息', '白骨牢笼'],
+    abilities: [{ name: '死灵龙息', interval: 4, mpCost: 30, multiplier: 1.1, damageType: 'magic', statuses: [{ type: 'weaken', ratio: 0.2, duration: 3 }, { type: 'slow', ratio: 0.2, duration: 3 }] }],
     dialogue: '生命终将熄灭，唯有骨骸与幽冥永存……臣服吧！',
-    firstClearReward: { exp: 8000, gold: 18000, crystal: 250, item: 'courage_shield' }
+    firstClearReward: { exp: 8000, gold: 18000, crystal: 250, item: 'courage_gloves' }
   },
   35: {
     name: '【守关领主】炼狱狂暴巨魔·古尔丹',
@@ -109,6 +111,7 @@ export const LANDMARK_BOSSES = {
     crit: 25,
     dodge: 15,
     skills: ['万蛇毒窟', '断首重生'],
+    rebirth: { name: '断首重生', hpRatio: 0.25 },
     dialogue: '砍掉一个头，长出两个头！凡人，你拿什么胜我？',
     firstClearReward: { exp: 32000, gold: 70000, crystal: 1000, item: 'destiny_staff' }
   },
@@ -125,6 +128,7 @@ export const LANDMARK_BOSSES = {
     crit: 28,
     dodge: 20,
     skills: ['虚空湮灭', '心智剥夺'],
+    abilities: [{ name: '虚空噬魂', interval: 4, mpCost: 60, multiplier: 1.1, damageType: 'magic', enemyLifesteal: 0.5 }],
     dialogue: '现实只是一场脆弱的梦境，而我，是终结一切的虚无！',
     firstClearReward: { exp: 60000, gold: 120000, crystal: 1800, item: 'destiny_robe' }
   },
@@ -189,8 +193,9 @@ export const LANDMARK_BOSSES = {
     crit: 45,
     dodge: 30,
     skills: ['永恒龙威', '灭世终焉', '时空禁锢'],
+    abilities: [{ name: '时空禁锢', interval: 5, mpCost: 150, multiplier: 1.25, damageType: 'magic', statuses: [{ type: 'stun', duration: 1 }] }],
     dialogue: '一万年了……终于有凡人走到了我的王座之前！拔剑吧，最后的救世主！',
-    firstClearReward: { exp: 800000, gold: 2000000, crystal: 30000, item: 'dragon_slayer_shield' }
+    firstClearReward: { exp: 800000, gold: 2000000, crystal: 30000, item: 'dragon_slayer_gloves' }
   }
 };
 
@@ -226,6 +231,8 @@ export function getTowerFloorData(floor) {
       crit: boss.crit,
       dodge: boss.dodge,
       dialogue: boss.dialogue,
+      abilities: boss.abilities || [],
+      rebirth: boss.rebirth || null,
       expReward: boss.firstClearReward.exp,
       goldReward: boss.firstClearReward.gold,
       crystalReward: boss.firstClearReward.crystal,

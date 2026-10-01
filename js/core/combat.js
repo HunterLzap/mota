@@ -1,13 +1,22 @@
 // 核心文字战报战斗引擎：100% 还原《魔塔世界》百度百科原著
 // 覆盖：22 种神兽正版特性（连击、祝福恒定最大、虚弱、混乱、不屈、致死、复活、偷袭免反击、假死等）
 // 职业原版 9 大技能/光环/被动、古堡探险免费复活一次、侍从助战
-import { CLASSES, NATIONS } from '../config/classes.js';
+import { CLASSES, NATIONS, getClassSkills } from '../config/classes.js';
 import { PET_CONFIGS } from '../config/pets.js';
 import { MERCENARIES } from '../config/estate.js';
 import { getSynergyStrike } from '../config/dungeons.js';
+import { PET_SKILL_BOOKS } from '../config/petSkills.js';
 
 export function runCombat(playerStats, enemyStats, playerData, enemyData) {
+  const cls = CLASSES[playerData.classId] || CLASSES.warrior;
+  const skills = getClassSkills(cls.id, playerStats.skillLevelBonus || 0);
+  const passive = skills.filter(skill => skill.category === 'passive').map(skill => skill.effect || {});
+  const aura = enemyData.isPvp ? [] : skills.filter(skill => skill.category === 'aura').map(skill => skill.effect || {});
+  const sumEffect = (effects, key) => effects.reduce((sum, effect) => sum + (effect[key] || 0), 0);
   const logs = [];
+  const configuredAbilities = enemyData.abilities ?? enemyStats.abilities ?? [];
+  const enemyAbilities = Array.isArray(configuredAbilities) ? configuredAbilities.filter(ability => Number.isInteger(ability.interval) && ability.interval >= 2) : [];
+  const enemyRebirth = enemyData.rebirth ?? enemyStats.rebirth;
   let turn = 1;
   const maxTurns = 35;
 
@@ -16,7 +25,9 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
   const petCfg = activePetObj ? PET_CONFIGS[activePetObj.id] : null;
   const petStamina = activePetObj ? (activePetObj.stamina !== undefined ? activePetObj.stamina : 100) : 100;
   const isPetActive = petCfg && petStamina >= 60;
-  const petLearnedSkills = activePetObj ? (activePetObj.skills || []) : [];
+  const petLearnedSkills = isPetActive ? Object.values(PET_SKILL_BOOKS)
+    .filter(book => (activePetObj.skills || []).some(id => id === book.id || id === book.skillId))
+    .map(book => book.skillId) : [];
 
   // 国家阵营被动
   const nationCfg = playerData.nation ? NATIONS[playerData.nation] : null;
@@ -67,14 +78,15 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     icon: enemyData.icon || 'enemy_default',
     hp: enemyStats.hp,
     maxHp: enemyStats.maxHp || enemyStats.hp || 100,
-    mp: enemyStats.mp || 100,
-    maxMp: enemyStats.maxMp || 100,
+    mp: enemyStats.mp ?? 100,
+    maxMp: enemyStats.maxMp ?? 100,
     atk: enemyStats.atk,
     def: enemyStats.def,
-    speed: enemyStats.speed || 15,
-    crit: enemyStats.crit || 10,
-    dodge: enemyStats.dodge || 5,
-    counter: enemyStats.counter || 0,
+    speed: enemyStats.speed ?? 15,
+    crit: enemyStats.crit ?? 10,
+    dodge: enemyStats.dodge ?? 5,
+    hit: enemyStats.hit ?? 95,
+    counter: enemyStats.counter ?? 0,
     statuses: [],
     hasPhases,
     shield: hasPhases ? phase1Shield : 0,
@@ -84,10 +96,20 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     isEnraged: false,
     phase3Triggered: false
   };
+  e.preparedAbility = null;
 
   // 宠物特性参数快捷提取
   const petTrait = isPetActive ? petCfg.traitName : null;
-  const hasPurify = isPetActive && (petTrait === '清醒' || petTrait === '圣洁' || petLearnedSkills.includes('high_purify'));
+  const traitEffect = isPetActive ? petCfg.traitEffect || {} : {};
+  p.speed *= 1 + (traitEffect.speedBoostPct || 0);
+  p.counter = Math.min(75, p.counter + (traitEffect.counterBoost || 0));
+  p.lifesteal *= 1 + (traitEffect.lifestealBoost || 0);
+  const hasPurify = Boolean(traitEffect.immuneControl || petLearnedSkills.includes('high_purify'));
+  p.atk *= 1 + sumEffect(aura, 'teamAtkBoost');
+  p.hit += sumEffect(aura, 'teamHitBoost');
+  p.speed *= 1 + sumEffect(aura, 'teamSpeedBoost');
+  const mpShieldRate = sumEffect(passive, 'mpShieldRate');
+  const reflectDmg = sumEffect(passive, 'reflectDmg');
 
   // 开场战报
   logs.push({
@@ -182,7 +204,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
   const activeRunicWords = [];
   if (playerData.equipped) {
     Object.values(playerData.equipped).forEach(item => {
-      if (item && item.runicWord) {
+      if (item && item.runicWord && (item.durability === undefined || item.durability > 0)) {
         activeRunicWords.push(item.runicWord);
         logs.push({
           turn: 0,
@@ -224,14 +246,34 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     const secondActor = playerFirst ? 'enemy' : 'player';
 
     executeAction(firstActor);
+    checkEnemyRebirth();
+    checkBossPhases();
     if (p.hp <= 0 || e.hp <= 0) break;
 
     executeAction(secondActor);
+    checkEnemyRebirth();
+    checkBossPhases();
     if (p.hp <= 0 || e.hp <= 0) break;
+
+    const auraHeal = Math.min(p.maxHp - p.hp, Math.floor(p.maxHp * sumEffect(aura, 'teamRegenHp')));
+    const auraMana = Math.min(p.maxMp - p.mp, sumEffect(aura, 'teamRegenMp'));
+    if (auraHeal > 0 || auraMana > 0) {
+      p.hp += auraHeal;
+      p.mp += auraMana;
+      logs.push({ turn, type: 'heal', message: `【职业光环】恢复生命 ${auraHeal}、魔力 ${auraMana}。`, playerHp: p.hp, enemyHp: e.hp });
+    }
+    const regenPercent = Math.max(0, ...(playerData.estate?.activePotions || [])
+      .filter(potion => (potion.remainingFights ?? potion.effect?.fights ?? 0) > 0)
+      .map(potion => potion.effect?.regenPercent || 0));
+    const potionHeal = Math.min(p.maxHp - p.hp, Math.floor(p.maxHp * regenPercent));
+    if (potionHeal > 0) {
+      p.hp += potionHeal;
+      logs.push({ turn, type: 'heal', message: `【圣水祝福】恢复 ${potionHeal} 点生命。`, playerHp: p.hp, enemyHp: e.hp });
+    }
 
     // 回合末神兽再生（银龙【再生】）
     if (isPetActive && petTrait === '再生') {
-      const regenVal = Math.floor(p.maxHp * 0.03);
+      const regenVal = Math.floor(p.maxHp * traitEffect.regenHpPct);
       if (p.hp < p.maxHp) {
         p.hp = Math.min(p.maxHp, p.hp + regenVal);
         logs.push({
@@ -260,7 +302,8 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     // 侍从偶发奇袭支援
     if (assistingSlave && turn % 3 === 0 && e.hp > 0) {
       const slaveDmg = Math.floor(p.atk * 0.45);
-      e.hp = Math.max(0, e.hp - slaveDmg);
+      damageEnemy(slaveDmg);
+      checkBossPhases();
       logs.push({
         turn,
         type: 'damage',
@@ -273,13 +316,40 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     // 回合末持续流血/中毒结算
     resolveTurnEndDot(p, '勇者');
     resolveTurnEndDot(e, e.name);
+    checkEnemyRebirth();
+    const slow = p.statuses.find(status => status.type === 'slow' && status.duration);
+    if (slow && --slow.duration <= 0) {
+      p.speed /= 1 - slow.ratio;
+      p.statuses = p.statuses.filter(status => status !== slow);
+      logs.push({ turn, type: 'status', message: '【减速结束】勇者行动速度恢复。', playerHp: p.hp, enemyHp: e.hp });
+    }
     if (p.hp <= 0 || e.hp <= 0) break;
 
     turn++;
   }
 
+  function checkEnemyRebirth() {
+    if (e.hp > 0 || e.rebirthAttempted || !enemyRebirth || !Number.isFinite(enemyRebirth.hpRatio) || enemyRebirth.hpRatio <= 0 || enemyRebirth.hpRatio > 1) return;
+    e.rebirthAttempted = true;
+    if (traitEffect.antiRevive) {
+      logs.push({ turn, type: 'special', message: `【蛇女·致死】封断重生契约，${e.name} 的【${enemyRebirth.name}】无法复活！`, playerHp: p.hp, enemyHp: e.hp });
+      return;
+    }
+    e.hp = Math.max(1, Math.floor(e.maxHp * enemyRebirth.hpRatio));
+    e.preparedAbility = null;
+    logs.push({ turn, type: 'heal', message: `【首领重生】${e.name} 发动【${enemyRebirth.name}】，恢复 ${e.hp} 点生命！本场仅一次。`, playerHp: p.hp, enemyHp: e.hp });
+  }
+
   function checkDeathPrevention() {
     if (p.hp > 0) return false;
+    if (petLearnedSkills.includes('high_rebirth') && !p.rebirthTriggered) {
+      p.rebirthTriggered = true;
+      if (Math.random() * 100 < PET_SKILL_BOOKS.book_rebirth.effect.rebirthChance) {
+        p.hp = Math.floor(p.maxHp * PET_SKILL_BOOKS.book_rebirth.effect.healPercent);
+        logs.push({ turn, type: 'heal', message: `【高级神佑】复生并恢复 ${p.hp} 点生命！`, playerHp: p.hp, enemyHp: e.hp });
+        return true;
+      }
+    }
 
     // 检查阿瓦隆仙子圣鞘免死
     if (unlockedRelics.includes('relic_avalon') && !p.relicAvalonUsed) {
@@ -298,21 +368,24 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     // 检查凤凰【复活】
     if (isPetActive && petTrait === '复活' && !p.phoenixRevived) {
       p.phoenixRevived = true;
-      p.hp = Math.floor(p.maxHp * 0.25);
-      logs.push({
-        turn,
-        type: 'heal',
-        message: `【凤凰·涅槃】不灭神火冲霄！凤凰烈焰唤醒勇者，满血复活 25% 生命值！`,
-        playerHp: p.hp,
-        enemyHp: e.hp
-      });
-      return true;
+      if (Math.random() * 100 < traitEffect.reviveChance) {
+        p.hp = Math.floor(p.maxHp * traitEffect.reviveHpPct);
+        logs.push({
+          turn,
+          type: 'heal',
+          message: `【凤凰·涅槃】不灭神火冲霄！凤凰烈焰唤醒勇者，恢复 ${Math.round(traitEffect.reviveHpPct * 100)}% 生命值！`,
+          playerHp: p.hp,
+          enemyHp: e.hp
+        });
+        return true;
+      }
     }
 
     // 检查古堡探险单次免死复活机会
     if (playerData.isCastleExplore && !p.castleRevived) {
       p.castleRevived = true;
       p.hp = p.maxHp;
+      p.mp = p.maxMp;
       logs.push({
         turn,
         type: 'heal',
@@ -330,10 +403,24 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     const poison = entity.statuses.find(s => s.type === 'poison');
     if (poison) {
       let dmg = poison.dmg;
+      if (entity === e) dmg = Math.floor(dmg * (1 + (traitEffect.dotBoost || 0)));
       if (entity === p && isPetActive && petTrait === '庇护') {
         dmg = Math.floor(dmg * 0.2); // 庇护降低 80% 持续伤害
       }
+      if (entity === p && playerStats.dmgResist) dmg = Math.floor(dmg * (1 - Math.min(0.5, playerStats.dmgResist / 100)));
+      if (entity === p && mpShieldRate > 0 && p.mp > 0) {
+        const absorbed = Math.min(p.mp, Math.floor(dmg * mpShieldRate));
+        p.mp -= absorbed;
+        dmg -= absorbed;
+        if (absorbed > 0) logs.push({ turn, type: 'special', message: `【寒冰护盾】消耗 ${absorbed} 魔力抵消毒伤。`, playerHp: p.hp, enemyHp: e.hp });
+      }
+      dmg = Math.min(entity.hp, dmg);
       entity.hp = Math.max(0, entity.hp - dmg);
+      if (entity === p && p.hp > 0 && playerStats.magicAbsorb) {
+        const restored = Math.min(p.maxMp - p.mp, Math.floor(dmg * playerStats.magicAbsorb / 100));
+        p.mp += restored;
+        if (restored > 0) logs.push({ turn, type: 'special', message: `【法力吸收】毒伤转化为 ${restored} 点魔力。`, playerHp: p.hp, enemyHp: e.hp });
+      }
       logs.push({
         turn,
         type: 'poison',
@@ -351,10 +438,91 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     }
   }
 
+  function damageEnemy(amount) {
+    const absorbed = Math.min(e.shield, amount);
+    e.shield -= absorbed;
+    const dealt = Math.min(e.hp, Math.max(0, amount - absorbed));
+    e.hp -= dealt;
+    if (absorbed > 0) logs.push({ turn, type: 'special',
+      message: `【神圣护盾】抵御追加攻击 ${absorbed} 点，余盾 ${e.shield}。`,
+      playerHp: p.hp, enemyHp: e.hp });
+    return dealt;
+  }
+
+  function applyEnemyStatus(status) {
+    if (status.duration) status.duration = Math.ceil(status.duration * (traitEffect.debuffDurationBoost || 1));
+    const existing = e.statuses.find(current => current.type === status.type);
+    if (existing) Object.assign(existing, status);
+    else e.statuses.push(status);
+  }
+
+  function applyPlayerStatus(status, damage) {
+    const names = { poison: '剧毒', weaken: '虚弱', slow: '减速', stun: '眩晕', confusion: '混乱', wound: '重创' };
+    const immune = petLearnedSkills.includes('high_purify') ||
+      (traitEffect.immuneControl && ['stun', 'confusion'].includes(status.type)) ||
+      (traitEffect.immuneDebuffs && ['weaken', 'slow', 'wound'].includes(status.type));
+    if (immune) {
+      logs.push({ turn, type: 'status', message: `【神圣庇佑】免疫${names[status.type] || '不良状态'}。`, playerHp: p.hp, enemyHp: e.hp });
+      return;
+    }
+    const applied = { ...status };
+    if (status.type === 'poison') applied.dmg = Math.floor(damage * status.rate);
+    const existing = p.statuses.find(current => current.type === status.type);
+    if (status.type === 'slow' && !existing) p.speed *= 1 - status.ratio;
+    if (existing) Object.assign(existing, applied);
+    else p.statuses.push(applied);
+    logs.push({ turn, type: 'status', message: `【首领法术】勇者陷入${names[status.type] || '不良状态'}，持续${status.duration}回合。`, playerHp: p.hp, enemyHp: e.hp });
+  }
+
+  function interruptEnemySpell() {
+    if (e.preparedAbility) {
+      logs.push({ turn, type: 'status', message: `【施法中断】${e.name} 的【${e.preparedAbility.ability.name}】被控制打断。`, playerHp: p.hp, enemyHp: e.hp });
+      e.preparedAbility = null;
+    }
+  }
+
+  function checkBossPhases() {
+    // 多阶段首领：P2 绝境狂暴 与 P3 冥府死契
+    if (e.hasPhases && e.hp > 0) {
+      if (!e.isEnraged && e.hp <= e.phase2EnrageHp) {
+        e.isEnraged = true;
+        const atkBuff = Math.floor(e.atk * 0.35);
+        e.atk += atkBuff;
+        logs.push({
+          turn,
+          type: 'warning',
+          message: `【绝境嗜血狂暴】${e.name} 生命垂危陷入滔天狂怒！血瞳魔焰燃起，攻击力暴涨 +${atkBuff}（+35%）！`,
+          playerHp: p.hp,
+          enemyHp: e.hp
+        });
+      }
+
+      if (!e.phase3Triggered && e.hp <= Math.floor(e.maxHp * 0.25)) {
+        e.phase3Triggered = true;
+        const healAmt = Math.floor(e.maxHp * 0.15);
+        e.hp = Math.min(e.maxHp, e.hp + healAmt);
+        const minionName = e.phase3Minion || '冥河怨灵随从';
+        logs.push({
+          turn,
+          type: 'special',
+          message: `【冥府死契召唤】${e.name} 召唤出【${minionName}】！当场献祭随从汲取魔魂，生命自愈恢复 +${healAmt} 点！`,
+          playerHp: p.hp,
+          enemyHp: e.hp
+        });
+      }
+    }
+
+  }
+
   function executeAction(actor) {
     const isPlayer = actor === 'player';
     const attacker = isPlayer ? p : e;
     const defender = isPlayer ? e : p;
+    const weakness = attacker.statuses.find(status => status.type === 'weaken');
+    if (weakness) {
+      weakness.duration--;
+      if (weakness.duration <= 0) attacker.statuses = attacker.statuses.filter(status => status !== weakness);
+    }
 
     // 异常判定：眩晕
     const stunIdx = attacker.statuses.findIndex(s => s.type === 'stun');
@@ -369,6 +537,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
         });
         attacker.statuses.splice(stunIdx, 1);
       } else {
+        if (!isPlayer) interruptEnemySpell();
         logs.push({
           turn,
           type: 'status',
@@ -376,7 +545,8 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
           playerHp: p.hp,
           enemyHp: e.hp
         });
-        attacker.statuses.splice(stunIdx, 1);
+        if ((attacker.statuses[stunIdx].duration ?? 1) <= 1) attacker.statuses.splice(stunIdx, 1);
+        else attacker.statuses[stunIdx].duration--;
         return;
       }
     }
@@ -394,6 +564,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
         });
         attacker.statuses.splice(confIdx, 1);
       } else {
+        if (!isPlayer) interruptEnemySpell();
         const selfDmg = Math.floor(attacker.atk * 0.75);
         attacker.hp = Math.max(0, attacker.hp - selfDmg);
         logs.push({
@@ -403,7 +574,8 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
           playerHp: p.hp,
           enemyHp: e.hp
         });
-        attacker.statuses.splice(confIdx, 1);
+        if ((attacker.statuses[confIdx].duration ?? 1) <= 1) attacker.statuses.splice(confIdx, 1);
+        else attacker.statuses[confIdx].duration--;
         if (isPlayer && p.hp <= 0) {
           checkDeathPrevention();
         }
@@ -466,7 +638,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       }
 
       if (strike.stun && defender.hp > 0) {
-        defender.statuses.push({ type: 'stun' });
+        applyEnemyStatus({ type: 'stun', duration: 1 });
       }
 
       if (strike.defReduce && defender.hp > 0) {
@@ -496,13 +668,31 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     let isLifestealSkill = false;
     let isSlowSkill = false;
 
+    if (!isPlayer) {
+      if (e.preparedAbility && turn >= e.preparedAbility.dueTurn) {
+        const ability = e.preparedAbility.ability;
+        e.preparedAbility = null;
+        if (e.mp >= ability.mpCost) {
+          skillUsed = ability;
+          e.mp -= ability.mpCost;
+          dmgMultiplier = ability.multiplier || 1;
+        } else logs.push({ turn, type: 'status', message: `【施法中断】${e.name} 魔力不足，无法释放【${ability.name}】。`, playerHp: p.hp, enemyHp: e.hp });
+      }
+      if (!e.preparedAbility && !skillUsed) {
+        const ability = enemyAbilities.find(ability => turn % ability.interval === ability.interval - 1 && e.mp >= ability.mpCost);
+        if (ability) {
+          e.preparedAbility = { ability, dueTurn: turn + 1 };
+          logs.push({ turn, type: 'warning', message: `【首领蓄势】${e.name} 正在蓄势【${ability.name}】，下次行动将释放！控制可打断，对应神兽庇佑可抵御。`, playerHp: p.hp, enemyHp: e.hp });
+        }
+      }
+    }
+
     if (isPlayer) {
-      const cls = CLASSES[p.classId];
-      const activeSkills = cls.skills.filter(s => s.category === 'attack');
+      const activeSkills = skills.filter(s => s.category === 'attack');
       for (let i = activeSkills.length - 1; i >= 0; i--) {
         const sk = activeSkills[i];
         let cost = sk.mpCost;
-        if (isPetActive && petTrait === '节约') cost = Math.floor(cost * 0.5); // 巨灵【节约】减半蓝耗
+        if (traitEffect.mpCostReduction) cost = Math.floor(cost * (1 - traitEffect.mpCostReduction));
 
         if (p.mp >= cost && Math.random() < 0.65) {
           skillUsed = sk;
@@ -540,20 +730,29 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
 
     // 黑翼天使【不屈】血量越低攻击越高
     let atkBonusPct = 1.0;
-    if (isPlayer && isPetActive && petTrait === '不屈') {
+    if (isPlayer && traitEffect.desperateAtkScale) {
       const lostHpPct = ((p.maxHp - p.hp) / p.maxHp);
-      atkBonusPct += lostHpPct * 0.25;
+      atkBonusPct += lostHpPct * traitEffect.desperateAtkScale;
     }
 
-    const targetDef = defender.def * (isPlayer && activeRunicWords.includes('oath') ? 0.82 : 1.0);
+    if (weakness) atkBonusPct *= 1 - weakness.ratio;
+    const wound = defender.statuses.find(status => status.type === 'wound');
+    if (wound) extraCrit += wound.critBonus;
+    const targetDef = Math.max(0, defender.def - (isPlayer ? playerStats.armorBreak || 0 : 0)) * (isPlayer && activeRunicWords.includes('oath') ? 0.82 : 1.0);
     const rawDmg = Math.max(15, (attacker.atk * atkBonusPct * dmgMultiplier) - Math.floor(targetDef * 0.55));
     let finalDmg = Math.floor(rawDmg * rollRatio);
+    if (wound) finalDmg = Math.floor(finalDmg * (1 + wound.damageBonus));
+    if (isPlayer && playerStats.dmgBonus) finalDmg = Math.floor(finalDmg * (1 + playerStats.dmgBonus / 100));
+    if (isPlayer && ((skillUsed && p.classId === 'mage') || (playerStats.armorBreak || 0) > 0) && playerStats.magicDmg) finalDmg = Math.floor(finalDmg * (1 + playerStats.magicDmg / 100));
+    if (isPlayer && defender.hp <= defender.maxHp * 0.3 && playerStats.finishDmg) finalDmg = Math.floor(finalDmg * (1 + playerStats.finishDmg / 100));
 
     // 暴击判定
-    const totalCrit = attacker.crit + extraCrit;
+    const firstStrikeCrit = isPlayer && turn === 1 && activeRunicWords.includes('hermes') ? 20 : 0;
+    const totalCrit = attacker.crit + extraCrit + firstStrikeCrit - (!isPlayer ? sumEffect(aura, 'teamCritResist') * 100 : 0);
     const isCrit = Math.random() * 100 < totalCrit;
     if (isCrit) {
       let critMult = 1.85;
+      if (isPlayer && petLearnedSkills.includes('high_crit')) critMult = PET_SKILL_BOOKS.book_crit.effect.critDmgMultiplier;
       if (isPlayer && playerStats.critDmg) {
         critMult += (playerStats.critDmg / 100);
       }
@@ -569,10 +768,18 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       const resistRatio = Math.min(0.5, playerStats.dmgResist / 100);
       applyDmg = Math.floor(applyDmg * (1 - resistRatio));
     }
+    if (!isPlayer && skillUsed?.damageType === 'magic') applyDmg = Math.floor(applyDmg * (1 - Math.min(0.6, Math.max(0, (playerStats.magicResist || 0) / 100))));
+
+    if (!isPlayer && mpShieldRate > 0 && p.mp > 0) {
+      const absorbed = Math.min(p.mp, Math.floor(applyDmg * mpShieldRate));
+      p.mp -= absorbed;
+      applyDmg -= absorbed;
+      if (absorbed > 0) logs.push({ turn, type: 'special', message: `【寒冰护盾】消耗 ${absorbed} 魔力抵消等量伤害。`, playerHp: p.hp, enemyHp: e.hp });
+    }
 
     // 小妖精【假死】判定
     if (!isPlayer && defender.hp <= applyDmg && isPetActive && petTrait === '假死' && !p.feignDeathUsed) {
-      if (Math.random() < 0.35) {
+      if (Math.random() * 100 < traitEffect.feignDeathChance) {
         p.feignDeathUsed = true;
         logs.push({
           turn,
@@ -598,7 +805,18 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       }
     }
 
+    applyDmg = Math.min(defender.hp, applyDmg);
     defender.hp = Math.max(0, defender.hp - applyDmg);
+    if (!isPlayer && skillUsed && applyDmg > 0 && p.hp > 0) {
+      for (const status of skillUsed.statuses || []) applyPlayerStatus(status, applyDmg);
+    }
+    if (!isPlayer && applyDmg > 0 && playerStats.magicAbsorb && p.hp > 0) {
+      const restored = Math.min(p.maxMp - p.mp, Math.floor(applyDmg * playerStats.magicAbsorb / 100));
+      if (restored > 0) {
+        p.mp += restored;
+        logs.push({ turn, type: 'special', message: `【法力吸收】受到伤害转化为 ${restored} 点魔力。`, playerHp: p.hp, enemyHp: e.hp });
+      }
+    }
 
     // 生成出招战报
     let actionDesc = skillUsed ? `施展【${skillUsed.name}】` : `挥舞兵刃发动普攻`;
@@ -612,35 +830,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       enemyHp: e.hp
     });
 
-    // 多阶段首领：P2 绝境狂暴 与 P3 冥府死契
-    if (isPlayer && e.hasPhases && defender.hp > 0) {
-      if (!e.isEnraged && defender.hp <= e.phase2EnrageHp) {
-        e.isEnraged = true;
-        const atkBuff = Math.floor(e.atk * 0.35);
-        e.atk += atkBuff;
-        logs.push({
-          turn,
-          type: 'warning',
-          message: `【绝境嗜血狂暴】${e.name} 生命垂危陷入滔天狂怒！血瞳魔焰燃起，攻击力暴涨 +${atkBuff}（+35%）！`,
-          playerHp: p.hp,
-          enemyHp: e.hp
-        });
-      }
-
-      if (!e.phase3Triggered && defender.hp <= Math.floor(e.maxHp * 0.25)) {
-        e.phase3Triggered = true;
-        const healAmt = Math.floor(e.maxHp * 0.15);
-        defender.hp = Math.min(e.maxHp, defender.hp + healAmt);
-        const minionName = e.phase3Minion || '冥河怨灵随从';
-        logs.push({
-          turn,
-          type: 'special',
-          message: `【冥府死契召唤】${e.name} 召唤出【${minionName}】！当场献祭随从汲取魔魂，生命自愈恢复 +${healAmt} 点！`,
-          playerHp: p.hp,
-          enemyHp: e.hp
-        });
-      }
-    }
+    checkBossPhases();
 
     // 符文之语【天罚审判】真实伤害追击
     if (isPlayer && activeRunicWords.includes('divine_wrath') && Math.random() < 0.20 && defender.hp > 0) {
@@ -695,7 +885,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
 
     // 圣遗物【雷神之锤·米约尔尼尔遗片】雷霆眩晕
     if (isPlayer && unlockedRelics.includes('relic_mjolnir') && defender.hp > 0 && Math.random() < 0.25) {
-      defender.statuses.push({ type: 'stun' });
+      applyEnemyStatus({ type: 'stun', duration: 1 });
       logs.push({
         turn,
         type: 'status',
@@ -720,8 +910,8 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     }
 
     // 技能附带效果处理
-    if (isStunSkill && defender.hp > 0 && Math.random() < 0.35) {
-      defender.statuses.push({ type: 'stun' });
+    if ((isStunSkill || (isPlayer && traitEffect.stunBonus)) && defender.hp > 0 && Math.random() * 100 < (skillUsed?.stunChance || 0) + (traitEffect.stunBonus || 0)) {
+      applyEnemyStatus({ type: 'stun', duration: 1 });
       logs.push({
         turn,
         type: 'status',
@@ -731,8 +921,8 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       });
     }
 
-    if (isLifestealSkill && isPlayer) {
-      const healAmt = Math.floor(applyDmg * 0.35);
+    if (isLifestealSkill && isPlayer && applyDmg > 0) {
+      const healAmt = Math.min(p.maxHp - p.hp, Math.floor(applyDmg * skillUsed.lifestealRate * (1 + (traitEffect.lifestealBoost || 0))));
       p.hp = Math.min(p.maxHp, p.hp + healAmt);
       logs.push({
         turn,
@@ -742,12 +932,48 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
         enemyHp: e.hp
       });
     }
+    if (isPlayer && p.lifesteal > 0 && applyDmg > 0) {
+      const healed = Math.min(p.maxHp - p.hp, Math.floor(applyDmg * p.lifesteal / 100));
+      if (healed > 0) {
+        p.hp += healed;
+        logs.push({ turn, type: 'heal', message: `【吸血】恢复 ${healed} 点生命。`, playerHp: p.hp, enemyHp: e.hp });
+      }
+    }
+    if (!isPlayer && skillUsed?.enemyLifesteal > 0 && applyDmg > 0 && e.hp > 0) {
+      const resisted = Math.min(1, Math.max(0, traitEffect.lifestealResist || 0));
+      const healed = Math.min(e.maxHp - e.hp, Math.floor(applyDmg * skillUsed.enemyLifesteal * (1 - resisted)));
+      if (healed > 0) {
+        e.hp += healed;
+        logs.push({ turn, type: 'heal', message: `【首领汲取】${skillUsed.name} 从实际生命伤害汲取 ${healed} 点生命${resisted ? '（庇护削弱）' : ''}。`, playerHp: p.hp, enemyHp: e.hp });
+      }
+    }
+
+    if (isSlowSkill && defender.hp > 0 && !defender.statuses.some(status => status.type === 'slow')) {
+      defender.speed *= 1 - skillUsed.slowRate;
+      defender.statuses.push({ type: 'slow' });
+      logs.push({ turn, type: 'status', message: `【寒冰减速】${defender.name} 速度降低 ${Math.round(skillUsed.slowRate * 100)}%。`, playerHp: p.hp, enemyHp: e.hp });
+    }
+
+    if (!isPlayer && reflectDmg > 0 && applyDmg > 0) {
+      const reflected = Math.floor(applyDmg * reflectDmg);
+      damageEnemy(reflected);
+      logs.push({ turn, type: 'damage', message: `【烈焰护盾】反弹 ${reflected} 点伤害。`, playerHp: p.hp, enemyHp: e.hp });
+    }
 
     // 宠物特性触发 (攻击命中后)
     if (isPlayer && isPetActive) {
+      if (traitEffect.weakenChance && defender.hp > 0 && Math.random() * 100 < traitEffect.weakenChance) {
+        const first = !e.statuses.some(status => status.type === 'weaken');
+        applyEnemyStatus({ type: 'weaken', ratio: traitEffect.weakenRatio, duration: 3 });
+        if (first) logs.push({ turn, type: 'status', message: `【鸟妖·虚弱】目标攻击力降低 ${Math.round(traitEffect.weakenRatio * 100)}%，持续3回合。`, playerHp: p.hp, enemyHp: e.hp });
+      }
+      if (traitEffect.grievDmgBonus && defender.hp > 0 && !e.statuses.some(status => status.type === 'wound')) {
+        applyEnemyStatus({ type: 'wound', damageBonus: traitEffect.grievDmgBonus, critBonus: traitEffect.grievCritBonus });
+        logs.push({ turn, type: 'status', message: '【重创】目标受到伤害与暴击几率提高，不重复叠加。', playerHp: p.hp, enemyHp: e.hp });
+      }
       // 光灵【破魔】
       if (petTrait === '破魔' && e.mp > 0) {
-        const burnMp = Math.min(e.mp, Math.floor(applyDmg * 0.7));
+        const burnMp = Math.min(e.mp, Math.floor(applyDmg * traitEffect.manaBurnRate));
         e.mp -= burnMp;
         logs.push({
           turn,
@@ -759,8 +985,8 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       }
 
       // 魅魔【混乱】
-      if (petTrait === '混乱' && defender.hp > 0 && Math.random() < 0.25) {
-        defender.statuses.push({ type: 'confusion' });
+      if ((traitEffect.confuseChance || traitEffect.confuseBonus) && defender.hp > 0 && Math.random() * 100 < (traitEffect.confuseChance || 0) + (traitEffect.confuseBonus || 0)) {
+        applyEnemyStatus({ type: 'confusion', duration: 1 });
         logs.push({
           turn,
           type: 'status',
@@ -771,21 +997,23 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       }
 
       // 小恶魔【毒刺】
-      if (petTrait === '毒刺' && defender.hp > 0) {
-        defender.statuses.push({ type: 'poison', dmg: Math.floor(applyDmg * 0.15), duration: 2 });
+      const poisonBook = petLearnedSkills.includes('high_poison') ? PET_SKILL_BOOKS.book_poison.effect : {};
+      const poisonRate = Math.max(traitEffect.poisonRate || 0, poisonBook.poisonRate || 0);
+      if (poisonRate && applyDmg > 0 && defender.hp > 0) {
+        applyEnemyStatus({ type: 'poison', dmg: Math.floor(applyDmg * poisonRate), duration: poisonBook.poisonDuration || 2 });
         logs.push({
           turn,
           type: 'status',
-          message: `【小恶魔·毒刺】剧毒刺入血肉，目标每回合将受到流血毒蚀！`,
+          message: `【腐蚀毒刺】剧毒刺入血肉，目标每回合将受到流血毒蚀！`,
           playerHp: p.hp,
           enemyHp: e.hp
         });
       }
 
       // 金龙【连击】
-      if (petTrait === '连击' && defender.hp > 0 && Math.random() < 0.35 && !isDoubleHitSkill) {
-        const secondDmg = Math.max(10, Math.floor(applyDmg * 0.6));
-        defender.hp = Math.max(0, defender.hp - secondDmg);
+      const comboChance = Math.max(traitEffect.doubleStrikeChance || 0, petLearnedSkills.includes('high_multihit') ? PET_SKILL_BOOKS.book_multihit.effect.multiHitChance : 0);
+      if (comboChance && defender.hp > 0 && Math.random() * 100 < comboChance && !isDoubleHitSkill) {
+        const secondDmg = damageEnemy(Math.max(10, Math.floor(finalDmg * (traitEffect.secondStrikeMultiplier || 0.6))));
         logs.push({
           turn,
           type: 'damage',
@@ -796,10 +1024,14 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       }
     }
 
+    if (isPlayer && !skillUsed && defender.hp > 0 && playerStats.doubleStrike && Math.random() * 100 < playerStats.doubleStrike) {
+      const secondDmg = damageEnemy(finalDmg);
+      logs.push({ turn, type: 'damage', message: `【套装连击】普攻追加第二击，造成 ${secondDmg} 点伤害！`, playerHp: p.hp, enemyHp: e.hp });
+    }
+
     // 连击技能额外一段伤害 (如战士疾风连击)
     if (isDoubleHitSkill && defender.hp > 0) {
-      const extraDmg = Math.max(10, Math.floor(applyDmg * 0.95));
-      defender.hp = Math.max(0, defender.hp - extraDmg);
+      const extraDmg = damageEnemy(Math.max(10, Math.floor(finalDmg * 0.95)));
       logs.push({
         turn,
         type: 'damage',
@@ -811,10 +1043,12 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
 
     // 敌方反击判定 (冬狼【偷袭】绝对免反击)
     if (defender.hp > 0) {
-      const isAntiCounter = isPlayer && isPetActive && petTrait === '偷袭';
+      const isAntiCounter = isPlayer && traitEffect.antiCounter;
       if (!isAntiCounter && Math.random() * 100 < defender.counter) {
-        const counterDmg = Math.max(10, Math.floor(defender.atk * 0.65));
-        attacker.hp = Math.max(0, attacker.hp - counterDmg);
+        const counterMultiplier = !isPlayer && petLearnedSkills.includes('high_counter') ? 1 + PET_SKILL_BOOKS.book_counter.effect.counterDmgBonus : 1;
+        const rawCounter = Math.max(10, Math.floor(defender.atk * 0.65 * counterMultiplier));
+        const counterDmg = isPlayer ? rawCounter : damageEnemy(rawCounter);
+        if (isPlayer) attacker.hp = Math.max(0, attacker.hp - counterDmg);
         logs.push({
           turn,
           type: 'counter',

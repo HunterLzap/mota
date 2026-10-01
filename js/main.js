@@ -89,6 +89,7 @@ class GameApp {
     if (this.systemLogView) this.systemLogView.render();
 
     this.pushSystemTicker('【系统】欢迎来到《魔塔世界》！请留意右侧【任务追踪】，跟随主线一步步打造至强神装与神兽！');
+    this.charSelectModal.open();
   }
 
   // 任务一键自动寻路逻辑
@@ -109,7 +110,7 @@ class GameApp {
       } else if (targetAction === 'slay_dragon' || targetAction === 'slay_silver_dragon') {
         this.views.town.currentView = 'dragons';
         this.views.town.render();
-      } else if (targetAction === 'royal_trials') {
+      } else if (targetAction === 'royal_trials' || targetAction === 'complete_royal_trials') {
         this.views.town.currentView = 'palace_trials';
         this.views.town.render();
       } else if (targetAction === 'arena_duel') {
@@ -117,6 +118,9 @@ class GameApp {
         this.views.town.render();
       } else if (targetAction === 'reforge_gear') {
         this.views.town.currentView = 'smithy_reforge';
+        this.views.town.render();
+      } else if (targetAction === 'capture_stronghold') {
+        this.views.town.currentView = 'faction_war';
         this.views.town.render();
       }
     } else if (targetTab === 'wild') {
@@ -127,13 +131,13 @@ class GameApp {
         this.views.wild.render();
       }
     } else if (targetTab === 'pets') {
-      if (targetAction === 'wash_aptitude') {
+      if (targetAction === 'wash_aptitude' || targetAction === 'evolve_purplegold') {
         this.views.pets.currentSubTab = 'wash';
         this.views.pets.render();
       } else if (targetAction === 'learn_skill') {
         this.views.pets.currentSubTab = 'skills';
         this.views.pets.render();
-      } else if (targetAction === 'set_active_pet' || targetAction === 'evolve_purplegold') {
+      } else if (targetAction === 'set_active_pet') {
         this.views.pets.currentSubTab = 'overview';
         this.views.pets.render();
       }
@@ -158,8 +162,13 @@ class GameApp {
         this.views.tower.subTab = 'castle';
         this.views.tower.selectedFloor = 20;
         this.views.tower.render();
-      } else if (targetAction === 'clear_dungeon') {
+      } else if (targetAction === 'clear_tower_70' || targetAction === 'clear_tower_100') {
+        this.views.tower.subTab = 'castle';
+        this.views.tower.render();
+      } else if (targetAction === 'clear_dungeon' || targetAction === 'clear_dragon_gate' || targetAction === 'clear_spacetime_gate') {
         this.views.tower.subTab = 'dungeons';
+        if (targetAction === 'clear_dragon_gate') this.views.tower.selectedGateId = 'dragon_gate';
+        if (targetAction === 'clear_spacetime_gate') this.views.tower.selectedGateId = 'spacetime_gate';
         this.views.tower.render();
       }
     }
@@ -222,6 +231,7 @@ class GameApp {
   }
 
   switchTab(tabName) {
+    gameState.resetDailyActivities();
     this.currentTab = tabName;
     sound.playSlash();
 
@@ -322,6 +332,7 @@ class GameApp {
     if (this.questTracker) this.questTracker.render();
     const curView = this.views[this.currentTab];
     if (curView && curView.render) curView.render();
+    this.charSelectModal.open();
   }
 
   // 新开游戏：重置并开启创角誓约

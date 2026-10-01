@@ -39,6 +39,8 @@ export const SYNERGY_STRIKES = {
  * 根据职业、佣兵和神兽匹配最佳合击奥义
  */
 export function getSynergyStrike(classId = 'warrior', mercId = '', petId = '') {
+  const classStrikes = { warrior: 'divine_verdict', mage: 'crimson_cataclysm', hunter: 'gale_phantom' };
+  if (classStrikes[classId]) return SYNERGY_STRIKES[classStrikes[classId]];
   if (classId === 'warrior' || mercId === 'merc_paladin' || ['golden_dragon', 'white_angel', 'unicorn', 'light_wisp'].includes(petId)) {
     return SYNERGY_STRIKES.divine_verdict;
   }
@@ -275,7 +277,7 @@ export function generateDungeonDrop(gateId) {
   const pool = {
     trial_gate: [
       { id: 'courage_sword', name: '勇气先驱重剑', slot: 'weapon', quality: 'gold', setId: 'courage', setName: '【勇气套装】', stats: { atk: 95, str: 18, crit: 5 }, holes: 2, desc: '试炼之门缴获的远古利刃，铭刻勇气誓约。' },
-      { id: 'courage_shield', name: '勇气精钢塔盾', slot: 'shield', quality: 'gold', setId: 'courage', setName: '【勇气套装】', stats: { def: 75, hp: 350, counter: 6 }, holes: 2, desc: '试炼之门坚固重盾。' }
+      { id: 'courage_gloves', name: '勇气精钢护手', slot: 'gloves', quality: 'gold', setId: 'courage', setName: '【勇气套装】', stats: { def: 75, hp: 350, counter: 6 }, holes: 2, desc: '试炼之门的精钢护手。', icon: 'images/items/eq_gloves.svg' }
     ],
     courage_gate: [
       { id: 'courage_armor', name: '勇气先驱重铠', slot: 'armor', quality: 'gold', setId: 'courage', setName: '【勇气套装】', stats: { def: 110, hp: 600, dmgResist: 4 }, holes: 2, desc: '勇气之门镇守重铠。' },
@@ -287,7 +289,7 @@ export function generateDungeonDrop(gateId) {
     ],
     death_gate: [
       { id: 'judge_armor', name: '审判者神圣法袍', slot: 'armor', quality: 'darkgold', setId: 'judge', setName: '【审判者套装】', stats: { def: 200, hp: 1200, lifesteal: 10 }, holes: 2, desc: '死亡之门冥府死神守卫的圣袍。' },
-      { id: 'sagael_helmet', name: '萨格尔至尊战盔', slot: 'helmet', quality: 'darkgold', setId: 'sagael_set', setName: '【萨格尔套装】', stats: { def: 160, hp: 900, counter: 12 }, holes: 2, desc: '死亡之门远古战盔。' }
+      { id: 'sagael_helmet', name: '萨格尔帝国战盔', slot: 'helmet', quality: 'darkgold', setId: 'sagael_set', setName: '【萨格尔套装】', stats: { def: 160, hp: 900, counter: 12 }, holes: 2, desc: '死亡之门远古战盔。' }
     ],
     storm_gate: [
       { id: 'punisher_cloak', name: '制裁者狂雷披风', slot: 'cloak', quality: 'darkgold', setId: 'punisher', setName: '【制裁者套装】', stats: { def: 180, atk: 110, critDmg: 25 }, holes: 2, desc: '风暴之门雷霆织就的战神披风。' },
@@ -311,7 +313,8 @@ export function generateDungeonDrop(gateId) {
     durability: 100,
     maxDurability: 100,
     gems: [],
-    icon: picked.slot === 'weapon' ? 'images/items/wpn_sword.svg' : picked.slot === 'shield' ? 'images/items/shield.svg' : 'images/items/arm_chest.svg',
+    sockets: picked.holes || 0,
+    icon: picked.icon || (picked.slot === 'weapon' ? 'images/items/wpn_sword.svg' : 'images/items/arm_chest.svg'),
     uid: 'dungeon_drop_' + Date.now() + Math.random().toString(36).substr(2, 5)
   };
 }

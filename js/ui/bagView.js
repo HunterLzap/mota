@@ -18,7 +18,8 @@ export class BagView {
   render() {
     if (!this.container) return;
     const data = gameState.data;
-    const totalSlots = 40;
+    const totalSlots = gameState.getBagCapacity();
+    const expansionQuote = gameState.getBagExpansionQuote();
 
     // 分类过滤
     let filteredList = data.bag.map((item, originalIdx) => ({ item, originalIdx }));
@@ -34,6 +35,7 @@ export class BagView {
 
     // 选中的物品详情
     const selectedEntry = this.selectedItemUid ? data.bag.find(i => (i.uid || i.id) === this.selectedItemUid) : (data.bag[0] || null);
+    const saleQuote = selectedEntry?.slot ? gameState.getEquipmentSaleQuote(selectedEntry.uid || selectedEntry.id) : null;
 
     this.container.innerHTML = `
       <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
@@ -42,6 +44,7 @@ export class BagView {
         <div class="mota-breadcrumb p-2 sm:p-2.5 rounded-xl flex items-center justify-between shadow-lg mb-2 flex-shrink-0">
           <div class="flex items-center gap-2 text-xs">
             <span class="text-amber-200 font-bold text-xs">【背包】</span>
+            <span class="text-slate-400 text-[10px]">${totalSlots}格购买容量；战利品与卸装保留，超额后请出售或扩容</span>
           </div>
           
           <div class="flex items-center gap-4 text-xs">
@@ -55,6 +58,7 @@ export class BagView {
             <div class="px-2.5 py-0.5 rounded-full bg-black/60 border border-amber-600/50 text-[11px] font-mono text-amber-300">
               容量: ${data.bag.length} / ${totalSlots}
             </div>
+            ${expansionQuote.success ? '<button id="btn-bag-expand" class="mota-btn-dark px-2.5 py-1 rounded-lg text-xs text-amber-300">扩容20格</button>' : '<span class="text-[10px] text-slate-400">容量已达上限</span>'}
           </div>
         </div>
 
@@ -178,8 +182,11 @@ export class BagView {
               <!-- 动作按键 -->
               <div class="space-y-2 pt-3 border-t border-[#4a3520]">
                 ${selectedEntry.slot ? `
-                  <button id="btn-bag-equip-item" class="w-full mota-btn-gold py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1.5 border-amber-300">
+                  <button id="btn-bag-equip-item" data-item-uid="${selectedEntry.uid || selectedEntry.id}" class="w-full mota-btn-gold py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1.5 border-amber-300">
                     <span>立即穿戴至身上</span>
+                  </button>
+                  <button id="btn-bag-sell-equipment" data-item-uid="${selectedEntry.uid || selectedEntry.id}" class="w-full mota-btn-dark py-2.5 rounded-xl text-xs font-semibold">
+                    出售闲置装备${saleQuote.success ? ` · ${saleQuote.gold} 金币` : ' · 先检查镶嵌'}
                   </button>
                 ` : selectedEntry.type === 'egg' ? `
                   <button id="btn-bag-use-egg" class="w-full mota-btn-gold py-2.5 rounded-xl text-xs font-bold shadow-md flex items-center justify-center gap-1.5 border-amber-300">
@@ -211,6 +218,16 @@ export class BagView {
   }
 
   bindEvents() {
+    const btnExpand = this.container.querySelector('#btn-bag-expand');
+    if (btnExpand) btnExpand.addEventListener('click', () => {
+      const quote = gameState.getBagExpansionQuote();
+      if (!quote.success) return gameModal.alert(quote.msg, '行囊扩容');
+      gameModal.confirm(`将购买容量从 ${quote.capacity} 格扩至 ${quote.nextCapacity} 格。\n消耗 ${quote.gold} 金币和 ${quote.crystal} 魔晶，物品全部保留。\n最高可扩至120格。`, () => {
+        const result = gameState.expandBag(quote.capacity);
+        gameModal.alert(result.msg, '行囊扩容');
+        this.render();
+      }, () => {}, '行囊扩容确认');
+    });
     // 过滤按钮
     this.container.querySelectorAll('.btn-bag-filter').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -232,13 +249,29 @@ export class BagView {
     const btnEquip = document.getElementById('btn-bag-equip-item');
     if (btnEquip) {
       btnEquip.addEventListener('click', () => {
-        const item = gameState.data.bag.find(i => (i.uid || i.id) === this.selectedItemUid);
+        const item = gameState.data.bag.find(i => (i.uid || i.id) === btnEquip.getAttribute('data-item-uid'));
         if (item && item.slot) {
-          const res = gameState.equipItem(item);
+          const res = gameState.equipItem(item.uid || item.id);
           gameModal.toast(res.msg);
           this.render();
-          if (window.switchMainTab) window.switchMainTab('equip');
+          if (res.success && window.switchMainTab) window.switchMainTab('equip');
         }
+      });
+    }
+
+    // 装备出售
+    const btnSell = document.getElementById('btn-bag-sell-equipment');
+    if (btnSell) {
+      btnSell.addEventListener('click', () => {
+        const uid = btnSell.getAttribute('data-item-uid');
+        const quote = gameState.getEquipmentSaleQuote(uid);
+        if (!quote.success) return gameModal.alert(quote.msg, '装备回收');
+        gameModal.confirm(`出售【${quote.name}】可获得 ${quote.gold} 金币，并释放一格行囊。\n${quote.stars ? `当前强化 +${quote.stars} 星将一并出售。\n` : ''}装备出售后无法取回，请确认。`, () => {
+          const result = gameState.sellEquipment(uid, quote.gold);
+          gameModal.alert(result.msg, '装备回收');
+          this.selectedItemUid = null;
+          this.render();
+        }, () => {}, '出售闲置装备');
       });
     }
 
@@ -249,7 +282,7 @@ export class BagView {
         if (window.switchMainTab) {
           window.switchMainTab('pets');
           if (window.appInstance?.views?.pets) {
-            window.appInstance.views.pets.currentSubTab = 'evolve';
+            window.appInstance.views.pets.currentSubTab = 'overview';
             window.appInstance.views.pets.render();
           }
         }

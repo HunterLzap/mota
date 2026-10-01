@@ -90,7 +90,7 @@ export class QuestTracker {
           <!-- 右侧动作按键 -->
           <div class="flex-shrink-0 w-28 flex flex-col justify-center">
             ${isReadyToClaim ? `
-              <button id="btn-claim-quest-reward" class="w-full mota-btn-gold py-2 rounded-xl text-xs font-black shadow-lg animate-bounce flex items-center justify-center border-amber-300">
+              <button id="btn-claim-quest-reward" class="w-full mota-btn-gold py-2 rounded-xl text-xs font-black shadow-lg flex items-center justify-center border-amber-300">
                 <span>领受犒赏</span>
               </button>
             ` : `
@@ -137,7 +137,7 @@ export class QuestTracker {
 魔晶 +${quest.rewards.crystal}${rewardItems ? `
 专属神装/材料：${rewardItems}` : ''}
 
-已自动为你解锁下一阶段主线征程！`,
+${gameState.data.currentQuestId === 'completed' ? '黑翼龙皇已陨落，王都与边境重获和平。主线使命全部完成，你仍可继续探索魔塔与古门。' : '已自动为你解锁下一阶段主线征程！'}`,
             '主线大捷',
             () => {
               const nextQuest = QUEST_LIST.find(q => q.id === gameState.data.currentQuestId);

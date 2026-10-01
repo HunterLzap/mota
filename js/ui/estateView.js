@@ -331,7 +331,7 @@ export class EstateView {
             <div class="flex items-center justify-between border-b border-slate-700 pb-3">
               <div>
                 <h3 class="font-bold text-sm text-amber-300">封地灵脉天然生长池</h3>
-                <p class="text-xs text-slate-400 mt-0.5">天然草药与奥术魔晶在日光月华中持续孕育</p>
+                <p class="text-xs text-slate-400 mt-0.5">每 30 分钟成熟一批，最多积累 20 批；采收后三种草药各 +5、魔晶 +25 / 批</p>
               </div>
               <button id="btn-harvest-all" class="mota-btn-gold px-4 py-2 rounded-xl text-xs font-bold shadow-lg">
                 一键丰收采撷
@@ -499,10 +499,10 @@ export class EstateView {
                         安抚侍从
                       </button>
                       <button data-slave-id="${s.id}" class="btn-discipline-slave mota-btn-dark py-1.5 rounded border border-red-600 text-red-300 font-bold">
-                        折磨榨取
+                        折磨榨取（每30分钟）
                       </button>
                       <button data-slave-id="${s.id}" class="btn-mine-slave mota-btn-gold py-1.5 rounded font-bold">
-                        役使采矿
+                        役使采矿（每30分钟）
                       </button>
                     </div>
                   </div>
@@ -548,23 +548,8 @@ export class EstateView {
         const rId = btn.getAttribute('data-recipe-id');
         const r = ALCHEMY_RECIPES.find(it => it.id === rId);
         if (!r) return;
-        const herbs = gameState.data.estate.herbs || {};
-        const mats = r.materials || {};
-        const reqDragon = mats.herb_dragonblood || 0;
-        const reqStar = mats.herb_starlight || 0;
-        const reqSpirit = mats.herb_spiritflower || 0;
-        if ((herbs.herb_dragonblood || 0) < reqDragon ||
-            (herbs.herb_starlight || 0) < reqStar ||
-            (herbs.herb_spiritflower || 0) < reqSpirit) {
-          return gameModal.alert('草药材料不足，无法配制该魔药！请前往【温室药园】采撷草药！', '炼金材料不足');
-        }
-
-        herbs.herb_dragonblood = (herbs.herb_dragonblood || 0) - reqDragon;
-        herbs.herb_starlight = (herbs.herb_starlight || 0) - reqStar;
-        herbs.herb_spiritflower = (herbs.herb_spiritflower || 0) - reqSpirit;
-
-        if (!gameState.data.estate.activePotions) gameState.data.estate.activePotions = [];
-        gameState.data.estate.activePotions.push(r);
+        const result = gameState.brewPotion(rId);
+        if (!result.success) return gameModal.alert(result.msg, '炼金材料不足');
 
         sound.playFanfare();
         const questRes = gameState.triggerQuestAction('brew_potion');
@@ -572,7 +557,7 @@ export class EstateView {
 
         if (gameState.data.currentQuestId === 'quest_7' && questRes.completed) {
           gameModal.confirm(
-            `炼金成功！痛饮【${r.name}】，战斗中永久生效其威能！
+            `炼金成功！痛饮【${r.name}】。${r.desc}
 
 【主线任务达成】领地开拓 · 炼金魔药！
 奖赏：经验 +3600，金币 +6000，魔晶 +100，【远古重铸灵药】x5！
@@ -603,15 +588,9 @@ export class EstateView {
     const btnHarvest = this.container.querySelector('#btn-harvest-all');
     if (btnHarvest) {
       btnHarvest.addEventListener('click', () => {
-        const herbs = gameState.data.estate.herbs;
-        herbs.herb_dragonblood = (herbs.herb_dragonblood || 0) + 5;
-        herbs.herb_starlight = (herbs.herb_starlight || 0) + 5;
-        herbs.herb_spiritflower = (herbs.herb_spiritflower || 0) + 5;
-        gameState.data.crystal += 25;
-
-        sound.playCoin();
-        gameModal.alert('丰收大吉！采撷龙血草 +5、星光草 +5、圣灵草 +5、魔晶 +25！已入库领地仓库！', '领地丰收');
-        gameState.notify();
+        const result = gameState.harvestEstate();
+        if (result.success) sound.playCoin();
+        gameModal.alert(result.msg, '领地丰收');
         this.render();
       });
     }
@@ -621,7 +600,8 @@ export class EstateView {
       btn.addEventListener('click', () => {
         const mId = btn.getAttribute('data-merc-id');
         const merc = MERCENARIES.find(m => m.id === mId);
-        gameState.data.estate.hiredMercId = mId;
+        const hired = gameState.hireMercenary(mId);
+        if (!hired.success) return gameModal.alert(hired.msg, '佣兵誓约');
         sound.playCoin();
         const questRes = gameState.triggerQuestAction('hire_merc');
         gameState.addSystemLog(`【庄园】与传奇随从【${merc?.name}】立下誓约！随行光环【${merc?.aura}】生效！`, 'estate');

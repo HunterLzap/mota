@@ -17,6 +17,7 @@ export class BattleView {
   }
 
   start(combatParams) {
+    if (this.currentCombat || !gameState.data.hasChosenClass) return;
     const playerStats = gameState.getEffectiveStats();
     const playerData = gameState.data;
     const enemyData = combatParams.enemyData || combatParams.enemy || { name: '魔塔守卫', icon: '' };
@@ -25,6 +26,7 @@ export class BattleView {
 
     this.onFinishCallback = combatParams.onFinish || combatParams.onWin || null;
     this.currentCombat = runCombat(playerStats, enemyStats, playerData, enemyData);
+    this.enemyName = enemyData.name;
     this.currentTurnIdx = 0;
 
     this.renderModal(playerData, enemyData, playerStats, enemyStats);
@@ -108,7 +110,7 @@ export class BattleView {
           </div>
 
           <div id="battle-finish-actions" class="hidden">
-            <button id="btn-confirm-battle" class="mota-btn-gold px-6 py-1.5 rounded-lg text-xs font-bold shadow-lg animate-bounce">
+            <button id="btn-confirm-battle" class="mota-btn-gold px-6 py-1.5 rounded-lg text-xs font-bold shadow-lg">
               确认并结算奖励
             </button>
           </div>
@@ -123,12 +125,12 @@ export class BattleView {
   playNextStep() {
     if (!this.currentCombat) return;
 
-    if (this.currentTurnIdx >= this.currentCombat.turns.length) {
+    if (this.currentTurnIdx >= this.currentCombat.logs.length) {
       this.onCombatEnded();
       return;
     }
 
-    const step = this.currentCombat.turns[this.currentTurnIdx];
+    const step = this.currentCombat.logs[this.currentTurnIdx];
     this.renderStep(step);
     this.currentTurnIdx++;
 
@@ -161,7 +163,7 @@ export class BattleView {
     if (pBar) pBar.style.width = `${playerHpPercent}%`;
     if (pNum) pNum.innerText = step.playerHp;
 
-    const enemyMaxHp = this.currentCombat.turns[0].enemyHp || 1000;
+    const enemyMaxHp = this.currentCombat.logs[0].enemyHp || 1000;
     const enemyHpPercent = Math.max(0, Math.min(100, (step.enemyHp / enemyMaxHp) * 100));
     const eBar = document.getElementById('b-enemy-hp-bar');
     const eNum = document.getElementById('b-enemy-hp-num');
@@ -206,8 +208,8 @@ export class BattleView {
     if (!stream || !this.currentCombat) return;
 
     // 瞬间跑完全部剩余回合
-    while (this.currentTurnIdx < this.currentCombat.turns.length) {
-      const step = this.currentCombat.turns[this.currentTurnIdx];
+    while (this.currentTurnIdx < this.currentCombat.logs.length) {
+      const step = this.currentCombat.logs[this.currentTurnIdx];
       this.renderStep(step);
       this.currentTurnIdx++;
     }
@@ -218,7 +220,7 @@ export class BattleView {
   onCombatEnded() {
     if (this.stepTimer) clearTimeout(this.stepTimer);
 
-    const isWin = this.currentCombat.isWin;
+    const isWin = this.currentCombat.victory;
     if (isWin) {
       sound.playFanfare();
     } else {
@@ -230,7 +232,7 @@ export class BattleView {
     if (actionDiv && btn) {
       actionDiv.classList.remove('hidden');
       btn.innerText = isWin ? '战斗大胜！领取奖励' : '战败……返回备战';
-      btn.className = isWin ? 'mota-btn-gold px-6 py-1.5 rounded-lg text-xs font-bold animate-bounce' : 'mota-btn-dark px-6 py-1.5 rounded-lg text-xs font-bold text-red-400';
+      btn.className = isWin ? 'mota-btn-gold px-6 py-1.5 rounded-lg text-xs font-bold' : 'mota-btn-dark px-6 py-1.5 rounded-lg text-xs font-bold text-red-400';
     }
   }
 
@@ -262,16 +264,21 @@ export class BattleView {
     }
     if (btnConfirm) {
       btnConfirm.addEventListener('click', () => {
-        const isWin = this.currentCombat ? this.currentCombat.isWin : false;
-        const enemyName = this.currentCombat?.enemy?.name || '未知强敌';
+        if (!this.currentCombat || this.currentTurnIdx < this.currentCombat.logs.length) return;
+        const isWin = this.currentCombat.victory;
+        const enemyName = this.enemyName || '未知强敌';
+        const onFinish = this.onFinishCallback;
+        this.onFinishCallback = null;
+        this.close();
         if (isWin) {
           gameState.addSystemLog(`【战报】大获全胜！成功击溃「${enemyName}」！`, 'battle');
         } else {
           gameState.addSystemLog(`【战报】勇者惜败...在与「${enemyName}」的对决中受挫，建议强化装备提升属性后再战！`, 'battle');
         }
-        this.close();
-        if (this.onFinishCallback) {
-          this.onFinishCallback(isWin);
+        try {
+          if (onFinish) onFinish(isWin);
+        } finally {
+          gameState.completeBattle();
         }
       });
     }

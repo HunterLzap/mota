@@ -1,7 +1,7 @@
 // 野外大陆冒险与【黑羽蒙面女盗】奇遇 (西方奇幻冒险)
 import { gameState } from '../core/state.js';
 import { MAPS } from '../config/maps.js';
-import { SPECIAL_ITEMS, generateEquipment, ITEM_SLOTS } from '../config/items.js';
+import { SPECIAL_ITEMS } from '../config/items.js';
 import { sound } from '../core/sound.js';
 import { gameModal } from './modal.js';
 import { getVectorIcon } from '../assets/vectorIcons.js';
@@ -11,7 +11,6 @@ export class WildView {
     this.container = document.getElementById(containerId);
     this.onStartBattle = onStartBattle;
     this.selectedMapId = gameState.data.currentMapId || 'forest';
-    this.lastClaimTime = Date.now();
   }
 
   render() {
@@ -27,10 +26,11 @@ export class WildView {
     }
 
     // 计算野外挂机收益
-    const minutesAway = Math.max(1, Math.min(600, Math.floor((Date.now() - this.lastClaimTime) / 60000)));
-    const pendingExp = Math.floor(minutesAway * currentPatrolMap.idleRate.expPerMin);
-    const pendingGold = Math.floor(minutesAway * currentPatrolMap.idleRate.goldPerMin);
-    const pendingCrystal = Math.floor(minutesAway * currentPatrolMap.idleRate.crystalPerMin);
+    const pending = gameState.getIdleRewards();
+    const minutesAway = pending.minutes;
+    const pendingExp = pending.exp;
+    const pendingGold = pending.gold;
+    const pendingCrystal = pending.crystal;
 
     this.container.innerHTML = `
       <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
@@ -295,10 +295,9 @@ export class WildView {
       btnSetPatrol.addEventListener('click', () => {
         const mid = btnSetPatrol.getAttribute('data-map-id');
         if (mid) {
-          gameState.data.currentMapId = mid;
-          sound.playFanfare();
-          gameModal.alert(`巡逻营地已成功转移！当前已在【${MAPS.find(m => m.id === mid)?.name}】设伏巡逻，享受该区域高额挂机收益！`, '营地部署');
-          gameState.notify();
+          const result = gameState.setPatrolMap(mid);
+          if (result.success) sound.playFanfare();
+          gameModal.alert(result.msg, '营地部署');
           this.render();
         }
       });
@@ -308,16 +307,9 @@ export class WildView {
     const btnClaim = document.getElementById('btn-claim-idle');
     if (btnClaim) {
       btnClaim.addEventListener('click', () => {
-        const curMap = MAPS.find(m => m.id === (gameState.data.currentMapId || 'forest')) || MAPS[0];
-        const minutesAway = Math.max(1, Math.min(600, Math.floor((Date.now() - this.lastClaimTime) / 60000)));
-        const gainExp = Math.floor(minutesAway * curMap.idleRate.expPerMin);
-        const gainGold = Math.floor(minutesAway * curMap.idleRate.goldPerMin);
-        const gainCrystal = Math.floor(minutesAway * curMap.idleRate.crystalPerMin);
-
-        gameState.addExp(gainExp);
-        gameState.gainCurrency(gainGold, gainCrystal, 0);
-
-        this.lastClaimTime = Date.now();
+        const result = gameState.claimIdleRewards();
+        if (!result.success) return gameModal.alert(result.msg, '巡逻收益');
+        const { exp: gainExp, gold: gainGold, crystal: gainCrystal } = result;
         sound.playCoin();
         gameModal.alert(`成功收获巡逻战果！
 
@@ -396,34 +388,22 @@ export class WildView {
           onFinish: (victory) => {
             if (victory) {
               sound.playFanfare();
-              gameState.addExp(boss.exp);
-              gameState.gainCurrency(boss.gold, 20, 20);
+              const reward = gameState.settleWildBossVictory(curMap.id);
+              if (!reward.success) return;
+              const gDrop = reward.drop;
+              const bossGear = reward.gear;
 
-              // 必掉战利品
-              const gDrop = boss.guaranteedDrop;
-              const dropItem = SPECIAL_ITEMS[gDrop.id] || { id: gDrop.id, name: gDrop.name };
-              gameState.data.bag.push({ ...dropItem, count: gDrop.count, uid: 'wb_drop_' + Date.now() });
-
-              // 随机爆一件对应等级暗金装备
-              const randomSlot = ITEM_SLOTS[Math.floor(Math.random() * ITEM_SLOTS.length)].id;
-              const bossGear = generateEquipment(randomSlot, boss.level, 'darkgold');
-              gameState.data.bag.push(bossGear);
-
-              gameState.triggerQuestAction('slay_wild_boss', 1);
-
-              if (gameState.data.currentQuestId === 'quest_17') {
+              if (boss.id === 'boss_forest' && gameState.data.currentQuestId === 'quest_17') {
                 gameModal.confirm(
                   `讨伐大胜！诛灭驻地霸主【${boss.name}】！
-缴获：经验 +${boss.exp}，金币 +${boss.gold}，【${gDrop.name}】x${gDrop.count}，暗金神装【${bossGear.name}】！
+缴获：经验 +${reward.exp}，金币 +${reward.gold}，魔晶 +${reward.crystal}，【${gDrop.name}】x${gDrop.count}，装备【${bossGear.name}】！
 
 【主线任务达成】密林梦魇 · 斩杀狼王！
 赏赐：经验 +50000，金币 +100000，魔晶 +600，【保护水晶】x2！
 
 是否立即领受犒赏并开启下一篇章【暗影潜行 · 截获重宝】？`,
                   () => {
-                    gameState.claimQuestReward('quest_17');
-                    gameState.data.maskedThief.appeared = true;
-                    gameState.data.maskedThief.location = curMap.name;
+                    if (!gameState.claimQuestReward('quest_17')) return;
                     gameModal.alert('犒赏已发放！新主线【暗影潜行 · 截获重宝】已开启，黑羽蒙面女盗正在野外现身潜逃，立即截击吧！', '主线推进', () => {
                       this.render();
                     });
@@ -437,8 +417,9 @@ export class WildView {
                   `讨伐大捷！成功诛灭驻地霸主【${boss.name}】！
 
 缴获战利品：
-- 经验 +${boss.exp}
-- 金币 +${boss.gold}
+- 经验 +${reward.exp}
+- 金币 +${reward.gold}
+- 魔晶 +${reward.crystal}
 - 必掉：【${gDrop.name}】x${gDrop.count}
 - 爆装：【${bossGear.name}】(+0星)`,
                   '领主陨落'
@@ -469,42 +450,19 @@ export class WildView {
           enemyStats: { hp, atk, def, speed: 18 },
           onFinish: (victory) => {
             if (victory) {
-              const expGain = Math.floor(hp * 0.28);
-              const goldGain = Math.floor(atk * 2.5);
-              gameState.addExp(expGain);
-              gameState.gainCurrency(goldGain, 2, 5);
-
-              // 几率爆装备与材料
-              let extraDropMsg = '';
-              const roll = Math.random();
-              if (roll < dropRate) {
-                // 掉落装备
-                const randomSlot = ITEM_SLOTS[Math.floor(Math.random() * ITEM_SLOTS.length)].id;
-                const qualityRoll = Math.random();
-                const quality = qualityRoll > 0.85 ? 'gold' : 'blue';
-                const droppedGear = generateEquipment(randomSlot, curMap.reqLevel, quality);
-                gameState.data.bag.push(droppedGear);
-                extraDropMsg = `
-战利品：魔物掉落了【${droppedGear.name}】(+0星) 并已收入行囊！`;
-              } else if (roll < dropRate + 0.15) {
-                // 掉落升星水晶或红木钥匙
-                const isKey = Math.random() > 0.5;
-                if (isKey) {
-                  gameState.data.bag.push({ ...SPECIAL_ITEMS.key_redwood, count: 1, uid: 'mob_k_' + Date.now() });
-                  extraDropMsg = `
-额外战利品：获得【红木钥匙】x1！可在古堡探险中使用！`;
-                } else {
-                  gameState.data.bag.push({ ...SPECIAL_ITEMS.star_crystal, count: 1, uid: 'mob_s_' + Date.now() });
-                  extraDropMsg = `
-额外战利品：获得【升星水晶】x1！可在铁匠铺中升星！`;
-                }
-              }
+              const reward = gameState.settleWildVictory(curMap.id, Number(btn.getAttribute('data-mob-idx')));
+              if (!reward.success) return;
+              const expGain = reward.exp;
+              const goldGain = reward.gold;
+              const extraDropMsg = reward.drops.length
+                ? '\n战利品：' + reward.drops.map(item => `【${item.name}】x${item.count || 1}`).join('、')
+                : '';
 
               sound.playCoin();
               gameModal.alert(`讨伐获胜！成功消灭【${name}】！
 
 获得经验 +${expGain}
-金币 +${goldGain}${extraDropMsg}`, '野外讨伐大捷');
+金币 +${goldGain}，魔晶 +${reward.crystal}${extraDropMsg}`, '野外讨伐大捷');
               gameState.notify();
               this.render();
             }

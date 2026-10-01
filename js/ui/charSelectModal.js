@@ -23,7 +23,7 @@ export class CharSelectModal {
 
   open(force = false) {
     // 每一个存档只需选择一次职业；若已选定且非新建强制重设，严禁弹出
-    if (gameState.data.hasChosenClass && !force) {
+    if (gameState.data.hasChosenClass) {
       return;
     }
     this.selectedClassId = gameState.data.classId || 'warrior';
@@ -35,6 +35,7 @@ export class CharSelectModal {
   }
 
   close() {
+    if (!gameState.data.hasChosenClass) return;
     this.overlay.classList.add('hidden');
     this.overlay.classList.remove('flex');
   }

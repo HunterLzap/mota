@@ -1,4 +1,6 @@
-// 2010魔塔经典新手主线任务引导链
+// 王都使命与重制续章；续章21~26为当前重制剧情，不作为原版考据结论。
+import { SPECIAL_ITEMS } from './items.js';
+import { RUNES } from './runes.js';
 export const QUEST_LIST = [
   {
     id: 'quest_1',
@@ -20,7 +22,7 @@ export const QUEST_LIST = [
   },
   {
     id: 'quest_2',
-    title: '【主线2】工欲善其事 · 装备升星',
+    title: '【主线2】锻造之约 · 装备升星',
     chapter: '序章：破晓之誓',
     targetTab: 'town',
     targetAction: 'enhance',
@@ -105,7 +107,7 @@ export const QUEST_LIST = [
       gold: 5000,
       crystal: 80,
       items: [
-        { id: 'courage_shield', name: '勇气精钢塔盾', slot: 'offhand', level: 25, quality: 'purple', set: 'courage', stats: { def: 95, hp: 450, counter: 8 }, price: 2000 }
+        { id: 'courage_gloves', name: '勇气精钢护手', slot: 'gloves', level: 25, quality: 'purple', set: 'courage', stats: { def: 95, hp: 450, counter: 8 }, price: 2000, icon: 'images/items/eq_gloves.svg' }
       ]
     }
   },
@@ -187,7 +189,7 @@ export const QUEST_LIST = [
     chapter: '第四章：巨龙觉醒',
     targetTab: 'town',
     targetAction: 'slay_dragon',
-    desc: '熔岩深处的赤红恶龙苏醒，正在焚烧边陲村落。前往【远古屠龙圣殿】，拔出利刃讨伐赤焰红龙！',
+    desc: '边陲村落被龙焰吞没，幸存商队在魔塔脚下失去王室秘宝。先前往【远古屠龙圣殿】讨伐赤焰红龙，救出被困的巡林斥候，查明是谁唤醒了巨龙。',
     goalText: '在远古屠龙圣殿击溃1次赤焰红龙',
     requiredCount: 1,
     rewards: {
@@ -205,7 +207,7 @@ export const QUEST_LIST = [
     chapter: '第五章：天梯之巅',
     targetTab: 'town',
     targetAction: 'royal_trials',
-    desc: '唯有战胜幻境梦魇与古代试炼领主，才能获得皇家骑士封号。前往【圣王大殿】幻境试炼长廊，击破领主晋升更高封号！',
+    desc: '斥候带回通往地下城的线索，王宫只允许受封勇者深入调查。前往【圣王大殿】幻境试炼长廊完成一次晋升；若已获得封号，王宫会认可此前的试炼战绩。',
     goalText: '在幻境试炼长廊成功晋升1次封号',
     requiredCount: 1,
     rewards: {
@@ -223,7 +225,7 @@ export const QUEST_LIST = [
     chapter: '第五章：天梯之巅',
     targetTab: 'tower',
     targetAction: 'clear_dungeon',
-    desc: '魔塔地下城埋藏着远古神祇的遗物。进入【地下城七大副本门】，派遣你的佣兵与侍从，攻破任意一座副本门！',
+    desc: '失窃秘宝的运送路线穿过魔塔地下城。攻破【地下城七大副本门】中的任意一门，搜集守卫留下的运输记录。佣兵与侍从能够助战，但不是进入地下城的必要条件。',
     goalText: '攻破无尽魔塔地下城任意副本门1次',
     requiredCount: 1,
     rewards: {
@@ -241,7 +243,7 @@ export const QUEST_LIST = [
     chapter: '第五章：天梯之巅',
     targetTab: 'town',
     targetAction: 'arena_duel',
-    desc: '王国角斗场战鼓雷动！前往圣王大殿的【王国角斗场】，战胜一位天梯榜单中的强力勇士，夺取无上荣耀声望！',
+    desc: '地下城的运输记录带着角斗场徽记，却无人愿意为陌生勇者作证。前往圣王大殿的【王国角斗场】赢下一场天梯对决，取得看守的信任，追查把秘宝带往魔塔高层的人。',
     goalText: '在王国角斗场赢下1场天梯对决',
     requiredCount: 1,
     rewards: {
@@ -259,7 +261,7 @@ export const QUEST_LIST = [
     chapter: '第五章：天梯之巅',
     targetTab: 'tower',
     targetAction: 'clear_tower_20',
-    desc: '魔塔第20层的关底领主【双头毒风飞龙】遮天蔽日！全力以赴直登第20层，将其彻底斩落，威震亚诺古陆！',
+    desc: '角斗场看守指认秘宝被藏入第20层毒风飞龙的巢穴。攻克【无尽魔塔】第20层双头飞龙，搜查巢穴中的王室封蜡与密林地图。已有第20层通关战绩也会获得王宫认可。',
     goalText: '攻克【无尽魔塔】第 20 层双头飞龙',
     requiredCount: 1,
     rewards: {
@@ -277,7 +279,7 @@ export const QUEST_LIST = [
     chapter: '第六章：终焉神话',
     targetTab: 'town',
     targetAction: 'reforge_gear',
-    desc: '工欲善其事，必先利其器！前往皇家铁匠铺【神兵重铸专室】，消耗黄金或暗金晶石，为一件穿戴装备洗炼出一条传奇附魔词条！',
+    desc: '密林地图带着掩盖盗贼踪迹的暗影咒印，王室工匠建议为武器铭刻新的魔力。前往皇家铁匠铺【神兵重铸专室】，消耗黄金或暗金晶石，为任意一件穿戴装备洗炼词条，为追踪行动做好准备。',
     goalText: '在铁匠铺神兵重铸专室洗炼1次装备词条',
     requiredCount: 1,
     rewards: {
@@ -295,7 +297,7 @@ export const QUEST_LIST = [
     chapter: '第六章：终焉神话',
     targetTab: 'wild',
     targetAction: 'slay_wild_boss',
-    desc: '微光森林深处传出狂暴狼嚎，【暗夜狼王·芬里尔】正在袭击巡逻商队。进入野外征战微光森林，直捣狼王巢穴并将其诛杀！',
+    desc: '运输记录指向微光森林。黑羽女盗借【暗夜狼王·芬里尔】袭击商队掩盖行踪；返回森林击败狼王，找到失窃秘宝的王室印记，让她无处藏身。',
     goalText: '在野外征战微光森林斩杀暗夜狼王',
     requiredCount: 1,
     rewards: {
@@ -313,7 +315,7 @@ export const QUEST_LIST = [
     chapter: '第六章：终焉神话',
     targetTab: 'wild',
     targetAction: 'catch_thief',
-    desc: '全境通缉的黑羽蒙面女盗现身据点！追寻她的踪迹，在野外据点发起截击并战胜女盗，夺回被盗的王室秘宝！',
+    desc: '狼王巢穴中的王室印记暴露了黑羽女盗。她已在野外据点现身，截击并战胜她，夺回被盗秘宝与极地圣殿的星图。追踪将持续到你击败她为止。',
     goalText: '在野外据点截击并战胜黑羽蒙面女盗',
     requiredCount: 1,
     rewards: {
@@ -331,7 +333,7 @@ export const QUEST_LIST = [
     chapter: '第六章：终焉神话',
     targetTab: 'town',
     targetAction: 'slay_silver_dragon',
-    desc: '极地暴风雪中的【耀光秘银巨龙】张开了遮天龙翼！前往远古屠龙圣殿向秘银巨龙发起史诗讨伐，夺取终极觉醒神物【天命石】！',
+    desc: '夺回的星图指向极地圣殿。守护【天命石】的耀光秘银巨龙已受深渊侵蚀；前往远古屠龙圣殿击败银龙，取回能唤醒神兽真正力量的圣物。',
     goalText: '在远古屠龙圣殿成功击溃耀光秘银巨龙',
     requiredCount: 1,
     rewards: {
@@ -345,11 +347,11 @@ export const QUEST_LIST = [
   },
   {
     id: 'quest_20',
-    title: '【主线20】紫金圣约 · 泰坦觉醒',
+    title: '【主线20】紫金圣约 · 神兽觉醒',
     chapter: '第六章：终焉神话',
     targetTab: 'pets',
     targetAction: 'evolve_purplegold',
-    desc: '亚诺大陆的史诗传说！使用天命石，将达到 40 级的暗金神兽终极觉醒为【紫金传奇圣兽】，资质上限突破至 6000！',
+    desc: '王室秘宝重归王都，魔塔深处的威胁却仍未消散。使用天命石，让达到40级的暗金神兽觉醒为紫金伙伴；已有紫金神兽同样得到认可。完成这段王都使命后，你与伙伴将继续挑战魔塔高层。',
     goalText: '将任意一只神兽终极觉醒为紫金神兽',
     requiredCount: 1,
     rewards: {
@@ -360,5 +362,47 @@ export const QUEST_LIST = [
         { id: 'wargod_sword', name: '战神守护圣剑', slot: 'weapon', level: 70, quality: 'purplegold', set: 'wargod_set', stats: { atk: 450, str: 80, crit: 15 }, price: 20000, icon: 'images/items/wpn_sword.svg' }
       ]
     }
+  },
+  {
+    id: 'quest_21', title: '【主线21】边境烽火 · 收复要塞', chapter: '第七章：黑翼阴谋',
+    targetTab: 'town', targetAction: 'capture_stronghold', milestone: { type: 'stronghold' },
+    desc: '紫金圣约稳定了王都秘宝，封蜡却显露出黑翼龙皇的徽记。边境军团发现龙裔正借要塞运输祭品。前往三国边境，攻克任一敌方要塞并截获军令；已有收复战绩同样得到认可。',
+    goalText: '攻克任意一座边境要塞', requiredCount: 1,
+    rewards: { exp: 60000, gold: 80000, crystal: 300, items: [{ ...SPECIAL_ITEMS.key_obsidian, count: 1 }] }
+  },
+  {
+    id: 'quest_22', title: '【主线22】黑焰军令 · 巨龙之门', chapter: '第七章：黑翼阴谋',
+    targetTab: 'tower', targetAction: 'clear_dragon_gate', milestone: { type: 'dungeon', gateId: 'dragon_gate' },
+    desc: '截获的军令指向地下城【巨龙之门】。黑焰红龙以边境祭品供养魔塔裂隙。达到70级，肃清十层龙翼守卫，击败末层黑焰红龙，夺取裂隙坐标。历史通关记录可直接交付。',
+    goalText: '达到70级并完整通关巨龙之门十层', requiredCount: 1,
+    rewards: { exp: 80000, gold: 100000, crystal: 400, items: [{ ...SPECIAL_ITEMS.key_titan, count: 1 }] }
+  },
+  {
+    id: 'quest_23', title: '【主线23】堕落圣翼 · 七十层裁决', chapter: '第八章：裂隙远征',
+    targetTab: 'tower', targetAction: 'clear_tower_70', milestone: { type: 'tower', floor: 70 },
+    desc: '裂隙坐标揭露了堕落炽天使的契约。用泰坦钥匙抵达魔塔70层，击败路西尔，切断他对黑翼龙皇的供能。钥匙抵达不等于胜利，必须留下本层首领的实际通关记录。',
+    goalText: '击败无尽魔塔70层堕落炽天使', requiredCount: 1,
+    rewards: { exp: 100000, gold: 120000, crystal: 500, items: [{ id: 'book_purify', bookId: 'book_purify', name: '远古魔导书·【神圣净化】', type: 'skill_book', quality: 'darkgold', count: 1, icon: 'images/items/skill_book.svg', desc: '在神兽研习魔典中学习，体力充足时免疫战斗异常状态。' }] }
+  },
+  {
+    id: 'quest_24', title: '【主线24】远征敕令 · 七阶圣誓', chapter: '第八章：裂隙远征',
+    targetTab: 'town', targetAction: 'complete_royal_trials', milestone: { type: 'promotion', stage: 7 },
+    desc: '路西尔临终警告：龙皇正将整座魔塔化为时空祭坛。完成七阶皇家试炼，取得远征敕令，让自己的职业力量足以守住裂隙。已完成七阶晋升的勇者无需重复试炼。',
+    goalText: '达到80级并完成全部七阶职业晋升', requiredCount: 1,
+    rewards: { exp: 100000, gold: 120000, crystal: 500, items: [{ ...SPECIAL_ITEMS.protect_crystal, count: 3 }] }
+  },
+  {
+    id: 'quest_25', title: '【主线25】时空锚点 · 终门远征', chapter: '第九章：黑翼终战',
+    targetTab: 'tower', targetAction: 'clear_spacetime_gate', milestone: { type: 'dungeon', gateId: 'spacetime_gate' },
+    desc: '远征敕令允许你深入【时空之门】。达到80级，肃清十五层守卫并战胜末层领主，摧毁龙皇在地下城的时空锚点。王室将交付白金钥匙，开启魔塔最终长廊。已有全境通关记录同样有效。',
+    goalText: '完整通关时空之门十五层', requiredCount: 1,
+    rewards: { exp: 120000, gold: 150000, crystal: 600, items: [{ ...SPECIAL_ITEMS.key_platinum, count: 2 }] }
+  },
+  {
+    id: 'quest_26', title: '【主线26】黑翼终战 · 龙皇陨落', chapter: '第九章：黑翼终战',
+    targetTab: 'tower', targetAction: 'clear_tower_100', milestone: { type: 'tower', floor: 100 },
+    desc: '时空锚点已经破碎。沿白金钥匙开启的最终长廊推进至100层，与伙伴共同击败黑翼龙皇·奥斯汀。提防蓄势后的时空禁锢，净化魔典与控制打断可为你争取反击时机。胜利后王都与边境重获和平，古门与魔塔仍可继续探索。',
+    goalText: '击败无尽魔塔100层黑翼龙皇', requiredCount: 1,
+    rewards: { exp: 150000, gold: 200000, crystal: 800, items: [{ ...RUNES.rune_ber, type: 'rune', count: 1 }] }
   }
 ];

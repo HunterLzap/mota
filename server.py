@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import sys
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 class NoCacheHTTPHandler(SimpleHTTPRequestHandler):
     def end_headers(self):
@@ -18,7 +18,7 @@ class NoCacheHTTPHandler(SimpleHTTPRequestHandler):
 def run():
     port = 8088
     server_address = ('', port)
-    httpd = HTTPServer(server_address, NoCacheHTTPHandler)
+    httpd = ThreadingHTTPServer(server_address, NoCacheHTTPHandler)
     print(f"HTTP Server started on http://127.0.0.1:{port} (No-Cache enabled)", flush=True)
     try:
         httpd.serve_forever()
