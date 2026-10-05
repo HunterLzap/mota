@@ -60,6 +60,7 @@ for (const classId of Object.keys(CLASSES)) {
   const bossSamples = [];
   let lastTrialLevel = 0;
   const checkpoints = [];
+  const counterplaySamples = [];
   const score = item => Object.entries(item?.stats || {}).reduce((sum, [key, value]) =>
     sum + value * ({ atk: 3, def: 2, hp: 0.1, maxHp: 0.1, speed: 1, crit: 3, [primary]: 5 }[key] || 0), 0);
   while (state.data.level < 100 && battles < 25000) {
@@ -115,6 +116,29 @@ for (const classId of Object.keys(CLASSES)) {
       if (result.victory) assert.equal(state.completeRoyalTrial(stage).success, true);
       else { losses++; promotionFailures.push({ stage: stage + 1, level: state.data.level }); }
       state.completeBattle();
+    }
+    for (const floor of [50, 60]) {
+      if (state.data.level < floor || counterplaySamples.some(sample => sample.floor === floor)) continue;
+      const tower = getTowerFloorData(floor);
+      const earnedStats = state.getEffectiveStats();
+      const earnedData = JSON.parse(JSON.stringify(state.data));
+      const resumeSeed = seed;
+      const variants = [];
+      for (const enabled of [false, true]) {
+        let wins = 0, totalTurns = 0, rebirths = 0, siphons = 0;
+        const enemy = enabled ? tower : { ...tower, rebirth: null, abilities: [] };
+        for (let sample = 0; sample < 200; sample++) {
+          seed = 406 + sample;
+          const result = runCombat(earnedStats, enemy, { ...earnedData, isCastleExplore: true }, enemy);
+          wins += Number(result.victory); totalTurns += result.logs.at(-1).turn;
+          rebirths += result.logs.filter(log => log.message.includes('首领重生')).length;
+          siphons += result.logs.filter(log => log.message.includes('首领汲取')).length;
+        }
+        variants.push({ enabled, winPct: wins / 2, meanTurns: totalTurns / 200, meanRebirths: rebirths / 200, meanSiphons: siphons / 200 });
+      }
+      seed = resumeSeed;
+      counterplaySamples.push({ floor, characterLevel: state.data.level, promotionStage: state.data.royalTrials.completedStage, pet: state.data.activePetId,
+        scenario: 'Same naturally earned character, 200 paired seeds; sampled fights grant no rewards and use existing castle revival', variants });
     }
     for (const milestone of [20, 40, 60, 80, 100]) {
       if (state.data.level >= milestone && !checkpoints.some(row => row.level === milestone)) {
@@ -182,7 +206,7 @@ for (const classId of Object.keys(CLASSES)) {
   const points = state.data.freeStatPoints;
   assert.equal(state.brewPotion('pot_dragonblood').success, true);
   assert.equal(state.data.freeStatPoints - points, 5);
-  hunts.push({ classId, checkpoints, promotionStage: state.data.royalTrials.completedStage, promotionFailures, bossSamples, economicSamples,
+  hunts.push({ classId, checkpoints, counterplaySamples, promotionStage: state.data.royalTrials.completedStage, promotionFailures, bossSamples, economicSamples,
     resourceRoute, endgameDiagnostics, naturalStats, naturalData, earnedResourceActions: ['reforge', 'enhance', 'ragePotion', 'permanentPotentialPotion'] });
 }
 console.log(JSON.stringify({ passive: {

@@ -1627,7 +1627,7 @@ test('Hydra rebirth happens once after lethal attacks and active naga blocks it 
   assert.equal(normal.logs.filter(log => log.message.includes('首领重生')).length, 1);
   assert.equal(normal.victory, true);
   const blocked = traitCombat('naga', { enemy, stats });
-  assert.equal(blocked.logs.filter(log => log.message.includes('无法复活')).length, 1);
+  assert.equal(blocked.logs.filter(log => log.type === 'special' && log.message.includes('封断重生契约')).length, 1);
   assert.equal(blocked.logs.some(log => log.message.includes('首领重生')), false);
   assert.equal(blocked.victory, true);
   assert.equal(traitCombat('naga', { enemy, stats, stamina: 59 }).logs.filter(log => log.message.includes('首领重生')).length, 1);
@@ -1638,9 +1638,43 @@ test('lethal counterattacks and poison damage share the single enemy rebirth gua
   const counter = traitCombat('unknown', { enemy: { hp: 60, maxHp: 60, speed: 40, rebirth }, stats: { counter: 100, atk: 1000 } });
   assert.ok(counter.logs.some(log => log.type === 'counter'));
   assert.equal(counter.logs.filter(log => log.message.includes('首领重生')).length, 1);
-  const poison = traitCombat('imp', { enemy: { hp: 350, maxHp: 350, speed: 20, rebirth }, stats: { atk: 100 }, roll: 0.9 });
-  assert.ok(poison.logs.some(log => log.type === 'poison'));
+  const probe = traitCombat('imp', { enemy: { speed: 20 }, stats: { atk: 100 }, roll: 0.9 });
+  const direct = Number(probe.logs.find(log => log.message.includes('Hero 挥舞')).message.match(/造成了 (\d+)/)[1]);
+  const poisonHp = direct + Math.floor(direct * 0.15);
+  const poison = traitCombat('imp', { enemy: { hp: poisonHp, maxHp: poisonHp, speed: 20, rebirth }, stats: { atk: 100 }, roll: 0.9 });
+  assert.ok(poison.logs.some(log => log.type === 'poison' && log.enemyHp === 0), JSON.stringify(poison.logs));
   assert.equal(poison.logs.filter(log => log.message.includes('首领重生')).length, 1);
+});
+
+test('enemy siphon excludes mana shield absorption and caps actual health loss and missing enemy health', () => {
+  const ability = { name: 'Siphon', interval: 2, mpCost: 10, multiplier: 1, damageType: 'magic', enemyLifesteal: 0.5 };
+  const shielded = traitCombat('unknown', { classId: 'mage', enemy: { abilities: [ability], mp: 10 }, stats: { mp: 1000, maxMp: 1000 } });
+  const cast = shielded.logs.find(log => log.message.includes('施展【Siphon】'));
+  assert.ok(shielded.logs.some(log => log.message.includes('寒冰护盾')));
+  const bodyDamage = Number(cast.message.match(/造成了 (\d+)/)[1]);
+  const heal = shielded.logs.find(log => log.message.includes('首领汲取'));
+  assert.equal(Number(heal.message.match(/汲取 (\d+)/)[1]), Math.floor(bodyDamage * 0.5));
+  const lethal = traitCombat('unknown', { enemy: { abilities: [{ ...ability, multiplier: 100 }], mp: 10 }, stats: { hp: 150, maxHp: 150 } });
+  const lethalCast = lethal.logs.find(log => log.message.includes('施展【Siphon】'));
+  assert.ok(Number(lethalCast.message.match(/造成了 (\d+)/)[1]) <= 150);
+  const lethalHeal = lethal.logs.find(log => log.message.includes('首领汲取'));
+  assert.equal(Number(lethalHeal.message.match(/汲取 (\d+)/)[1]), Math.floor(Number(lethalCast.message.match(/造成了 (\d+)/)[1]) * 0.5));
+  const full = traitCombat('unknown', { enemy: { dodge: 100, abilities: [ability], mp: 10 }, roll: 0.9 });
+  assert.ok(full.logs.some(log => log.message.includes('施展【Siphon】')));
+  assert.equal(full.logs.some(log => log.message.includes('首领汲取')), false);
+  const almostFull = traitCombat('unknown', { enemy: { atk: 1000, abilities: [ability], mp: 10 }, stats: { atk: 1 } });
+  const beforeHeal = almostFull.logs.find(log => log.message.includes('施展【Siphon】'));
+  const capped = almostFull.logs.find(log => log.message.includes('首领汲取'));
+  assert.equal(Number(capped.message.match(/汲取 (\d+)/)[1]), 100000 - beforeHeal.enemyHp);
+  assert.equal(capped.enemyHp, 100000);
+});
+
+test('enemy rebirth does not recreate the phase shield or repeat enrage and sacrifice', () => {
+  const result = traitCombat('unknown', { stats: { atk: 100000 }, enemy: { hp: 1000, maxHp: 1000, hasPhases: true, phase1Shield: 100, phase2EnrageHp: 500, rebirth: { name: 'Rebirth', hpRatio: 0.25 } } });
+  assert.equal(result.victory, true);
+  for (const name of ['首领重生', '绝境嗜血狂暴', '冥府死契召唤']) assert.equal(result.logs.filter(log => log.message.includes(name)).length, 1);
+  const shieldedHits = result.logs.filter(log => log.message.includes('护盾粉碎吸收'));
+  assert.equal(shieldedHits.length, 1);
 });
 
 test('void siphon warns then heals from actual damage and pegasus halves enemy recovery with fatigue restoring it', () => {
