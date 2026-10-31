@@ -1,11 +1,32 @@
 // 副本系统配置：100% 还原《魔塔世界》百度百科副本七大门与多阶段首领、佣兵神兽合击奥义体系
+import { SPECIAL_ITEMS } from './items.js';
+
+export const DUNGEON_CLEAR_SUPPLIES = {
+  trial_gate: [{ ...SPECIAL_ITEMS.key_redwood, count: 1 }, { ...SPECIAL_ITEMS.star_crystal, count: 3 }],
+  courage_gate: [{ ...SPECIAL_ITEMS.key_bronze, count: 1 }, { ...SPECIAL_ITEMS.pill_reborn, count: 2 }],
+  mirage_gate: [{ ...SPECIAL_ITEMS.pill_reborn, count: 2 }],
+  death_gate: [{ ...SPECIAL_ITEMS.pet_egg, id: 'pet_egg_darkgold', name: '暗金神兽契约蛋', quality: 'darkgold', type: 'egg', count: 1 }],
+  storm_gate: [{ ...SPECIAL_ITEMS.evolution_stone, count: 1 }],
+  dragon_gate: [{ ...SPECIAL_ITEMS.destiny_stone, count: 1 }],
+  spacetime_gate: [{ ...SPECIAL_ITEMS.key_platinum, count: 1 }, { ...SPECIAL_ITEMS.crystal_purplegold, count: 2 }]
+};
+
+export const DUNGEON_FIRST_CLEAR_STORIES = {
+  trial_gate: '斥候艾琳从守卫的货箱中找到王室封蜡。货单上的角斗场徽记证明秘宝曾在王都转运，去赢得看守的信任，追查下一站。留下的钥匙和水晶可支援下一次魔塔探索。',
+  courage_gate: '失踪的护卫最后仍在保护商队。你把他们的勇气徽记交还王都，补给箱中的重铸灵药与钥匙将接续这场远征。',
+  mirage_gate: '幻境中的路标并非自然形成，密林咒印与货单出自同一只手。王室工匠收下印记，建议你调整装备与伙伴资质后再追踪暗影。',
+  death_gate: '你从献祭石台救下尚未孵化的契约蛋。它需要一位守护者，而非新的祭主；先了解伙伴的特性，再决定由谁随行。',
+  storm_gate: '风暴祭坛内的进化石重获光泽。它能让已成长到30级的黄金伙伴进阶暗金，保留共同学会的魔典，重新积累等级。',
+  dragon_gate: '艾琳核对了龙巢军令：边境祭品被送往魔塔70层，堕落炽天使正以契约为黑翼龙皇供能。你夺下裂隙坐标与天命石，下一战必须切断供能。',
+  spacetime_gate: '时空锚点崩解，地下城通往龙皇的长廊显露。艾琳把白金钥匙交给你：让伙伴准备净化魔典，带上恢复体力的兽肉，终止黑翼祭坛。'
+};
 
 export const SYNERGY_STRIKES = {
   divine_verdict: {
     id: 'divine_verdict',
     name: '神圣断罪破晓斩',
     icon: 'relic_spear',
-    desc: '战士圣剑与神圣侍从共鸣，金芒破晓，造成 320% 神圣真伤，驱散全队负面异常并自愈恢复 30% 生命！',
+    desc: '造成攻击力480%的破甲伤害，并回复自身30%最大生命；伤害仍需先击破护盾。',
     mult: 3.2,
     healPct: 0.30
   },
@@ -13,7 +34,7 @@ export const SYNERGY_STRIKES = {
     id: 'crimson_cataclysm',
     name: '红莲烈焰焚城阵',
     icon: 'relic_flame',
-    desc: '法师元素禁咒与重甲铁卫震天咆哮，烈火焚城，造成 380% 烈焰巨创并彻底粉碎首领神圣护盾！',
+    desc: '先粉碎目标当前护盾，再造成攻击力570%的破甲伤害。',
     mult: 3.8,
     shatterShield: true
   },
@@ -21,7 +42,7 @@ export const SYNERGY_STRIKES = {
     id: 'gale_phantom',
     name: '万箭逐风追魂击',
     icon: 'wpn_bow',
-    desc: '游侠疾风箭道与随行诗人琴律合拍，4 段连环风暴穿刺，造成 340% 穿甲暴伤并使首领陷入迟滞 1 回合！',
+    desc: '造成攻击力510%的破甲伤害，令仍存活的目标眩晕1次个人行动。',
     mult: 3.4,
     stun: true
   },
@@ -29,28 +50,26 @@ export const SYNERGY_STRIKES = {
     id: 'alliance_fury',
     name: '远古同盟狂怒合击',
     icon: 'relic_holy',
-    desc: '勇者、契约随从与出战神兽三位一体合力出击，造成 260% 破甲巨创，削减首领 25% 防御力！',
+    desc: '造成攻击力390%的破甲伤害，并削减仍存活目标25%防御，最低保留10点。',
     mult: 2.6,
     defReduce: 0.25
   }
 };
 
-/**
- * 根据职业、佣兵和神兽匹配最佳合击奥义
- */
+// Advanced formations change tactics; common starting partners keep the class
+// strike. Exact pair requirements are single-player adaptations.
+export const SYNERGY_FORMATIONS = [
+  { mercId: 'merc_cleric', petIds: ['white_angel', 'unicorn', 'light_spirit'], strikeId: 'divine_verdict' },
+  { mercId: 'merc_paladin', petIds: ['phoenix', 'faerie_dragon', 'black_angel'], strikeId: 'crimson_cataclysm' },
+  { mercId: 'merc_bard', petIds: ['silver_dragon', 'pegasus', 'thunderbird'], strikeId: 'gale_phantom' },
+  { mercId: 'merc_cleric', petIds: ['djinn'], strikeId: 'alliance_fury' }
+];
+
 export function getSynergyStrike(classId = 'warrior', mercId = '', petId = '') {
+  const formation = SYNERGY_FORMATIONS.find(entry => entry.mercId === mercId && entry.petIds.includes(petId));
+  if (formation) return SYNERGY_STRIKES[formation.strikeId];
   const classStrikes = { warrior: 'divine_verdict', mage: 'crimson_cataclysm', hunter: 'gale_phantom' };
-  if (classStrikes[classId]) return SYNERGY_STRIKES[classStrikes[classId]];
-  if (classId === 'warrior' || mercId === 'merc_paladin' || ['golden_dragon', 'white_angel', 'unicorn', 'light_wisp'].includes(petId)) {
-    return SYNERGY_STRIKES.divine_verdict;
-  }
-  if (classId === 'mage' || mercId === 'merc_guardian' || ['phoenix', 'black_angel', 'succubus', 'imp'].includes(petId)) {
-    return SYNERGY_STRIKES.crimson_cataclysm;
-  }
-  if (classId === 'hunter' || mercId === 'merc_bard' || ['silver_dragon', 'pegasus', 'thunderbird', 'winter_wolf'].includes(petId)) {
-    return SYNERGY_STRIKES.gale_phantom;
-  }
-  return SYNERGY_STRIKES.alliance_fury;
+  return SYNERGY_STRIKES[classStrikes[classId] || 'alliance_fury'];
 }
 
 export const DUNGEON_GATES = [
@@ -61,7 +80,7 @@ export const DUNGEON_GATES = [
     totalFloors: 5,
     icon: 'gate_trial',
     description: '亚诺初阶勇者的实战试炼场，探寻古代初级遗物。',
-    dropsDesc: '各职业 20 级蓝装/黄金装、红木钥匙、升星水晶',
+    dropsDesc: '20级勇气武器或护手、红木钥匙、升星水晶；另获暗金晶石',
     setDrops: ['courage'],
     boss: {
       name: '试炼铁甲统领',
@@ -109,7 +128,7 @@ export const DUNGEON_GATES = [
     totalFloors: 10,
     icon: 'gate_mirage',
     description: '空间扭曲的变幻结界，击败镇守者可缴获审判者套装。',
-    dropsDesc: '【审判者】腿部、披风；【萨格尔】手套',
+    dropsDesc: '审判者护腿或萨格尔护手、重铸灵药；另获暗金晶石',
     setDrops: ['judge', 'sagael_set'],
     boss: {
       name: '幻象织梦魔',
@@ -133,7 +152,7 @@ export const DUNGEON_GATES = [
     totalFloors: 10,
     icon: 'gate_death',
     description: '弥漫幽冥死气的魔窟，出产高阶审判者重甲与萨格尔古冠。',
-    dropsDesc: '【审判者】胸部、腰带、鞋；【萨格尔】头部；暗金宠物蛋',
+    dropsDesc: '审判者护胸或萨格尔头盔、暗金神兽蛋；另获暗金晶石',
     setDrops: ['judge', 'sagael_set'],
     boss: {
       name: '冥府死神侍者',
@@ -157,7 +176,7 @@ export const DUNGEON_GATES = [
     totalFloors: 10,
     icon: 'gate_storm',
     description: '狂暴雷霆怒吼之门，制裁者套装与克斯特密林神兵现世。',
-    dropsDesc: '【制裁者】腿部、披风；【克斯特】手套；进化石',
+    dropsDesc: '制裁者披风或克斯特武器、进化石；另获暗金晶石',
     setDrops: ['punisher', 'kester_set'],
     boss: {
       name: '风暴雷霆巨人',
@@ -181,7 +200,7 @@ export const DUNGEON_GATES = [
     totalFloors: 10,
     icon: 'gate_dragon',
     description: '远古龙裔的栖息巢穴，镇守着制裁者胸甲与克斯特之冠。',
-    dropsDesc: '【制裁者】胸部、腰带、鞋；【克斯特】头部；天命石',
+    dropsDesc: '制裁者护胸或克斯特头盔、天命石；另获暗金晶石',
     setDrops: ['punisher', 'kester_set'],
     boss: {
       name: '灭世黑焰红龙',
@@ -194,6 +213,9 @@ export const DUNGEON_GATES = [
       phase1Shield: 35000,
       phase2EnrageHp: 62500,
       phase3Minion: '黑焰幼龙',
+      mp: 300,
+      abilities: [{ name: '黑焰灼痕', interval: 3, mpCost: 40, multiplier: 1.15, damageType: 'magic',
+        statuses: [{ type: 'wound', damageBonus: 0.2, duration: 2 }] }],
       dialogue: '蝼蚁也妄图踏足龙王之巢穴？黑焰会将你的灵魂化为灰烬！'
     },
     guardTemplate: { name: '龙翼巡界卫', hpBase: 30000, atkBase: 720, defBase: 380, icon: 'monster_hound' }
@@ -205,7 +227,7 @@ export const DUNGEON_GATES = [
     totalFloors: 15,
     icon: 'gate_spacetime',
     description: '触碰魔塔时空中枢的终极神门，爆出至强征服者与亚诺遗物！',
-    dropsDesc: '【征服者】全套防具；【亚丁】头部、手套；白金钥匙、紫金晶石',
+    dropsDesc: '征服者武器或卡尔里斯护胸、白金钥匙、紫金晶石；另获暗金晶石',
     setDrops: ['conqueror', 'aden_set', 'karlis_set'],
     boss: {
       name: '时空掌控者·卡尔里斯虚影',
@@ -218,6 +240,9 @@ export const DUNGEON_GATES = [
       phase1Shield: 80000,
       phase2EnrageHp: 140000,
       phase3Minion: '时空撕裂裂痕幽灵',
+      mp: 300,
+      abilities: [{ name: '时空迟滞', interval: 3, mpCost: 50, multiplier: 1.1, damageType: 'magic',
+        statuses: [{ type: 'slow', ratio: 0.2, duration: 2 }] }],
       dialogue: '时间回溯，空间重构！在宇宙的法则面前，一切抵抗皆为虚妄！'
     },
     guardTemplate: { name: '时空守序者', hpBase: 65000, atkBase: 1100, defBase: 550, icon: 'monster_spider' }
@@ -237,6 +262,8 @@ export function getDungeonFloorGuard(gateId, floor) {
       name: '【' + gate.name + '关底领主】' + gate.boss.name,
       hp: gate.boss.hp,
       maxHp: gate.boss.hp,
+      mp: gate.boss.mp ?? 100,
+      maxMp: gate.boss.mp ?? 100,
       atk: gate.boss.atk,
       def: gate.boss.def,
       speed: gate.boss.speed || 25,
@@ -245,7 +272,8 @@ export function getDungeonFloorGuard(gateId, floor) {
       phase1Shield: gate.boss.phase1Shield,
       phase2EnrageHp: gate.boss.phase2EnrageHp,
       phase3Minion: gate.boss.phase3Minion,
-      dialogue: gate.boss.dialogue
+      dialogue: gate.boss.dialogue,
+      abilities: gate.boss.abilities || []
     };
   }
 

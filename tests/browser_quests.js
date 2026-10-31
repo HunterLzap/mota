@@ -35,6 +35,8 @@ async (page) => {
       const d = window.gameState.data;
       d.level = 80; d.gold = 1000000; d.crystal = 100000; d.prestige = 100000;
       d.currentQuestId = 'quest_11';
+      d.equipped.weapon ??= { id:'fixture_weapon',uid:'fixture_weapon',name:'Fixture weapon',slot:'weapon',quality:'blue',durability:100,maxDurability:100,stars:1,sockets:1,gems:[],stats:{atk:35} };
+      if (!d.pets.length) { d.pets = [{id:'golden_dragon',level:1,exp:0,tier:'gold',stamina:100,apt:{str:1500,int:1000,dex:1200,con:1400},skills:[]}]; d.activePetId='golden_dragon'; }
       d.equipped.weapon.stats = { atk: 100000, hp: 1000000, def: 10000 };
       d.pets[0].tier = 'darkgold'; d.pets[0].level = 40;
       window.gameState.notify();

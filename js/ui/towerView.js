@@ -1,5 +1,8 @@
 // 100% 还原《魔塔世界》百度百科：【古堡探险·钥匙破界】与【地下城七大门】
+import { specializeEquipment } from '../config/items.js';
+import { QUEST_LIST } from '../config/quests.js';
 import { gameState } from '../core/state.js';
+import { markFeatureEntrances } from './featureAccess.js';
 import { getTowerFloorData, LANDMARK_BOSSES } from '../config/towerLevels.js';
 import { DUNGEON_GATES, getDungeonFloorGuard } from '../config/dungeons.js';
 import { ART_ASSETS } from '../assets/icons.js';
@@ -8,6 +11,8 @@ import { getVectorIcon } from '../assets/vectorIcons.js';
 import { renderGameIcon } from './iconHelper.js';
 import { HOLY_RELICS, getRelicsTotalStats } from '../config/relics.js';
 import { gameModal } from './modal.js';
+import { canRetryFinale } from '../core/journey.js';
+import { getBossTactics } from '../config/bossTactics.js';
 
 export class TowerView {
   constructor(containerId, onStartBattle) {
@@ -30,19 +35,19 @@ export class TowerView {
         <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
           
           <!-- 顶栏三核心子标签页与探险配额 -->
-          <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
+          <div class="mota-breadcrumb tower-subtabs px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
             <div class="flex items-center gap-2">
-              <button id="btn-subtab-castle" class="px-3.5 py-1 rounded-lg text-xs font-bold transition-all ${
+              <button id="btn-subtab-castle" aria-pressed="${this.subTab === 'castle'}" class="px-3.5 py-1 rounded-lg text-xs font-bold transition-all ${
                 this.subTab === 'castle' ? 'mota-btn-gold text-amber-100 shadow' : 'mota-btn-dark text-slate-300'
               }">
                 古堡探险 · 魔塔之门
               </button>
-              <button id="btn-subtab-dungeons" class="px-3.5 py-1 rounded-lg text-xs font-bold transition-all ${
+              <button id="btn-subtab-dungeons" aria-pressed="${this.subTab === 'dungeons'}" class="px-3.5 py-1 rounded-lg text-xs font-bold transition-all ${
                 this.subTab === 'dungeons' ? 'mota-btn-gold text-amber-100 shadow' : 'mota-btn-dark text-slate-300'
               }">
                 地下城七大副本门
               </button>
-              <button id="btn-subtab-relics" class="px-3.5 py-1 rounded-lg text-xs font-bold transition-all ${
+              <button id="btn-subtab-relics" aria-pressed="${this.subTab === 'relics'}" class="px-3.5 py-1 rounded-lg text-xs font-bold transition-all ${
                 this.subTab === 'relics' ? 'mota-btn-gold text-amber-100 shadow' : 'mota-btn-dark text-slate-300'
               }">
                 深渊神域 · 远古圣遗物
@@ -62,6 +67,7 @@ export class TowerView {
       `;
 
       this.bindEvents();
+      markFeatureEntrances(this.container, { '#btn-subtab-dungeons': 'dungeons', '#btn-start-redwood': 'castle' });
     } catch (err) {
       console.error('TowerView render error:', err);
       this.container.innerHTML = `<div class="p-6 text-center text-amber-300">魔塔场景加载异常，已自动恢复默认状态。</div>`;
@@ -78,22 +84,27 @@ export class TowerView {
     const platinumKey = data.bag.find(i => i.id === 'key_platinum')?.count || 0;
 
     const floor = castle.floor || 1;
-    const floorInfo = getTowerFloorData(floor);
+    const floorInfo = getTowerFloorData(floor, gameState.data.onboardingVersion);
 
     return `
-      <div class="h-full grid grid-cols-1 md:grid-cols-12 gap-3">
+      <div class="castle-workspace h-full grid grid-cols-1 md:grid-cols-12 gap-3">
         
         <!-- 左侧：探险钥匙与征战状态 (5列) -->
-        <div class="md:col-span-5 mota-parchment-panel p-3.5 rounded-xl border-2 border-[#caa048] flex flex-col justify-between">
-          <div class="space-y-3">
+        <div class="castle-keys md:col-span-5 mota-parchment-panel p-3.5 rounded-xl border-2 border-[#caa048] flex flex-col justify-between">
+          <div class="castle-key-scroll space-y-3 custom-scrollbar">
             <div class="flex items-center justify-between pb-2 border-b border-[#4a3520]/70">
               <div class="flex items-center gap-2">
-                <span class="w-6 h-6 flex items-center justify-center">${getVectorIcon('key_bronze', 'w-6 h-6')}</span>
+                <span class="w-6 h-6 flex items-center justify-center">${renderGameIcon('key_bronze', { size: 'w-6 h-6' })}</span>
                 <h3 class="font-bold text-xs text-amber-300">古堡破界钥匙</h3>
               </div>
               <span class="text-[11px] text-slate-400 font-mono">消耗钥匙直达对应层</span>
             </div>
 
+            ${data.bag.some(item => item.id === 'royal_castle_permit' && item.count > 0) ? `<p class="text-xs text-amber-200">远征通行令：${data.bag.find(item => item.id === 'royal_castle_permit').count}枚。每日次数用尽后自动消耗一枚，仍需入场钥匙。</p>` : ''}
+            ${canRetryFinale(data) ? `<div class="mota-parchment-panel p-2 mb-2 text-xs">
+              <p>王座之路已打通。整备后直接重试100层，不消耗钥匙或每日次数，不重发前层收益。</p>
+              <button id="btn-retry-finale" type="button" class="mota-btn-gold px-3 py-2 mt-2">重返龙皇王座</button>
+            </div>` : ''}
             ${!castle.isExploring ? `
               <!-- 6 把钥匙启程卡片 -->
               <div class="space-y-2 max-h-[380px] overflow-y-auto pr-1">
@@ -101,7 +112,7 @@ export class TowerView {
                 <div class="p-2 rounded-xl bg-black/40 border border-slate-800 flex items-center justify-between hover:border-amber-500/50 transition-colors">
                   <div class="flex items-center gap-2 min-w-0">
                     <div class="w-7 h-7 rounded-lg bg-black/60 border border-amber-800/80 p-1 flex items-center justify-center flex-shrink-0">
-                      ${getVectorIcon('key_redwood', 'w-full h-full')}
+                      ${renderGameIcon('key_redwood', { size: 'w-full h-full' })}
                     </div>
                     <div class="min-w-0">
                       <div class="text-xs font-bold text-amber-200">红木钥匙 · 初入魔塔</div>
@@ -117,7 +128,7 @@ export class TowerView {
                 <div class="p-2 rounded-xl bg-black/40 border border-slate-800 flex items-center justify-between hover:border-cyan-500/50 transition-colors">
                   <div class="flex items-center gap-2 min-w-0">
                     <div class="w-7 h-7 rounded-lg bg-black/60 border border-cyan-700/80 p-1 flex items-center justify-center flex-shrink-0">
-                      ${getVectorIcon('key_mithril', 'w-full h-full')}
+                      ${renderGameIcon('key_mithril', { size: 'w-full h-full' })}
                     </div>
                     <div class="min-w-0">
                       <div class="text-xs font-bold text-cyan-200">秘银钥匙 · 深渊长廊</div>
@@ -133,7 +144,7 @@ export class TowerView {
                 <div class="p-2 rounded-xl bg-black/40 border border-slate-800 flex items-center justify-between hover:border-purple-500/50 transition-colors">
                   <div class="flex items-center gap-2 min-w-0">
                     <div class="w-7 h-7 rounded-lg bg-black/60 border border-purple-800/80 p-1 flex items-center justify-center flex-shrink-0">
-                      ${getVectorIcon('key_obsidian', 'w-full h-full')}
+                      ${renderGameIcon('key_obsidian', { size: 'w-full h-full' })}
                     </div>
                     <div class="min-w-0">
                       <div class="text-xs font-bold text-purple-200">黑曜石钥匙 · 熔岩深渊</div>
@@ -149,7 +160,7 @@ export class TowerView {
                 <div class="p-2 rounded-xl bg-black/40 border border-slate-800 flex items-center justify-between hover:border-amber-500/50 transition-colors">
                   <div class="flex items-center gap-2 min-w-0">
                     <div class="w-7 h-7 rounded-lg bg-black/60 border border-amber-600/80 p-1 flex items-center justify-center flex-shrink-0">
-                      ${getVectorIcon('key_bronze', 'w-full h-full')}
+                      ${renderGameIcon('key_bronze', { size: 'w-full h-full' })}
                     </div>
                     <div class="min-w-0">
                       <div class="text-xs font-bold text-amber-200">青铜钥匙 · 破界跳层</div>
@@ -165,7 +176,7 @@ export class TowerView {
                 <div class="p-2 rounded-xl bg-black/40 border border-slate-800 flex items-center justify-between hover:border-amber-400/50 transition-colors">
                   <div class="flex items-center gap-2 min-w-0">
                     <div class="w-7 h-7 rounded-lg bg-black/60 border border-amber-500/80 p-1 flex items-center justify-center flex-shrink-0">
-                      ${getVectorIcon('key_titan', 'w-full h-full')}
+                      ${renderGameIcon('key_titan', { size: 'w-full h-full' })}
                     </div>
                     <div class="min-w-0">
                       <div class="text-xs font-bold text-amber-300">泰坦钥匙 · 泰坦神殿</div>
@@ -181,7 +192,7 @@ export class TowerView {
                 <div class="p-2 rounded-xl bg-black/40 border border-slate-800 flex items-center justify-between hover:border-purple-500/50 transition-colors">
                   <div class="flex items-center gap-2 min-w-0">
                     <div class="w-7 h-7 rounded-lg bg-black/60 border border-purple-700/80 p-1 flex items-center justify-center flex-shrink-0">
-                      ${getVectorIcon('key_platinum', 'w-full h-full')}
+                      ${renderGameIcon('key_platinum', { size: 'w-full h-full' })}
                     </div>
                     <div class="min-w-0">
                       <div class="text-xs font-bold text-purple-200">白金钥匙 · 终焉决战</div>
@@ -232,13 +243,13 @@ export class TowerView {
         </div>
 
         <!-- 右侧：当前层数守卫特写与迎战 (7列) -->
-        <div class="md:col-span-7 mota-parchment-panel p-4 rounded-xl border-2 border-[#caa048] flex flex-col justify-between">
-          <div class="space-y-3">
+        <div class="castle-guard md:col-span-7 mota-parchment-panel p-4 rounded-xl border-2 border-[#caa048] flex flex-col justify-between min-h-0">
+          <div class="space-y-3 min-h-0 overflow-y-auto custom-scrollbar">
             <!-- 关卡守卫抬头 -->
             <div class="flex items-center justify-between pb-2.5 border-b border-[#4a3520]/70">
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-xl bg-black/60 border border-amber-700/80 p-1 flex items-center justify-center flex-shrink-0">
-                  ${getVectorIcon('weapon_sword', 'w-full h-full')}
+                  ${renderGameIcon('wpn_sword', { size: 'w-full h-full' })}
                 </div>
                 <div>
                   <h3 class="font-bold text-sm text-amber-300">
@@ -268,6 +279,7 @@ export class TowerView {
               </div>
             </div>
 
+            ${this.renderBossTactics(floorInfo)}
             <!-- 关卡珍藏信息 -->
             <div class="p-3 rounded-xl bg-black/40 border border-slate-800 text-xs space-y-1">
               <div class="font-semibold text-amber-300 text-xs">关卡珍藏掉落</div>
@@ -277,7 +289,7 @@ export class TowerView {
             </div>
           </div>
 
-          <div class="pt-3 border-t border-[#4a3520]/70">
+          <div class="pt-3 border-t border-[#4a3520]/70 flex-shrink-0">
             <button id="btn-challenge-castle-floor" class="w-full mota-btn-gold py-3 rounded-xl text-xs font-black shadow-xl animate-pulse flex items-center justify-center">
               踏入战场 · 迎击第 ${floor} 层守卫
             </button>
@@ -286,6 +298,15 @@ export class TowerView {
 
       </div>
     `;
+  }
+
+  renderBossTactics(enemy) {
+    const tips = getBossTactics(enemy);
+    if (!tips.length) return '';
+    return `<details class="boss-tactics p-2 rounded border border-[#9c8257] text-xs">
+      <summary class="font-bold cursor-pointer">首领机制与反制</summary>
+      ${tips.map(tip => `<p class="mt-2 leading-relaxed">${tip}</p>`).join('')}
+    </details>`;
   }
 
   renderDungeonContent(data) {
@@ -351,8 +372,8 @@ export class TowerView {
         </div>
 
         <!-- 右侧：选中古门详情或当前层决战面板 (7列) -->
-        <div class="md:col-span-7 mota-parchment-panel p-3.5 sm:p-4 rounded-xl border-2 border-[#caa048] flex flex-col justify-between">
-          <div class="space-y-2.5">
+        <div class="md:col-span-7 mota-parchment-panel p-3.5 sm:p-4 rounded-xl border-2 border-[#caa048] flex flex-col justify-between min-h-0">
+          <div class="space-y-2.5 min-h-0 overflow-y-auto custom-scrollbar">
             <!-- 顶栏信息 -->
             <div class="flex items-center justify-between pb-2 border-b border-[#4a3520]/70">
               <div class="flex items-center gap-2.5">
@@ -455,10 +476,11 @@ export class TowerView {
                 </div>
               </div>
             `}
+            ${this.renderBossTactics(isExploringThis ? currentGuard : getDungeonFloorGuard(selectedGate.id, selectedGate.totalFloors))}
           </div>
 
           <!-- 操作按钮区域 -->
-          <div class="pt-2 border-t border-[#4a3520]/70">
+          <div class="pt-2 border-t border-[#4a3520]/70 flex-shrink-0">
             ${isExploringThis ? `
               <div class="space-y-1.5">
                 <button id="btn-dungeon-fight" class="w-full mota-btn-gold py-2.5 rounded-xl text-xs font-black shadow-xl flex items-center justify-center animate-pulse">
@@ -476,13 +498,13 @@ export class TowerView {
               <button class="w-full mota-btn-dark py-2.5 rounded-xl text-xs font-bold border border-slate-800 text-slate-500 opacity-40 cursor-not-allowed">
                 等级不足 (需 Lv.${selectedGate.minLevel})
               </button>
-            ` : dung.entriesLeft <= 0 ? `
+            ` : dung.entriesLeft <= 0 && !data.bag.some(item => item.id === 'royal_dungeon_permit' && item.count > 0) ? `
               <button class="w-full mota-btn-dark py-2.5 rounded-xl text-xs font-bold border border-slate-800 text-red-400 opacity-60 cursor-not-allowed">
                 今日副本挑战次数已用尽 (0/5)
               </button>
             ` : `
               <button id="btn-enter-dungeon" class="w-full mota-btn-gold py-2.5 rounded-xl text-xs font-black shadow-xl flex items-center justify-center animate-pulse">
-                开启结界 · 踏入副本探险 (第 1 层)
+                ${dung.entriesLeft === 0 ? '使用调查通行令 · ' : ''}开启结界 · 踏入副本探险 (第 1 层)
               </button>
             `}
           </div>
@@ -609,20 +631,8 @@ export class TowerView {
       const btn = document.getElementById(btnId);
       if (btn) {
         btn.addEventListener('click', () => {
-          gameState.resetDailyActivities();
-          const keyItem = gameState.data.bag.find(i => i.id === keyId && i.count > 0);
-          if (!keyItem) return gameModal.alert(`缺少对应钥匙，无法破界！`, '钥匙不足');
-          if (gameState.data.castle.entriesLeft <= 0) return gameModal.alert('今日 3 次古堡探险次数已耗尽！', '探险次数耗尽');
-
-          keyItem.count--;
-          if (keyItem.count <= 0) gameState.data.bag = gameState.data.bag.filter(i => i !== keyItem);
-
-          gameState.data.castle.isExploring = true;
-          gameState.data.castle.finished = false;
-          gameState.data.castle.floor = startFloor;
-          gameState.data.castle.accumulatedExp = 0;
-          gameState.data.castle.accumulatedGold = 0;
-          gameState.data.castle.entriesLeft--;
+          const result = gameState.startCastleExpedition(keyId);
+          if (!result.success) return gameModal.alert(result.msg, '古堡破界');
 
           sound.playCoin();
           gameModal.alert(`探险启程！消耗钥匙，成功破界切入第 ${startFloor} 层！`, '古堡破界启程');
@@ -638,23 +648,26 @@ export class TowerView {
     bindKeyStart('btn-start-bronze', 'key_bronze', 50);
     bindKeyStart('btn-start-titan', 'key_titan', 70);
     bindKeyStart('btn-start-platinum', 'key_platinum', 90);
+    const btnRetryFinale = this.container.querySelector('#btn-retry-finale');
+    if (btnRetryFinale) btnRetryFinale.addEventListener('click', () => {
+      const result = gameState.startFinaleRetry();
+      this.render();
+      if (!result.success) return gameModal.alert(result.msg, '王座重试');
+      this.container.querySelector('#btn-challenge-castle-floor')?.focus();
+      gameModal.alert('直接重返100层。只有本场胜利会产生新收益，之前的探险不会重复结算。', '王座重试');
+    });
 
     // 主动结算古堡探险
     const btnClaimExit = document.getElementById('btn-claim-castle-exit');
     if (btnClaimExit) {
+      const claimExpeditionId = gameState.data.castle.expeditionId;
       btnClaimExit.addEventListener('click', () => {
-        const exp = gameState.data.castle.accumulatedExp;
-        const gold = gameState.data.castle.accumulatedGold;
-        gameState.addExp(exp);
-        gameState.gainCurrency(gold, 0, 0);
-
-        gameState.data.castle.isExploring = false;
-        gameState.data.castle.accumulatedExp = 0;
-        gameState.data.castle.accumulatedGold = 0;
+        const result = gameState.finishCastleExpedition(claimExpeditionId);
+        if (!result.success) return gameModal.alert(result.msg, '古堡结算');
+        const { exp, gold } = result;
 
         sound.playFanfare();
         gameModal.alert(`探险圆满凯旋！全额领取结算经验 +${exp.toLocaleString()}，金币 +${gold.toLocaleString()}！`, '古堡凯旋');
-        gameState.notify();
         this.render();
       });
     }
@@ -664,13 +677,15 @@ export class TowerView {
     if (btnChallengeCastle) {
       btnChallengeCastle.addEventListener('click', () => {
         if (gameState.data.castle.finished) return gameModal.alert('本次探险已登顶，请领取累计收益并离开。', '魔塔登顶');
+        if (!gameState.data.castle.isExploring || !gameState.data.castle.expeditionId) return;
+        const expeditionId = gameState.data.castle.expeditionId;
         const floor = gameState.data.castle.floor || 1;
-        const floorInfo = getTowerFloorData(floor);
+        const floorInfo = getTowerFloorData(floor, gameState.data.onboardingVersion);
 
         gameState.data.isCastleExplore = true; // 激活每场1次免费复活
 
         this.onStartBattle({
-          enemyData: { name: floorInfo.name, icon: '', abilities: floorInfo.abilities, rebirth: floorInfo.rebirth },
+          enemyData: { name: floorInfo.name, icon: getVectorIcon(floorInfo.icon || 'bld_tower', 'w-full h-full'), level: floor, abilities: floorInfo.abilities, rebirth: floorInfo.rebirth, openingShield: floorInfo.openingShield },
           enemyStats: {
             hp: floorInfo.hp,
             maxHp: floorInfo.maxHp || floorInfo.hp,
@@ -683,15 +698,16 @@ export class TowerView {
             dodge: floorInfo.dodge ?? 5
           },
           onFinish: (victory) => {
+            if (gameState.data.castle.expeditionId !== expeditionId || gameState.data.castle.floor !== floor || !gameState.data.castle.isExploring) return;
             gameState.data.isCastleExplore = false;
             if (victory) {
-              const reward = gameState.settleCastleVictory(floor);
+              const reward = gameState.settleCastleVictory(floor, expeditionId);
               if (!reward.success) return;
               if (reward.firstClear) gameState.addSystemLog(`魔塔第 ${floor} 层首通：魔晶 +${reward.crystal}，${reward.item.name}已存入行囊；经验与金币计入探险累计收益。`, 'loot');
               sound.playCoin();
 
               // 检查远古神圣圣遗物觉醒
-              const newRelics = gameState.checkUnlockRelics(floor);
+              const newRelics = reward.newRelics;
               if (newRelics && newRelics.length > 0) {
                 const rNames = newRelics.map(r => `【${r.name}】(${r.passiveName})`).join('、');
                 sound.playFanfare();
@@ -701,17 +717,21 @@ export class TowerView {
               // 100 层终焉关底大圆满
               if (floor === 100) {
                 sound.playFanfare();
+                if (gameState.data.onboardingVersion === 2) {
+                  gameModal.alert('黑翼龙皇倒下，裂隙的轰鸣终于停止。米拉点亮了返回王都的信号，赛拉扶起受伤的伙伴。\n\n带上远征记录和同伴回城，把这场漫长调查的结果交给罗兰。探险累计收益仍需撤离后领取。', '归途');
+                } else {
                 gameModal.alert(`【终焉盛典 · 征服魔塔】震撼全大陆！你成功斩杀了魔塔第 100 层最终主宰【黑翼龙皇·奥斯汀】！拯救了整个亚诺古陆！\n终焉创世神格已然凝聚，你已登顶《魔塔世界》最高巅峰！`, '终焉大圆满');
+                }
               }
 
               gameState.notify();
 
-              if (floor === 1 && gameState.data.currentQuestId === 'quest_6') {
+              if (floor === 1 && gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_6') {
                 gameModal.confirm(
-                  `凯歌高奏！成功击溃魔塔第 1 层守卫！\n\n【主线任务达成】初试锋芒 · 踏入魔塔！\n奖赏：经验 +2800，金币 +5000，魔晶 +80，【勇气精钢护手】！\n\n是否立即领受犒赏并开启下一阶段主线【领地开拓 · 炼金魔药】？`,
+                  `凯歌高奏！成功击溃魔塔第 1 层守卫！\n\n【主线任务达成】初试锋芒 · 踏入魔塔！\n奖赏：经验 +2800，金币 +5000，魔晶 +80，【${specializeEquipment(QUEST_LIST.find(q => q.id === 'quest_6').rewards.items[0], gameState.data.classId).name}】！\n\n是否立即领受犒赏并开启下一阶段主线【领地开拓 · 炼金魔药】？`,
                   () => {
                     gameState.claimQuestReward('quest_6');
-                    gameModal.alert('勇气精钢护手已存入行囊！已为你开启下一阶段主线【领地开拓 · 炼金魔药】，前往城郊领地庄园调配魔药吧！', '主线推进', () => {
+                    gameModal.alert('职业护手已存入行囊！已为你开启下一阶段主线【领地开拓 · 炼金魔药】，前往城郊领地庄园调配魔药吧！', '主线推进', () => {
                       if (window.switchMainTab) window.switchMainTab('estate');
                     });
                   },
@@ -722,12 +742,12 @@ export class TowerView {
                 return;
               }
 
-              if (floor === 10 && gameState.data.currentQuestId === 'quest_9') {
+              if (floor === 10 && gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_9') {
                 gameModal.confirm(
-                  `震撼全服！你成功战胜第 10 层终极领主【远古巨石魔像】！\n\n【主线终极试炼达成】终焉试炼 · 斩落石魔！\n传世犒赏：经验 +12000，金币 +25000，魔晶 +300，绝世暗金【勇气先驱重剑】！\n\n恭喜你彻底通晓并征服了亚诺大陆与魔塔的核心法则！向着第 100 层巅峰继续冲锋吧！`,
+                  `王都捷报！你成功战胜第 10 层终极领主【远古巨石魔像】！\n\n【主线终极试炼达成】终焉试炼 · 斩落石魔！\n传世犒赏：经验 +12000，金币 +25000，魔晶 +300，绝世暗金【${specializeEquipment(QUEST_LIST.find(q => q.id === 'quest_9').rewards.items[0], gameState.data.classId).name}】！\n\n勇气武器达到15级可穿戴，与护手组成两件套共鸣。接下来先学习宝石镶嵌，再追查商队遭遇的巨龙。`,
                   () => {
                     gameState.claimQuestReward('quest_9');
-                    gameModal.alert('绝世暗金神兵【勇气先驱重剑】已佩入行囊！你已登峰造极，名扬亚诺古陆！', '终焉神殿盛典');
+                    gameModal.alert('职业武器与金刚石已存入行囊。先在铁匠铺学习镶嵌，再前往荒野成长，准备讨伐赤焰红龙。', '终焉神殿盛典');
                   },
                   () => this.render(),
                   '终焉大捷 · 斩落石魔'
@@ -739,13 +759,10 @@ export class TowerView {
               this.render();
             } else {
               // 失败结算一半经验
-              const halfExp = Math.floor(gameState.data.castle.accumulatedExp * 0.5);
-              gameState.addExp(halfExp);
-              gameState.data.castle.isExploring = false;
-              gameState.data.castle.accumulatedExp = 0;
-              gameState.data.castle.accumulatedGold = 0;
+              const result = gameState.finishCastleExpedition(expeditionId, floor);
+              if (!result.success) return;
+              const halfExp = result.exp;
               gameModal.alert(`挑战未果！被动退出探险，折半结算获得 ${halfExp} 点经验。`, '古堡历练结算');
-              gameState.notify();
               this.render();
             }
           }
@@ -824,11 +841,14 @@ export class TowerView {
             phase1Shield: guard.phase1Shield,
             phase2EnrageHp: guard.phase2EnrageHp,
             phase3Minion: guard.phase3Minion,
-            dialogue: guard.dialogue
+            dialogue: guard.dialogue,
+            abilities: guard.abilities
           },
           enemyStats: {
             hp: guard.hp,
             maxHp: guard.maxHp,
+            mp: guard.mp,
+            maxMp: guard.maxMp,
             atk: guard.atk,
             def: guard.def,
             speed: guard.speed,
@@ -852,7 +872,7 @@ export class TowerView {
                 // 关底领主大圆满！
                 const dropItem = result.drop;
                 sound.playFanfare();
-                gameModal.alert(`【史诗大捷 · 荡平神门】\n你成功荡平了【${gate.name}】全境，斩灭终极领主【${guard.name}】！\n\n缴获传世神装：【${dropItem.name}】(${dropItem.setName})！\n斩获赏赐：经验 +${expGain.toLocaleString()}，金币 +${goldGain.toLocaleString()}，暗金晶石x2，魔晶+${result.crystal}，声望+120！`, '地下城史诗大捷');
+                gameModal.alert(`【史诗大捷 · 荡平神门】\n你成功荡平了【${gate.name}】全境，斩灭终极领主【${guard.name}】！\n\n缴获传世神装：【${dropItem.name}】(${dropItem.setName})！\n斩获赏赐：经验 +${expGain.toLocaleString()}，金币 +${goldGain.toLocaleString()}，暗金晶石x2，魔晶+${result.crystal}，声望+120！\n远征补给：${result.supplies.map(item => `【${item.name}】x${item.count}`).join('、')}。${result.story ? '\n\n' + result.story : ''}`, '地下城史诗大捷');
               }
               this.render();
             } else {

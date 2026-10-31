@@ -1,3 +1,8 @@
+import { REGIONAL_STORIES, getInvestigationSteps, getInvestigationEarnedExperience } from '../config/story.js';
+import { REFORGE_AFFIXES } from '../config/items.js';
+import { CLASSES, getSkillPointBudget } from '../config/classes.js';
+import { PET_CONFIGS } from '../config/pets.js';
+import { COMMISSIONS, validCommissionProgress } from '../config/commissions.js';
 // 存档管理与持久化系统 (5大独立槽位 + 当前游玩槽位 + JSON 备份导入导出)
 const LEGACY_SAVE_KEY = 'MOTA_WORLD_REBIRTH_SAVE';
 const ACTIVE_SLOT_KEY = 'MOTA_WORLD_ACTIVE_SLOT_ID';
@@ -204,6 +209,49 @@ export const storage = {
       }
     }
     const validRecord = value => value && typeof value === 'object' && !Array.isArray(value);
+    if (data.commissions !== undefined && (!validRecord(data.commissions) ||
+      Object.entries(data.commissions).some(([id, progress]) => {
+        const config = COMMISSIONS.find(entry => entry.id === id);
+        return !config || !validCommissionProgress(config, progress);
+      }))) throw new Error('无效的支线委托记录');
+    if (data.supportPetIds !== undefined) {
+      const ids = [data.activePetId, ...(Array.isArray(data.supportPetIds) ? data.supportPetIds : [])].filter(id => id !== null && id !== undefined);
+      if (!Array.isArray(data.supportPetIds) || data.supportPetIds.length !== 2 ||
+        data.supportPetIds.some(id => id !== null && typeof id !== 'string') ||
+        new Set(ids).size !== ids.length || ids.some(id => !Object.hasOwn(PET_CONFIGS, id) || !data.pets?.some(pet => pet.id === id))) throw new Error('无效的神兽阵容');
+    }
+    if (data.skillTraining !== undefined) {
+      const training = data.skillTraining;
+      const skills = CLASSES[data.classId].skills;
+      if (!validRecord(training) || !validRecord(training.ranks) ||
+        Object.entries(training.ranks).some(([id, rank]) => !skills.some(skill => skill.id === id) || !Number.isInteger(rank) || rank < 1 || rank > 10) ||
+        Object.values(training.ranks).reduce((sum, rank) => sum + rank - 1, 0) > getSkillPointBudget(data.level) ||
+        (training.preferredAttackId !== null && !skills.some(skill => skill.id === training.preferredAttackId && skill.category === 'attack'))) throw new Error('无效的职业培养记录');
+    }
+    if (data.onboardingVersion !== undefined && ![0, 1, 2].includes(data.onboardingVersion)) throw new Error('无效的冒险旅程记录');
+    for (const event of Object.values(REGIONAL_STORIES).flat()) {
+      const progress = data.questProgress?.[event.id];
+      if (progress !== undefined && (!validRecord(progress) || !Number.isSafeInteger(progress.current) || progress.current < 0 || progress.current > event.count || typeof progress.completed !== 'boolean' || typeof progress.claimed !== 'boolean' || progress.completed !== (progress.current === event.count) || (progress.claimed && !progress.completed))) throw new Error('无效的区域调查记录');
+      if (progress?.floorProgress !== undefined && (event.action !== 'dungeon' || !Number.isInteger(progress.floorProgress) ||
+        progress.floorProgress < 0 || progress.floorProgress > getInvestigationSteps(event) ||
+        progress.completed !== (progress.floorProgress === getInvestigationSteps(event)))) throw new Error('无效的区域调查层数记录');
+      if (progress?.expGranted !== undefined && (!Number.isSafeInteger(progress.expGranted) || progress.expGranted < 0 || progress.expGranted > getInvestigationEarnedExperience(event, progress))) throw new Error('无效的区域调查经验记录');
+    }
+
+    if (data.estate?.permanentPotionPoints !== undefined && (!Number.isInteger(data.estate.permanentPotionPoints) || data.estate.permanentPotionPoints < 0 || data.estate.permanentPotionPoints > 100 || data.estate.permanentPotionPoints % 5 !== 0)) throw new Error('无效的龙血秘药潜能记录');
+    if (data.arena !== undefined && (!validRecord(data.arena) ||
+      (data.arena.points !== undefined && (!Number.isSafeInteger(data.arena.points) || data.arena.points < 1000)) ||
+      (data.arena.challengesLeft !== undefined && (!Number.isInteger(data.arena.challengesLeft) || data.arena.challengesLeft < 0 || data.arena.challengesLeft > 5)) ||
+      (data.arena.lastResetDate !== undefined && typeof data.arena.lastResetDate !== 'string') ||
+      (data.arena.activeChallenge !== undefined && data.arena.activeChallenge !== null && (!validRecord(data.arena.activeChallenge) || !['opp_1', 'opp_2', 'opp_3', 'opp_4'].includes(data.arena.activeChallenge.opponentId) || typeof data.arena.activeChallenge.challengeId !== 'string' || !data.arena.activeChallenge.challengeId)))) {
+      throw new Error('无效的角斗挑战记录');
+    }
+    if (data.dragon !== undefined && (!validRecord(data.dragon) ||
+      (data.dragon.trialsLeft !== undefined && (!Number.isInteger(data.dragon.trialsLeft) || data.dragon.trialsLeft < 0 || data.dragon.trialsLeft > 3)) ||
+      (data.dragon.cleared !== undefined && (!validRecord(data.dragon.cleared) || Object.entries(data.dragon.cleared).some(([id, count]) => !['slay_red_dragon', 'slay_silver_dragon', 'slay_golden_dragon'].includes(id) || !Number.isSafeInteger(count) || count < 0))) ||
+      (data.dragon.activeChallenge !== undefined && data.dragon.activeChallenge !== null && (!validRecord(data.dragon.activeChallenge) || !['slay_red_dragon', 'slay_silver_dragon', 'slay_golden_dragon'].includes(data.dragon.activeChallenge.dragonId) || typeof data.dragon.activeChallenge.challengeId !== 'string' || !data.dragon.activeChallenge.challengeId)))) {
+      throw new Error('无效的屠龙讨伐记录');
+    }
     if (data.factionWar !== undefined && (!validRecord(data.factionWar) ||
       (data.factionWar.totalMerit !== undefined && (!Number.isSafeInteger(data.factionWar.totalMerit) || data.factionWar.totalMerit < 0)))) {
       throw new Error('无效的累计战功');
@@ -216,6 +264,8 @@ export const storage = {
       throw new Error('无效的行囊扩容记录');
     }
     if (data.castle !== undefined && (!validRecord(data.castle) ||
+      (data.castle.expeditionId !== undefined && data.castle.expeditionId !== null && (typeof data.castle.expeditionId !== 'string' || !data.castle.expeditionId)) ||
+      ['accumulatedExp', 'accumulatedGold'].some(key => data.castle[key] !== undefined && (!Number.isSafeInteger(data.castle[key]) || data.castle[key] < 0)) ||
       (data.castle.claimedBossRewards !== undefined && (!Array.isArray(data.castle.claimedBossRewards) ||
         !data.castle.claimedBossRewards.every(floor => [10, 20, 25, 30, 35, 40, 50, 60, 70, 80, 90, 100].includes(floor)))))) {
       throw new Error('无效的魔塔首通领取记录');
@@ -224,12 +274,20 @@ export const storage = {
       throw new Error('无效的野外讨伐计数');
     }
     const validNumbers = value => validRecord(value) && Object.values(value).every(n => Number.isFinite(n));
+    const validPendingReforge = value => {
+      const affix = value?.affix;
+      const cfg = REFORGE_AFFIXES.find(entry => entry.id === affix?.id);
+      return validRecord(value) && typeof value.rollId === 'string' && value.rollId.length > 0 && validRecord(affix) && cfg && affix.stat === cfg.stat && affix.name === cfg.name && affix.unit === (cfg.unit || '') && Number.isInteger(affix.val) && affix.val >= cfg.min && affix.val <= cfg.max && typeof affix.crystalUsed === 'string';
+    };
     const validItem = item => validRecord(item) && typeof item.id === 'string' &&
       (item.count === undefined || (Number.isInteger(item.count) && item.count > 0)) &&
-      (item.stats === undefined || validNumbers(item.stats));
+      (item.stats === undefined || validNumbers(item.stats)) &&
+      (item.pendingReforge === undefined || (typeof item.uid === 'string' && validPendingReforge(item.pendingReforge)));
     if ((data.bag && !data.bag.every(validItem)) ||
       (data.pets && !data.pets.every(pet => validRecord(pet) && typeof pet.id === 'string' &&
         Number.isInteger(pet.level) && pet.level >= 1 && pet.level <= 100 &&
+        (pet.exp === undefined || (Number.isFinite(pet.exp) && pet.exp >= 0)) &&
+        (pet.stamina === undefined || (Number.isFinite(pet.stamina) && pet.stamina >= 0 && pet.stamina <= 100)) &&
         validNumbers(pet.apt) && ['str', 'int', 'dex', 'con'].every(key => Number.isFinite(pet.apt[key])) &&
         (pet.skills === undefined || (Array.isArray(pet.skills) && pet.skills.every(id => typeof id === 'string'))))) ||
       (data.equipped && !Object.values(data.equipped).every(item => item === null || validItem(item))) ||

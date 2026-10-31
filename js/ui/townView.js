@@ -1,6 +1,7 @@
-// 亚诺圣光王都视图：100% 还原《魔塔世界》百度百科原著
+// 亚诺圣光王都：单人整备与挑战入口
 // 采用多层级、全屏独立、高保真羊皮纸子页面流转架构，彻底告别挤压与混杂
 import { gameState } from '../core/state.js';
+import { markFeatureEntrances } from './featureAccess.js';
 import { ITEM_SLOTS, SLOT_MAP, QUALITIES, SPECIAL_ITEMS, OFFICIAL_SETS, REFORGE_AFFIXES } from '../config/items.js';
 import { DRAGON_TRIALS } from '../config/dragonSlaying.js';
 import { ROYAL_TRIALS } from '../config/trials.js';
@@ -16,11 +17,36 @@ import { renderGameIcon } from './iconHelper.js';
 import { atmosphere } from '../effects/atmosphere.js';
 import { tooltip } from './tooltip.js';
 import { gameModal } from './modal.js';
+import { getPlayerActionInterval } from '../core/combat.js';
+
+const SOCKET_STAT_NAMES = {
+  atk: '攻击', def: '防御', hp: '生命', maxHp: '生命', mp: '魔力', maxMp: '魔力',
+  speed: '速度', str: '力量', int: '智力', dex: '敏捷', agi: '敏捷', con: '体魄',
+  allStats: '全四维', crit: '暴击', dodge: '闪避', hit: '命中', critDmg: '暴击伤害',
+  dmgReduce: '伤害减免', dmgResist: '伤害减免', dmgBoost: '伤害加成', dmgBonus: '伤害加成',
+  magicResist: '魔抗'
+};
+const SOCKET_PERCENT_STATS = new Set(['crit', 'dodge', 'hit', 'critDmg', 'dmgReduce', 'dmgResist', 'dmgBoost', 'dmgBonus', 'magicResist']);
+const escapeText = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+const formatSocketStats = stats => Object.entries(stats).filter(([, value]) => Number.isFinite(value))
+  .map(([key, value]) => `${SOCKET_STAT_NAMES[key] || key} ${value >= 0 ? '+' : ''}${value}${SOCKET_PERCENT_STATS.has(key) ? '%' : ''}`)
+  .join(' / ') || '无额外属性';
+const socketBonuses = gem => {
+  const stats = gem.isRune || gem.type === 'rune' || RUNES[gem.id]
+    ? (gem.stats || RUNES[gem.id]?.stats || {})
+    : { [gem.stat]: gem.val };
+  return formatSocketStats(stats);
+};
+const SMITHY_TABS = [
+  ['smithy_enhance', '升星'], ['smithy_socket', '镶嵌'], ['smithy_reforge', '重铸'],
+  ['smithy_repair', '修缮'], ['smithy_smelt', '分解'], ['smithy_runes', '符文']
+];
 
 export class TownView {
   constructor(containerId, onOpenBattle) {
     this.container = document.getElementById(containerId);
     this.onOpenBattle = onOpenBattle;
+    this.commissionChoices = {};
     
     // 子页面路由：
     // 'hub'              - 王都中心大街
@@ -41,12 +67,14 @@ export class TownView {
     this.arenaSubTab = 'duel'; // 'duel' | 'shop'
     this.selectedGemUid = null;
     this.selectedReforgeCrystal = null;
+    this.selectedRunicWord = null;
+    this.runicMaterialsOpen = false;
   }
 
   render() {
     if (!this.container) return;
 
-    if (this.currentView === 'smithy_enhance' || this.currentView === 'smithy_repair' || this.currentView === 'smithy_smelt' || this.currentView === 'smithy_socket' || this.currentView === 'smithy_reforge') {
+    if (this.currentView === 'smithy_enhance' || this.currentView === 'smithy_repair' || this.currentView === 'smithy_smelt' || this.currentView === 'smithy_socket' || this.currentView === 'smithy_reforge' || this.currentView === 'smithy_runes') {
       atmosphere.setPreset('forge');
     } else if (this.currentView === 'fishing') {
       atmosphere.setPreset('forest');
@@ -85,6 +113,12 @@ export class TownView {
       case 'palace':
         html = this.renderPalaceHub();
         break;
+      case 'palace_commissions':
+        html = this.renderCommissions(true);
+        break;
+      case 'tavern_commissions':
+        html = this.renderCommissions(false);
+        break;
       case 'palace_salary':
         html = this.renderPalaceSalary();
         break;
@@ -119,8 +153,15 @@ export class TownView {
         html = this.renderTownHub();
     }
 
-    this.container.innerHTML = html;
+    this.container.innerHTML = this.currentView === 'smithy' || this.currentView.startsWith('smithy_')
+      ? this.renderSmithyWorkshop(html) : html;
     this.bindEvents();
+    markFeatureEntrances(this.container, {
+      '[data-goto="smithy_enhance"]': 'enhance', '[data-goto="smithy_socket"]': 'socket',
+      '[data-goto="smithy_reforge"]': 'reforge', '[data-goto="palace_trials"]': 'trials',
+      '#btn-do-enhance': 'enhance',
+      '[data-goto="palace_arena"]': 'arena', '[data-goto="dragons"], [data-town-route="dragons"]': 'dragons', '[data-goto="faction_war"], [data-town-route="faction_war"]': 'faction'
+    });
   }
 
   // ==========================================
@@ -130,1178 +171,391 @@ export class TownView {
     const data = gameState.data;
     const canClaim = gameState.canClaimSalary();
     const bounties = gameState.getTavernBounties();
-    const hasClaimableBounty = bounties.some(b => b.status === 'ready_to_claim');
-    const availableBountyCount = bounties.filter(b => b.status === 'available').length;
-    const drinkBuff = data.tavern?.drinkBuff;
-    const drinkBuffText = drinkBuff ? `特调酒力: ${drinkBuff.name}` : `今日待揭悬赏: ${availableBountyCount} 份`;
-
+    const readyBounties = bounties.filter(b => b.status === 'ready_to_claim').length;
+    const availableBounties = bounties.filter(b => b.status === 'available').length;
+    const equipped = Object.values(data.equipped || {}).filter(Boolean);
+    const broken = equipped.filter(item => item.durability === 0).length;
+    const repair = gameState.getRepairQuote();
+    const activePet = data.pets.find(pet => pet.id === data.activePetId);
+    const stats = gameState.getEffectiveStats();
+    const places = [
+      { id: 'smithy', icon: 'bld_smithy', name: '皇家铁匠铺', desc: '升星 · 镶嵌 · 重铸 · 修理', status: repair.repaired ? `${repair.repaired} 件待修，费用 ${repair.cost.toLocaleString()} 金币` : '装备耐久完好', action: '进入工坊' },
+      { id: 'palace', icon: 'bld_palace', name: '圣王大殿', desc: '王国俸禄 · 封号试炼 · 角斗场', status: canClaim ? '俸禄待领：1,500 金币、20 魔晶' : '今日俸禄已领取', action: '晋见圣王' },
+      { id: 'tavern', icon: 'bld_tavern', name: '亚诺皇家酒馆', desc: '悬赏委托 · 佣兵契约 · 特酿', status: readyBounties ? `${readyBounties} 份赏金可领取` : `可接悬赏 ${availableBounties} 份`, action: '步入酒馆' },
+      { id: 'fishing', icon: 'bld_fishing', name: '碧波水域', desc: '垂钓渔获 · 兑换魔晶', status: `金龙鱼 ${data.fishing?.arowana || 0} 尾 / 七鳃鳗 ${data.fishing?.lamprey || 0} 尾`, action: '前往水域' },
+      { id: 'dragons', icon: 'bld_dragons', name: '远古屠龙圣殿', desc: '三阶恶龙 · 神兽突破材料', status: `今日剩余 ${data.dragon?.trialsLeft ?? 3} / 3 次`, action: '步入龙域' },
+      { id: 'faction_war', icon: data.nation ? `nation_${data.nation}` : 'nation_aden', name: '边境要塞', desc: '攻打守军 · 积累战功 · 晋升军衔', status: `军勋 ${data.factionWar?.merit || 0} 点`, action: '督战前线' }
+    ];
     return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 顶部面包屑与城邦简介 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-400 font-bold">亚诺圣光王都</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-200 font-bold">王城中心大街 (六大王国重地)</span>
-          </div>
-          <div class="text-[11px] text-slate-300 font-mono hidden sm:block">
-            亚诺历 1024 年 · 纯正中世纪城邦
-          </div>
+      <div class="town-directory classic-town h-full flex flex-col">
+        <div class="mota-breadcrumb"><h2>亚诺圣光王都</h2><span>王城中心大街</span></div>
+        <div class="town-atlas-layout">
+        <section class="classic-town-scene" aria-label="王都设施">
+          <img src="images/scenes/royal-capital.png" alt="暮色中的王城广场，铁匠炉火与酒馆灯光照亮石板路" class="classic-town-art">
+          <div class="town-scene-caption"><span>亚诺王国</span><h3>圣光王都</h3><p>炉火、誓言与远征的起点</p></div>
+          ${places.map((place, index) => `<button data-goto="${place.id}" class="btn-goto-subview mota-building-card classic-town-location location-${place.id}" aria-label="${place.name}" title="${place.desc}"><span>${index + 1} · ${place.name}</span></button>`).join('')}
+        </section>
+        <nav class="town-facility-directory" aria-label="王都设施目录"><h3 class="dossier-section-heading">王城设施</h3>
+          ${places.map((place, index) => `<button data-town-route="${place.id}" class="town-directory-entry"><b>${index + 1}</b><span><strong>${place.name}</strong><small>${place.desc}</small><em>${place.status}</em></span><span class="town-directory-arrow" aria-hidden="true">›</span></button>`).join('')}
+        </nav>
         </div>
-
-        <!-- 主体：六大宏伟建筑传送卡片 (响应式网格与顺畅滚动) -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 overflow-y-auto pr-1">
-          
-          <!-- 1. 皇家铁匠铺 -->
-          <div data-goto="smithy" class="btn-goto-subview mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-amber-600/70 hover:border-amber-400 transition-all">
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-amber-500/30">
-                <div class="flex items-center gap-2.5">
-                  <div class="w-10 h-10 rounded-xl bg-amber-950/70 border border-amber-500/70 flex items-center justify-center p-1.5 shadow-inner">
-                    ${getVectorIcon('bld_smithy', 'w-full h-full')}
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-black text-amber-200 tracking-wide">皇家铁匠铺</h3>
-                    <p class="text-[10px] text-amber-400/80">原著 8 星升星精铸 · 全身修缮 · 熔炼分解</p>
-                  </div>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-600/60 text-amber-300 font-mono">
-                  神兵重器
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>精铸特色:</span>
-                <span class="text-amber-300 font-mono">十部位装备 · 保护水晶防降星</span>
-              </div>
-            </div>
-
-            <div class="pt-2 border-t border-amber-900/40 flex items-center justify-between text-xs text-amber-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">升星 · 修理 · 分解</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-gold text-xs font-bold shadow">
-                进入铁匠铺 ->
-              </button>
-            </div>
-          </div>
-
-          <!-- 2. 圣王大殿 -->
-          <div data-goto="palace" class="btn-goto-subview mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-amber-500/70 hover:border-amber-300 transition-all relative">
-            ${canClaim ? `
-              <div class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-bold animate-pulse">
-                俸禄可领
-              </div>
-            ` : ''}
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-amber-500/30">
-                <div class="flex items-center gap-2.5">
-                  <div class="w-10 h-10 rounded-xl bg-amber-950/70 border border-amber-400/70 flex items-center justify-center p-1.5 shadow-inner">
-                    ${getVectorIcon('bld_palace', 'w-full h-full')}
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-black text-amber-200 tracking-wide">圣王大殿</h3>
-                    <p class="text-[10px] text-amber-400/80">每日王国俸禄 · 幻境试炼晋升八大封号</p>
-                  </div>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-600/60 text-amber-300 font-mono">
-                  圣王敕命
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>每日早朝:</span>
-                <span class="font-mono ${canClaim ? 'text-amber-300 font-bold' : 'text-slate-400'}">${canClaim ? '俸禄待领受 (+1500金币)' : '今日已领受'}</span>
-              </div>
-            </div>
-
-            <div class="pt-2 border-t border-amber-900/40 flex items-center justify-between text-xs text-amber-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">王室津贴与荣耀册封</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-gold text-xs font-bold shadow">
-                晋见圣王 ->
-              </button>
-            </div>
-          </div>
-
-          <!-- 3. 远古屠龙圣殿 -->
-          <div data-goto="dragons" class="btn-goto-subview mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-rose-900/70 hover:border-rose-500 transition-all">
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-rose-500/30">
-                <div class="flex items-center gap-2.5">
-                  <div class="w-10 h-10 rounded-xl bg-red-950/70 border border-red-500/70 flex items-center justify-center p-1.5 shadow-inner">
-                    ${getVectorIcon('bld_dragons', 'w-full h-full')}
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-black text-rose-200 tracking-wide">远古屠龙圣殿</h3>
-                    <p class="text-[10px] text-rose-400/80">斩杀秘银/金龙/狂龙 · 夺取天命石与紫金晶石</p>
-                  </div>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-red-950/80 border border-red-600/60 text-red-300 font-mono">
-                  灭龙远征
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>今日剩余:</span>
-                <span class="text-amber-300 font-mono">${data.dragon?.trialsLeft ?? 3} / 3 次</span>
-              </div>
-            </div>
-
-            <div class="pt-2 border-t border-rose-900/40 flex items-center justify-between text-xs text-amber-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">三阶恶龙与神兽突破</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-dark border border-amber-600/50 text-amber-200 text-xs font-bold shadow">
-                步入龙域 ->
-              </button>
-            </div>
-          </div>
-
-          <!-- 4. 碧波垂钓水域 -->
-          <div data-goto="fishing" class="btn-goto-subview mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-cyan-900/70 hover:border-cyan-500 transition-all">
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-cyan-500/30">
-                <div class="flex items-center gap-2.5">
-                  <div class="w-10 h-10 rounded-xl bg-cyan-950/70 border border-cyan-500/70 flex items-center justify-center p-1.5 shadow-inner">
-                    ${getVectorIcon('bld_fishing', 'w-full h-full')}
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-black text-cyan-200 tracking-wide">碧波水域 · 悠闲垂钓</h3>
-                    <p class="text-[10px] text-cyan-400/80">七鳃鳗换魔晶 · 秘制鱼饵博取传世金龙鱼</p>
-                  </div>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-600/60 text-cyan-300 font-mono">
-                  丰饶收获
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>渔获统计:</span>
-                <span class="text-amber-300 font-mono">金龙鱼 ${data.fishing?.arowana || 0} 尾 · 七鳃鳗 ${data.fishing?.lamprey || 0} 尾</span>
-              </div>
-            </div>
-
-            <div class="pt-2 border-t border-cyan-900/40 flex items-center justify-between text-xs text-cyan-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">魔晶丰产与稀有战利品</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-dark border border-cyan-700/50 text-cyan-200 text-xs font-bold shadow">
-                前往水域 ->
-              </button>
-            </div>
-          </div>
-
-          <!-- 5. 亚诺皇家酒馆 -->
-          <div data-goto="tavern" class="btn-goto-subview mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-amber-600/70 hover:border-amber-400 transition-all relative">
-            ${hasClaimableBounty ? `
-              <div class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black animate-bounce shadow">
-                赏金待领
-              </div>
-            ` : ''}
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-amber-500/30">
-                <div class="flex items-center gap-2.5">
-                  <div class="w-10 h-10 rounded-xl bg-amber-950/70 border border-amber-500/70 flex items-center justify-center p-1.5 shadow-inner">
-                    ${getVectorIcon('bld_tavern', 'w-full h-full')}
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-black text-amber-200 tracking-wide">亚诺皇家酒馆</h3>
-                    <p class="text-[10px] text-amber-400/80">每日赏金悬赏榜 · 佣兵集结 · 吧台特酿与游吟诗人</p>
-                  </div>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-600/60 text-amber-300 font-mono">
-                  佣兵与赏金
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>酒馆情报:</span>
-                <span class="text-amber-300 font-mono">${drinkBuffText}</span>
-              </div>
-            </div>
-
-            <div class="pt-2 border-t border-amber-900/40 flex items-center justify-between text-xs text-amber-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">通缉令 · 誓约盟友 · 畅饮增益</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-gold text-xs font-bold shadow">
-                步入酒馆 ->
-              </button>
-            </div>
-          </div>
-
-          <!-- 6. 边境战事 · 三大阵营要塞争夺 -->
-          <div data-goto="faction_war" class="btn-goto-subview mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-indigo-600/70 hover:border-indigo-400 transition-all relative">
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-indigo-500/30">
-                <div class="flex items-center gap-2.5">
-                  <div class="w-10 h-10 rounded-xl bg-indigo-950/70 border border-indigo-500/70 flex items-center justify-center p-1.5 shadow-inner">
-                    ${getVectorIcon(data.nation ? `nation_${data.nation}` : 'nation_aden', 'w-full h-full')}
-                  </div>
-                  <div>
-                    <h3 class="text-sm font-black text-indigo-200 tracking-wide">边境要塞 · 三大阵营战</h3>
-                    <p class="text-[10px] text-indigo-400/80">三大城邦边境争夺 · 攻破敌阵要塞 · 战勋晋升军衔</p>
-                  </div>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-600/60 text-indigo-300 font-mono">
-                  ${data.factionWar ? (MILITARY_RANKS.find(r => r.id === data.factionWar.militaryRank)?.name || '远征新兵') : '远征新兵'}
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>阵营战勋:</span>
-                <span class="text-amber-300 font-mono">军勋 ${data.factionWar?.merit || 0} 点 · 每日军饷</span>
-              </div>
-            </div>
-
-            <div class="pt-2 border-t border-indigo-900/40 flex items-center justify-between text-xs text-indigo-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">银翼要塞 · 黑铁隘口 · 月影哨塔</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-dark border border-indigo-500/70 text-indigo-200 text-xs font-bold shadow">
-                督战前线 ->
-              </button>
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-    `;
+        <aside class="town-readiness classic-town-readiness" aria-label="出征整备">
+          <div class="town-readiness-section"><strong>出征整备</strong><span>已穿戴 ${equipped.length} / 10 件${broken ? ` · ${broken} 件已损坏，属性失效` : ''}</span><button data-goto="smithy_repair" class="btn-goto-subview mota-btn-dark">${repair.repaired ? `修理 ${repair.cost.toLocaleString()} 金币` : '查看耐久与修理'}</button></div>
+          <p>${activePet ? `随行神兽 Lv.${activePet.level} · 体力 ${activePet.stamina ?? 100} / 100` : '推进主线获得契约蛋，在神兽页孵化并出战。'}</p>
+        </aside>
+      </div>`;
   }
 
   // ==========================================
   // 2. 【皇家铁匠铺工坊大厅】(Smithy Hub)
   // ==========================================
   renderSmithyHub() {
+    return this.renderSmithyEnhance();
+  }
+
+  renderSmithyWorkshop(content) {
+    // Reuse each room's controls and quotes; only their shared presentation changes.
+    const template = document.createElement('template');
+    template.innerHTML = content;
+    const detail = template.content.querySelector('.smithy-detail');
+    const slots = template.content.querySelector('.smithy-slot-panel');
+    const materials = template.content.querySelector('.smithy-material-panel');
+    if (materials) {
+      let scroll = detail.querySelector('.smithy-scroll');
+      if (!scroll) {
+        scroll = document.createElement('div');
+        scroll.className = 'smithy-scroll flex-1 min-h-0 overflow-y-auto';
+        const empty = detail.querySelector('.smithy-empty');
+        if (empty) scroll.append(empty);
+        detail.prepend(scroll);
+      }
+      scroll.prepend(materials);
+    }
+    const active = this.currentView === 'smithy' ? 'smithy_enhance' : this.currentView;
+    const data = gameState.data;
     return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 面包屑与返回上一级 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-400 font-bold">圣光王都</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-200 font-bold">皇家铁匠铺工坊大厅</span>
-          </div>
-          <button data-goto="hub" class="btn-goto-subview mota-btn-dark px-3 py-1 rounded-lg text-xs font-semibold text-amber-300 hover:border-amber-400 flex items-center gap-1">
-            <span>← 返回王都大街</span>
-          </button>
+      <section class="smithy-page smithy-workshop smithy-page-${active.replace('smithy_', '')}${this.currentView === 'smithy' ? ' smithy-page-hub' : ''}" aria-label="皇家铁匠铺">
+        <header class="smithy-workshop-heading">
+          <span class="smithy-npc-portrait class-portrait" role="img" aria-label="皇家铁匠肖像"></span>
+          <div><h2><button type="button" data-goto="smithy" class="btn-goto-subview smithy-home">皇家铁匠铺</button></h2><p>皇家铁匠 · 选择身上装备与材料，核对费用后动工。</p></div>
+          <button type="button" data-goto="hub" class="btn-goto-subview mota-btn-dark">返回王都</button>
+        </header>
+        <nav class="smithy-workshop-tabs" aria-label="铁匠工作">
+          ${SMITHY_TABS.map(([view, label]) => `<button type="button" data-goto="${view}" aria-pressed="${active === view}" class="btn-goto-subview mota-btn-dark">${label}</button>`).join('')}
+        </nav>
+        <div class="smithy-workshop-body">
+          ${detail.outerHTML}
+          <aside class="smithy-workshop-inventory" aria-label="工坊装备与行囊">
+            ${slots?.outerHTML || ''}
+            <section class="smithy-workshop-bag mota-parchment-panel">
+              <div class="smithy-heading"><h3>行囊 · ${data.bag.length} 组</h3><button type="button" id="btn-workshop-bag" class="mota-btn-dark">整理 / 穿戴</button></div>
+              <p class="smithy-bag-note">展开物品查看；加工目标为身上装备。</p>
+              <div class="smithy-bag-scroll custom-scrollbar" tabindex="0" aria-label="行囊物品，可展开查看">
+                <div class="smithy-bag-grid">${data.bag.map(item => `<details class="smithy-bag-item">
+                  <summary><span class="smithy-item-icon">${renderGameIcon(item, { size: 'w-full h-full' })}</span><span>${escapeText(item.name)}</span><b>×${item.count ?? 1}</b></summary>
+                  <p>${escapeText(item.desc || (item.slot ? `${SLOT_MAP[item.slot]?.name || item.slot} · +${item.stars || 0} 星 · 需求等级 ${item.reqLevel || 1}` : '行囊物品'))}</p>
+                  ${item.stats ? `<p>${escapeText(formatSocketStats(item.stats))}</p>` : ''}
+                </details>`).join('') || '<p>行囊暂无物品。</p>'}</div>
+              </div>
+            </section>
+          </aside>
         </div>
+      </section>`;
+  }
 
-        <!-- 铁匠铺六大独立功能专室 (紧凑舒展，绝不遮挡底部按键) -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 overflow-y-auto pr-1">
-          
-          <!-- 1. 升星精铸专室 -->
-          <div data-goto="smithy_enhance" class="btn-goto-subview mota-building-card p-2.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-amber-500/80 bg-amber-950/20 hover:border-amber-400 transition-all">
-            <div>
-              <div class="flex items-center gap-2 pb-2 border-b border-[#4a3520]">
-                <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-400 flex items-center justify-center p-1 flex-shrink-0">
-                  ${getVectorIcon('star_crystal', 'w-full h-full')}
-                </div>
-                <div class="min-w-0">
-                  <h3 class="text-xs font-black text-amber-200 truncate">升星精铸专室</h3>
-                  <div class="text-[9px] text-amber-400/80">+1 ~ +8 星巅峰淬炼</div>
-                </div>
-              </div>
-              <div class="mt-2 p-1.5 rounded-lg bg-black/40 border border-slate-800 text-[9px] text-slate-400 flex items-center justify-between">
-                <span>特色:</span>
-                <span class="text-amber-300 font-mono">最高+8星 · 保护水晶</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-amber-900/40">
-              <button class="w-full mota-btn-gold py-1 rounded-lg text-xs font-bold shadow flex items-center justify-center gap-1">
-                <span>进入升星 -></span>
+  renderSmithySlots(title, mode = 'smithy') {
+    return `
+      <div class="smithy-slot-panel mota-parchment-panel p-3 flex flex-col min-h-0">
+        <h3 class="smithy-heading text-xs font-bold">${title}</h3>
+        <div class="smithy-slot-grid smithy-scroll grid grid-cols-2 gap-2 my-2 min-h-0 overflow-y-auto">
+          ${ITEM_SLOTS.map(slot => {
+            const item = gameState.data.equipped[slot.id];
+            return `
+              <button type="button" data-${mode}-slot="${slot.id}" aria-pressed="${this.selectedEquipSlot === slot.id}" class="btn-select-${mode}-slot smithy-slot-button flex items-center text-left gap-2 p-2">
+                <span class="smithy-item-icon w-8 h-8 flex-shrink-0 p-1">${renderGameIcon(item || slot.id, { size: 'w-full h-full' })}</span>
+                <span class="min-w-0">
+                  <span class="smithy-slot-name block">${slot.name}${item ? `<span class="smithy-slot-stars">+${item.stars || 0} 星</span>` : ''}</span>
+                  <span class="smithy-slot-item block">${item ? item.name : '未穿戴'}</span>
+                </span>
               </button>
-            </div>
-          </div>
-
-          <!-- 2. 宝石工坊打孔镶嵌 -->
-          <div data-goto="smithy_socket" class="btn-goto-subview mota-building-card p-2.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-emerald-500/80 bg-emerald-950/20 hover:border-emerald-400 transition-all">
-            <div>
-              <div class="flex items-center gap-2 pb-2 border-b border-[#4a3520]">
-                <div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center p-1 flex-shrink-0">
-                  ${getVectorIcon('gem_atk', 'w-full h-full')}
-                </div>
-                <div class="min-w-0">
-                  <h3 class="text-xs font-black text-emerald-200 truncate">宝石工坊 · 镶嵌</h3>
-                  <div class="text-[9px] text-emerald-400/80">4孔开凿与宝石镶嵌</div>
-                </div>
-              </div>
-              <div class="mt-2 p-1.5 rounded-lg bg-black/40 border border-slate-800 text-[9px] text-slate-400 flex items-center justify-between">
-                <span>特色:</span>
-                <span class="text-emerald-300 font-mono">四维宝石 · 无损摘除</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-emerald-900/40">
-              <button class="w-full mota-btn-dark py-1 rounded-lg text-xs font-bold text-emerald-200 border border-emerald-600/70 shadow flex items-center justify-center gap-1">
-                <span>进入工坊 -></span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 3. 传奇附魔神兵重铸 -->
-          <div data-goto="smithy_reforge" class="btn-goto-subview mota-building-card p-2.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-purple-500/80 bg-purple-950/20 hover:border-purple-400 transition-all">
-            <div>
-              <div class="flex items-center gap-2 pb-2 border-b border-[#4a3520]">
-                <div class="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400 flex items-center justify-center p-1 flex-shrink-0">
-                  ${getVectorIcon('crystal_darkgold', 'w-full h-full')}
-                </div>
-                <div class="min-w-0">
-                  <h3 class="text-xs font-black text-purple-200 truncate">神兵重铸专室</h3>
-                  <div class="text-[9px] text-purple-400/80">传奇词条洗炼重铸</div>
-                </div>
-              </div>
-              <div class="mt-2 p-1.5 rounded-lg bg-black/40 border border-slate-800 text-[9px] text-slate-400 flex items-center justify-between">
-                <span>特色:</span>
-                <span class="text-purple-300 font-mono">暴伤吸血 · 伤害减免</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-purple-900/40">
-              <button class="w-full mota-btn-dark py-1 rounded-lg text-xs font-bold text-purple-200 border border-purple-600/70 shadow flex items-center justify-center gap-1">
-                <span>进入重铸 -></span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 4. 全身修缮专室 -->
-          <div data-goto="smithy_repair" class="btn-goto-subview mota-building-card p-2.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-blue-600/60 bg-blue-950/20 hover:border-blue-400 transition-all">
-            <div>
-              <div class="flex items-center gap-2 pb-2 border-b border-[#4a3520]">
-                <div class="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-400 flex items-center justify-center p-1 flex-shrink-0">
-                  ${getVectorIcon('shield', 'w-full h-full')}
-                </div>
-                <div class="min-w-0">
-                  <h3 class="text-xs font-black text-blue-200 truncate">全身耐久修缮室</h3>
-                  <div class="text-[9px] text-blue-400/80">防具兵刃磨损修护</div>
-                </div>
-              </div>
-              <div class="mt-2 p-1.5 rounded-lg bg-black/40 border border-slate-800 text-[9px] text-slate-400 flex items-center justify-between">
-                <span>特色:</span>
-                <span class="text-blue-300 font-mono">十部位一键修缮恢复</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-blue-900/40">
-              <button class="w-full mota-btn-dark py-1 rounded-lg text-xs font-bold text-blue-200 border border-blue-700/60 shadow flex items-center justify-center gap-1">
-                <span>进入修缮 -></span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 5. 神兵分解熔炉 -->
-          <div data-goto="smithy_smelt" class="btn-goto-subview mota-building-card p-2.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-red-600/60 bg-red-950/20 hover:border-red-400 transition-all">
-            <div>
-              <div class="flex items-center gap-2 pb-2 border-b border-[#4a3520]">
-                <div class="w-8 h-8 rounded-xl bg-red-500/20 border border-red-400 flex items-center justify-center p-1 flex-shrink-0">
-                  ${getVectorIcon('bld_smithy', 'w-full h-full')}
-                </div>
-                <div class="min-w-0">
-                  <h3 class="text-xs font-black text-rose-200 truncate">神兵分解熔炉</h3>
-                  <div class="text-[9px] text-rose-400/80">装备熔解回收晶石</div>
-                </div>
-              </div>
-              <div class="mt-2 p-1.5 rounded-lg bg-black/40 border border-slate-800 text-[9px] text-slate-400 flex items-center justify-between">
-                <span>特色:</span>
-                <span class="text-rose-300 font-mono">回收淘汰装备萃取晶石</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-red-900/40">
-              <button class="w-full mota-btn-dark py-1 rounded-lg text-xs font-bold text-red-200 border border-red-700/60 shadow flex items-center justify-center gap-1">
-                <span>进入熔炉 -></span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 6. 远古神铸 · 符文之语工坊 -->
-          <div data-goto="smithy_runes" class="btn-goto-subview mota-building-card p-2.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-cyan-500/80 bg-cyan-950/20 hover:border-cyan-400 transition-all">
-            <div>
-              <div class="flex items-center gap-2 pb-2 border-b border-[#4a3520]">
-                <div class="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center p-1 flex-shrink-0">
-                  ${getVectorIcon('rune_stone', 'w-full h-full')}
-                </div>
-                <div class="min-w-0">
-                  <h3 class="text-xs font-black text-cyan-200 truncate">神铸 · 符文之语</h3>
-                  <div class="text-[9px] text-cyan-400/80">远古符文石铭刻共鸣</div>
-                </div>
-              </div>
-              <div class="mt-2 p-1.5 rounded-lg bg-black/40 border border-slate-800 text-[9px] text-slate-400 flex items-center justify-between">
-                <span>特色:</span>
-                <span class="text-cyan-300 font-mono">7大远古配方 · 破甲真伤</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-cyan-900/40">
-              <button class="w-full mota-btn-gold py-1 rounded-lg text-xs font-bold shadow flex items-center justify-center gap-1">
-                <span>进入神铸 -></span>
-              </button>
-            </div>
-          </div>
-
+            `;
+          }).join('')}
         </div>
-
+        <p class="smithy-slot-note text-xs">选择身上装备；空部位需先从行囊穿戴。</p>
       </div>
     `;
   }
 
-  // ==========================================
-  // 3. 【升星精铸专室】(Smithy Enhance Sub-page)
-  // ==========================================
   renderSmithyEnhance() {
     const data = gameState.data;
     const item = data.equipped[this.selectedEquipSlot];
     const curStars = item ? (item.stars || 0) : 0;
-    const rates = [95, 85, 75, 60, 50, 40, 30, 20];
-    const successRate = rates[curStars] || 25;
+    const maxed = curStars >= 8;
+    const successRate = gameState.getEnhancementSuccessRate(item);
     const costCrystal = Math.max(1, curStars + 1);
-
-    const starItem = data.bag.find(i => i.id === 'star_crystal');
+    const starItem = data.bag.find(entry => entry.id === 'star_crystal');
     const starCount = starItem ? (starItem.count || 0) : 0;
-    const protCount = data.bag.filter(i => i.id === 'protect_crystal').reduce((sum, item) => sum + (item.count || 0), 0);
+    const protCount = data.bag.filter(entry => entry.id === 'protect_crystal').reduce((sum, entry) => sum + (entry.count || 0), 0);
 
     return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 面包屑 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-400 font-bold">圣光王都</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-300 font-bold cursor-pointer hover:underline" data-goto="smithy">皇家铁匠铺</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-200 font-bold">装备升星精铸专室</span>
-          </div>
-          <button data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 rounded-lg text-xs font-semibold text-amber-300 hover:border-amber-400 flex items-center gap-1">
-            <span>← 返回铁匠铺</span>
-          </button>
+      <div class="smithy-page smithy-page-enhance w-full h-full p-1.5 sm:p-2 flex flex-col select-none">
+        <div class="mota-breadcrumb px-3 py-1.5 flex items-center justify-between mb-2 flex-shrink-0">
+          <div class="flex items-center gap-2 text-xs"><span>皇家铁匠铺</span><span>→</span><strong>装备升星精铸专室</strong></div>
+          <button type="button" data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 text-xs">返回铁匠铺</button>
         </div>
-
-        <!-- 主体：左侧选装备 (5列) + 右侧大铁砧升星特写 (7列) -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3">
-          
-          <!-- 左侧：10大装备部位选择列表 (2列 x 5行网格，彻底避免纵向滚条与底部截断) -->
-          <div class="md:col-span-5 mota-parchment-panel p-3 rounded-xl flex flex-col justify-between border-2 border-[#caa048]">
-            <div class="text-xs font-bold text-amber-300 pb-1.5 border-b border-[#4a3520] flex items-center justify-between flex-shrink-0">
-              <span>选择要升星的装备部位</span>
-              <span class="text-[10px] text-slate-400">10部位即时点选</span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-1.5 my-2 flex-1 content-center">
-              ${ITEM_SLOTS.map(slot => {
-                const slotKey = slot.id;
-                const eq = data.equipped[slotKey];
-                const isSelected = this.selectedEquipSlot === slotKey;
-                return `
-                  <div data-smithy-slot="${slotKey}" class="btn-select-smithy-slot p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between ${isSelected ? 'bg-amber-950/70 border-amber-400 ring-1 ring-amber-400/50 shadow' : 'bg-black/50 border-slate-800 hover:border-slate-600'}">
-                    <div class="flex items-center gap-1.5 min-w-0">
-                      <div class="w-6 h-6 flex-shrink-0 flex items-center justify-center p-0.5">${renderGameIcon(eq || slot.id, { size: 'w-full h-full' })}</div>
-                      <div class="truncate min-w-0">
-                        <div class="text-[11px] font-bold truncate ${eq ? 'text-amber-200' : 'text-slate-500'}">
-                          ${eq ? eq.name : '未穿戴'}
-                        </div>
-                        <div class="text-[9px] text-slate-400 font-mono">${slot.name}</div>
-                      </div>
-                    </div>
-                    ${eq ? `
-                      <span class="text-[9px] px-1 py-0.2 rounded font-black font-mono ${(eq.stars || 0) > 0 ? 'bg-amber-500 text-black' : 'bg-slate-800 text-slate-400'}">
-                        +${eq.stars || 0}星
-                      </span>
-                    ` : `
-                      <span class="text-[9px] px-1 py-0.2 rounded font-mono bg-black/40 text-slate-500">
-                        空
-                      </span>
-                    `}
-                  </div>
-                `;
-              }).join('')}
-            </div>
-
-            <div class="text-[10px] text-slate-400 text-center pt-1 border-t border-[#4a3520] flex-shrink-0">
-              最高可精铸至 8 星极境 · 消耗升星水晶
-            </div>
-          </div>
-
-          <!-- 右侧：宏伟地火升星铁砧特写 (7列) -->
-          <div class="md:col-span-7 mota-parchment-panel p-4 rounded-xl flex flex-col justify-between border-2 border-[#caa048]">
+        <div class="smithy-layout flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3">
+          ${this.renderSmithySlots('选择要升星的装备部位')}
+          <div class="smithy-detail mota-parchment-panel p-4 flex flex-col min-h-0">
             ${item ? `
-              <div>
-                <div class="flex items-center justify-between pb-3 border-b border-[#4a3520]">
-                  <div class="flex items-center gap-3">
-                    <div class="w-14 h-14 rounded-2xl bg-black/70 border-2 border-amber-400 flex items-center justify-center p-2 shadow-[0_0_15px_rgba(245,192,66,0.5)]">
-                      ${renderGameIcon(item, { size: 'w-full h-full' })}
-                    </div>
-                    <div>
-                      <h3 class="text-base font-black text-amber-200">${item.name}</h3>
-                      <div class="text-xs text-slate-400 font-mono mt-0.5">
-                        当前星阶: <b class="text-amber-400">+${curStars} 星</b> / 最高 8 星
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="text-right font-mono">
-                    <div class="text-xs text-slate-400">精铸成功率</div>
-                    <div class="text-lg font-black ${successRate >= 60 ? 'text-emerald-400' : 'text-amber-400'}">${successRate}%</div>
-                  </div>
+              <div class="smithy-scroll flex-1 min-h-0 overflow-y-auto">
+                <div class="smithy-heading flex items-center gap-3">
+                  <div class="smithy-item-icon w-14 h-14 flex-shrink-0 p-2">${renderGameIcon(item, { size: 'w-full h-full' })}</div>
+                  <div class="min-w-0"><h3 class="text-base font-bold">${item.name}</h3><p class="text-xs">${SLOT_MAP[item.slot]?.name || item.slot} · 当前 +${curStars} 星</p></div>
                 </div>
-
-                <!-- 铁砧视觉特写与星级对比 -->
-                <div class="my-4 p-4 rounded-xl bg-black/50 border border-[#4a3520] space-y-3">
-                  <div class="flex items-center justify-around text-center py-2">
-                    <div>
-                      <div class="text-xs text-slate-400 font-mono mb-1">当前星阶</div>
-                      <div class="text-2xl font-black text-amber-300 font-mono">+${curStars} 星</div>
-                    </div>
-                    <div class="text-2xl text-amber-500 animate-pulse font-black">-></div>
-                    <div>
-                      <div class="text-xs text-slate-400 font-mono mb-1">升星后达至</div>
-                      <div class="text-2xl font-black text-emerald-400 font-mono">+${Math.min(8, curStars + 1)} 星</div>
-                    </div>
+                ${maxed ? `
+                  <div class="smithy-maxed py-6 text-center" role="status">
+                    <strong class="block text-2xl">+8 星</strong>
+                    <p class="mt-3">已达到最高星阶，无需继续精铸。</p>
                   </div>
-
-                  <!-- 消耗与保护水晶勾选 -->
-                  <div class="pt-3 border-t border-slate-800 grid grid-cols-2 gap-3 text-xs">
-                    <div class="p-2.5 rounded-lg bg-black/60 border border-slate-800 flex items-center justify-between">
-                      <span class="text-slate-300">消耗升星水晶:</span>
-                      <span class="font-mono font-bold ${starCount >= costCrystal ? 'text-emerald-400' : 'text-red-400'}">
-                        ${costCrystal} 颗 (持有: ${starCount})
-                      </span>
-                    </div>
-
-                    <label class="p-2.5 rounded-lg bg-black/60 border border-slate-800 flex items-center justify-between cursor-pointer hover:border-amber-400 transition-all">
-                      <span class="flex items-center gap-2 text-slate-200">
-                        <input type="checkbox" id="chk-use-protect" class="accent-amber-500 w-4 h-4 cursor-pointer">
-                        <span>使用保护水晶 (防降星)</span>
-                      </span>
-                      <span class="text-[11px] font-mono text-cyan-400">余 ${protCount} 颗</span>
-                    </label>
+                ` : `
+                  <div class="smithy-enhance-preview my-4 p-3">
+                    <div class="flex justify-around text-center gap-3"><div><span class="block text-xs">当前星阶</span><strong class="text-2xl">+${curStars} 星</strong></div><span aria-hidden="true">→</span><div><span class="block text-xs">升星后</span><strong class="text-2xl">+${curStars + 1} 星</strong></div></div>
+                    <p class="mt-3 text-center">精铸成功率 <strong data-enhance-success-rate="${successRate}">${successRate}%</strong></p>
                   </div>
-                </div>
+                  <div class="smithy-enhance-cost flex items-center justify-between gap-3 p-3">
+                    <span class="flex items-center gap-2"><span class="smithy-item-icon w-8 h-8 p-1">${renderGameIcon('star_crystal', { size: 'w-full h-full' })}</span>消耗升星水晶</span><strong data-enhance-crystal-cost="${costCrystal}">${costCrystal} 颗 <span class="font-normal">(持有 ${starCount})</span></strong>
+                  </div>
+                  <label class="smithy-protect-option flex items-center justify-between gap-3 p-3 mt-2">
+                    <span class="flex items-center gap-2"><input type="checkbox" id="chk-use-protect" class="accent-amber-500 w-4 h-4" ${protCount > 0 ? '' : 'disabled'}><span>使用保护水晶</span></span>
+                    <span>持有 ${protCount} 颗</span>
+                  </label>
+                  <p class="smithy-rule-note text-xs mt-3">失败会降低 1 星，最低为 0 星。勾选保护后，失败时消耗 1 颗保护水晶，星级保持不变；成功不消耗保护水晶。</p>
+                `}
               </div>
-
-              <!-- 升星操作按键 -->
-              <div class="pt-3 border-t border-[#4a3520]">
-                <button id="btn-do-enhance" class="w-full mota-btn-gold py-3 rounded-xl text-sm font-black shadow-xl border-2 border-amber-300 flex items-center justify-center gap-2">
-                  <span>立即执行升星精铸</span>
-                </button>
+              <div class="smithy-action-bar pt-3 mt-3 flex-shrink-0">
+                <button type="button" id="btn-do-enhance" class="w-full mota-btn-gold py-3 text-sm font-bold" ${maxed ? 'disabled' : ''}>${maxed ? '已达最高 8 星' : '立即执行升星精铸'}</button>
               </div>
-            ` : `
-              <div class="h-full flex flex-col items-center justify-center text-slate-500 text-xs italic">
-                该部位未穿戴任何装备，请先在左侧选择有装备的槽位！
-              </div>
-            `}
+            ` : `<div class="smithy-empty flex-1 flex flex-col items-center justify-center text-center"><h3>${SLOT_MAP[this.selectedEquipSlot]?.name || '该部位'}未穿戴装备</h3><p class="text-xs mt-2">可直接选择其他已穿戴部位，或从行囊穿戴装备。</p></div>`}
           </div>
-
         </div>
-
       </div>
     `;
   }
 
-  // ==========================================
-  // 4. 【全身耐久修缮室】(Smithy Repair Sub-page)
-  // ==========================================
   renderSmithyRepair() {
     const data = gameState.data;
     const equipped = data.equipped || {};
-
-    let totalRepairCost = 0;
-    let needRepairCount = 0;
-    Object.values(equipped).forEach(item => {
-      if (item) {
-        const loss = (item.maxDurability || 100) - (item.durability || 100);
-        if (loss > 0) {
-          totalRepairCost += loss * 2;
-          needRepairCount++;
-        }
-      }
-    });
-
+    const { cost: totalRepairCost, repaired: needRepairCount } = gameState.getRepairQuote();
+    const canRepair = needRepairCount > 0 && data.gold >= totalRepairCost;
     return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 面包屑 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-400 font-bold">圣光王都</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-300 font-bold cursor-pointer hover:underline" data-goto="smithy">皇家铁匠铺</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-200 font-bold">全身耐久修缮室</span>
-          </div>
-          <button data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 rounded-lg text-xs font-semibold text-amber-300 hover:border-amber-400 flex items-center gap-1">
-            <span>← 返回铁匠铺</span>
-          </button>
+      <div class="smithy-page smithy-page-repair w-full h-full p-1.5 sm:p-2 flex flex-col select-none">
+        <div class="mota-breadcrumb px-3 py-1.5 flex items-center justify-between mb-2 flex-shrink-0">
+          <div class="flex items-center gap-2 text-xs"><span>皇家铁匠铺</span><span>→</span><strong>全身耐久修缮室</strong></div>
+          <button type="button" data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 text-xs">返回铁匠铺</button>
         </div>
-
-        <!-- 主体：全身装备耐久明细与一键修复 -->
-        <div class="flex-1 min-h-0 mota-parchment-panel p-4 rounded-xl flex flex-col justify-between border-2 border-[#caa048]">
-          <div>
-            <div class="flex items-center justify-between pb-3 border-b border-[#4a3520]">
-              <div>
-                <h3 class="text-sm font-black text-amber-300">全身 10 部位装备耐久状态一览</h3>
-                <p class="text-[11px] text-slate-400">战斗中装备将缓慢磨损，及时修理保障 100% 战斗威力！</p>
-              </div>
-              <div class="text-right font-mono text-xs">
-                待修复部件: <b class="text-amber-400">${needRepairCount}</b> 件 · 
-                总修缮耗费: <b class="text-amber-300">${totalRepairCost}</b> 金币
-              </div>
-            </div>
-
-            <!-- 10 部位耐久条矩阵网格 -->
-            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 my-4">
-              ${ITEM_SLOTS.map(slot => {
-                const slotKey = slot.id;
-                const eq = equipped[slotKey];
-                const curDur = eq ? (eq.durability || 100) : 100;
-                const maxDur = eq ? (eq.maxDurability || 100) : 100;
-                const pct = Math.min(100, Math.floor((curDur / maxDur) * 100));
-
-                return `
-                  <div class="p-3 rounded-xl bg-black/50 border border-slate-800 space-y-2">
-                    <div class="flex items-center justify-between text-xs">
-                      <span class="font-bold truncate ${eq ? 'text-amber-200' : 'text-slate-500'}">${eq ? eq.name : '未装备'}</span>
-                      <span class="text-[10px] text-slate-400 font-mono">${slot.name}</span>
-                    </div>
-
-                    <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-                      <div class="h-full ${pct >= 70 ? 'bg-emerald-400' : pct >= 30 ? 'bg-amber-400' : 'bg-red-500'}" style="width: ${pct}%"></div>
-                    </div>
-
-                    <div class="flex justify-between text-[10px] font-mono text-slate-400">
-                      <span>耐久度:</span>
-                      <span class="${pct < 100 ? 'text-amber-300' : 'text-slate-300'}">${curDur}/${maxDur}</span>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
+        <div class="smithy-detail mota-parchment-panel flex-1 min-h-0 p-4 flex flex-col">
+          <div class="smithy-heading flex items-center justify-between gap-3 flex-shrink-0">
+            <div><h3 class="text-sm font-bold">全身 10 部位耐久状态</h3><p class="text-xs">耐久耗尽时装备属性失效，修复后恢复。</p></div>
+            <div class="text-right text-xs">待修复 <strong>${needRepairCount}</strong> 件 · 总费用 <strong data-repair-total="${totalRepairCost}">${totalRepairCost}</strong> 金币</div>
           </div>
-
-          <!-- 修复操作按键 -->
-          <div class="pt-3 border-t border-[#4a3520] flex items-center justify-end gap-3">
-            <div class="text-xs text-slate-300 font-mono">
-              持有金币: <b class="text-amber-400">${data.gold.toLocaleString()}</b>
-            </div>
-            <button id="btn-repair-all" class="mota-btn-gold px-6 py-2.5 rounded-xl text-xs font-bold shadow-md border-amber-300 ${needRepairCount > 0 ? '' : 'opacity-50'}">
-              全身装备一键修缮 (恢复100%耐久)
-            </button>
+          <div class="smithy-repair-grid smithy-scroll grid grid-cols-2 sm:grid-cols-5 gap-3 my-3 flex-1 min-h-0 overflow-y-auto">
+            ${ITEM_SLOTS.map(slot => {
+              const item = equipped[slot.id];
+              const curDur = item ? (item.durability ?? 100) : 0;
+              const maxDur = item ? (item.maxDurability ?? 100) : 100;
+              const pct = Math.max(0, Math.min(100, Math.floor(curDur / maxDur * 100)));
+              const cost = gameState.getEquipmentRepairCost(item);
+              const status = !item ? '空槽位 · 耐久不适用' : curDur <= 0 ? '已损坏 · 属性失效' : cost > 0 ? '已磨损 · 属性有效' : '耐久完好';
+              return `
+                <div data-repair-slot="${slot.id}" class="smithy-repair-cell p-3 flex flex-col gap-2">
+                  <div class="flex items-center gap-2"><span class="smithy-item-icon w-8 h-8 flex-shrink-0 p-1">${renderGameIcon(item || slot.id, { size: 'w-full h-full' })}</span><strong class="text-xs">${slot.name}</strong></div>
+                  <span class="smithy-repair-item text-xs">${item ? item.name : '未装备'}</span>
+                  ${item ? `<div class="smithy-durability-track w-full h-2 bg-slate-800 overflow-hidden"><div class="h-full ${pct >= 70 ? 'bg-emerald-400' : pct >= 30 ? 'bg-amber-400' : 'bg-red-500'}" style="width:${pct}%"></div></div><span class="text-xs">耐久 ${curDur}/${maxDur}</span>` : ''}
+                  <span class="smithy-repair-status text-xs ${item && curDur <= 0 ? 'smithy-warning' : ''}">${status}</span>
+                  ${cost > 0 ? `<span class="smithy-repair-cost text-xs">修理 ${cost.toLocaleString()} 金币</span>` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+          <div class="smithy-action-bar pt-3 flex items-center justify-between gap-3 flex-shrink-0">
+            <div class="text-xs"><span>持有金币 <strong>${data.gold.toLocaleString()}</strong></span>${needRepairCount > 0 && !canRepair ? `<p class="smithy-warning mt-1">还缺 ${(totalRepairCost - data.gold).toLocaleString()} 金币</p>` : ''}</div>
+            <button type="button" id="btn-repair-all" class="mota-btn-gold px-5 py-3 text-xs font-bold" ${canRepair ? '' : 'disabled'}>${needRepairCount === 0 ? '无需修理' : canRepair ? `修复全部装备 · ${totalRepairCost.toLocaleString()} 金币` : '金币不足，无法修理'}</button>
           </div>
         </div>
-
       </div>
     `;
   }
 
-  // ==========================================
-  // 5. 【装备分解熔炉】(Smithy Smelt Sub-page)
-  // ==========================================
   renderSmithySmelt() {
+    const item = gameState.data.equipped[this.selectedEquipSlot];
+    const quote = gameState.getEquipmentDisassemblyQuote(this.selectedEquipSlot);
+    return `
+      <div class="smithy-page smithy-page-smelt w-full h-full p-1.5 sm:p-2 flex flex-col select-none">
+        <div class="mota-breadcrumb px-3 py-1.5 flex items-center justify-between mb-2 flex-shrink-0">
+          <div class="flex items-center gap-2 text-xs"><span>皇家铁匠铺</span><span>→</span><strong>神兵分解熔炉</strong></div>
+          <button type="button" data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 text-xs">返回铁匠铺</button>
+        </div>
+        <div class="smithy-layout flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3">
+          ${this.renderSmithySlots('选择要分解的装备部位')}
+          <div class="smithy-detail mota-parchment-panel p-4 flex flex-col min-h-0">
+            <div class="smithy-heading flex-shrink-0"><h3 class="text-sm font-bold">晶石萃取</h3><p class="text-xs">分解装备不可撤销，须先摘除宝石与符文。</p></div>
+            <div class="smithy-scroll flex-1 min-h-0 overflow-y-auto">
+              ${item ? `
+                <div class="smithy-smelt-preview my-4 p-4 text-center">
+                  <div class="smithy-item-icon w-16 h-16 mx-auto p-2">${renderGameIcon(item, { size: 'w-full h-full' })}</div>
+                  <h4 class="text-base font-bold mt-3">${item.name}</h4>
+                  <p class="text-xs mt-2">${SLOT_MAP[item.slot]?.name || item.slot} · +${item.stars || 0} 星</p>
+                  <p class="smithy-smelt-quote mt-4 p-3">${quote.success ? `分解产出：<strong>${quote.materialName} × ${quote.count}</strong>` : quote.msg}</p>
+                  <p class="smithy-warning text-xs mt-3">分解后该装备与强化星级永久消失。</p>
+                </div>
+              ` : `<div class="smithy-empty py-8 text-center"><h4>${SLOT_MAP[this.selectedEquipSlot]?.name || '该部位'}未穿戴装备</h4><p class="text-xs mt-2">可直接选择其他已穿戴部位，或从行囊穿戴装备。</p></div>`}
+            </div>
+            <div class="smithy-action-bar pt-3 mt-3 flex-shrink-0">
+              <button type="button" id="btn-disassemble-gear" class="w-full mota-btn-dark py-3 text-xs font-bold" ${item ? '' : 'disabled'}>${item ? '确认分解此装备' : '请先选择已穿戴装备'}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  renderSmithySocket() {
     const data = gameState.data;
     const item = data.equipped[this.selectedEquipSlot];
-    const quote = gameState.getEquipmentDisassemblyQuote(this.selectedEquipSlot);
-
-    return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 面包屑 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-400 font-bold">圣光王都</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-300 font-bold cursor-pointer hover:underline" data-goto="smithy">皇家铁匠铺</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-200 font-bold">神兵分解熔炉</span>
-          </div>
-          <button data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 rounded-lg text-xs font-semibold text-amber-300 hover:border-amber-400 flex items-center gap-1">
-            <span>← 返回铁匠铺</span>
-          </button>
-        </div>
-
-        <!-- 主体 -->
-        <div class="flex-1 min-h-0 mota-parchment-panel p-5 rounded-xl flex flex-col justify-between border-2 border-red-900/60 bg-red-950/10">
-          <div>
-            <div class="flex items-center justify-between pb-3 border-b border-[#4a3520]">
-              <div>
-                <h3 class="text-sm font-black text-amber-300">神兵分解熔炉 · 晶石萃取</h3>
-                <p class="text-[11px] text-slate-400">闲置装备提炼黄金晶石，暗金/紫金装备提炼暗金晶石；须先摘除宝石与符文。</p>
-              </div>
-            </div>
-
-            <!-- 当前选中装备详情 -->
-            <div class="my-6 max-w-md mx-auto p-5 rounded-2xl bg-black/60 border border-red-800/50 text-center space-y-3">
-              ${item ? `
-                <div class="w-16 h-16 rounded-2xl bg-red-950/40 border-2 border-red-500 mx-auto flex items-center justify-center p-2.5 shadow-inner">
-                  ${renderGameIcon(item, { size: 'w-full h-full' })}
-                </div>
-                <h4 class="text-base font-black text-amber-200">${item.name}</h4>
-                <div class="text-xs text-slate-400 font-mono">部位: ${SLOT_MAP[item.slot]?.name || item.slot}</div>
-                <div class="p-3 bg-black/60 rounded-xl border border-slate-800 text-xs text-amber-300 font-mono">
-                  ${quote.success ? `分解预计产出：<b class="text-amber-400 text-sm">${quote.materialName} x ${quote.count}</b>` : quote.msg}
-                </div>
-              ` : `
-                <div class="py-8 text-slate-500 text-xs italic">
-                  当前槽位未穿戴装备，请返回身上穿戴后再行分解！
-                </div>
-              `}
-            </div>
-          </div>
-
-          <div class="pt-3 border-t border-[#4a3520] text-center">
-            ${item ? `
-              <button id="btn-disassemble-gear" class="mota-btn-dark px-8 py-3 rounded-xl text-xs font-bold text-red-300 hover:border-red-500 shadow">
-                确认分解此装备
-              </button>
-            ` : ''}
-          </div>
-        </div>
-
-      </div>
-    `;
-  }
-
-  // ==========================================
-  // 5. 【宝石工坊 · 打孔与镶嵌】(Smithy Socket Sub-page)
-  // ==========================================
-  renderSmithySocket() {
-    const item = gameState.data.equipped[this.selectedEquipSlot];
-    const curSockets = item ? (item.sockets || 0) : 0;
-    const maxSockets = 4;
-    const drillItems = gameState.data.bag.filter(i => i.id === 'diamond_1' || i.id === 'socket_crystal');
-    const drillCount = drillItems.reduce((acc, i) => acc + (i.count || 1), 0);
+    const curSockets = item?.sockets || 0;
+    const drillCount = data.bag.filter(entry => ['diamond_1', 'socket_crystal'].includes(entry.id))
+      .reduce((sum, entry) => sum + (entry.count || 0), 0);
     const nextDrillCost = (curSockets + 1) * 1000;
-
-    // 行囊中的宝石
-    const bagGems = gameState.data.bag.filter(i => i && (i.type === 'gem' || (i.stat && !i.slot)));
-
-    const statNameMap = {
-      atk: '物理/魔法攻击',
-      def: '双抗防御值',
-      maxHp: '生命上限',
-      speed: '先手速度'
-    };
+    const bagGems = data.bag.filter(entry => !entry.slot && (entry.type === 'gem' || entry.type === 'rune' || entry.stat || RUNES[entry.id]));
+    const selectedGem = bagGems.find(entry => (entry.uid || entry.id) === this.selectedGemUid);
+    if (!selectedGem) this.selectedGemUid = null;
+    const drillReason = !item ? '请先选择已穿戴装备' : curSockets >= 4 ? '已达 4 孔上限'
+      : drillCount < 1 ? '缺少开孔水晶或金刚钻' : data.gold < nextDrillCost ? `金币不足，还缺 ${nextDrillCost - data.gold}` : '';
+    const inlayReason = !selectedGem ? '请先选择宝石或符文' : data.gold < 500 ? '金币不足，需 500 金币' : '';
+    const word = RUNIC_WORDS.find(word => word.id === item?.runicWord);
 
     return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 面包屑 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-400 font-bold">圣光王都</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-300 font-bold">皇家铁匠铺</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-emerald-300 font-bold">宝石打孔与镶嵌工坊</span>
-          </div>
-          <button data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 rounded-lg text-xs font-semibold text-amber-300 hover:border-amber-400 flex items-center gap-1">
-            <span>← 返回铁匠铺大厅</span>
-          </button>
+      <div class="smithy-page smithy-page-socket w-full h-full p-1.5 sm:p-2 flex flex-col select-none">
+        <div class="mota-breadcrumb px-3 py-1.5 flex items-center justify-between mb-2 flex-shrink-0">
+          <div class="flex items-center gap-2 text-xs"><span>皇家铁匠铺</span><span>→</span><strong>宝石打孔与镶嵌工坊</strong></div>
+          <button type="button" data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 text-xs">返回铁匠铺</button>
         </div>
-
-        <!-- 主体区域：左右双面板架构 -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-2.5">
-          
-          <!-- 左侧：部位选择与当前装备信息 (md:col-span-5) -->
-          <div class="md:col-span-5 flex flex-col justify-between bg-black/40 border border-[#4a3520] rounded-xl p-2.5 shadow">
-            <div>
-              <div class="text-[11px] font-bold text-amber-200 mb-1.5 flex items-center justify-between">
-                <span>选择精铸装备部位:</span>
-                <span class="text-slate-400 font-normal text-[10px]">支持全身 10 部位</span>
+        <div class="smithy-layout flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="smithy-socket-inventory">
+            ${this.renderSmithySlots('选择要镶嵌的装备部位', 'socket')}
+            <div class="smithy-material-panel mota-parchment-panel">
+              <h3 class="smithy-heading text-xs font-bold">行囊宝石与符文 · ${bagGems.length} 组</h3>
+              <div class="smithy-scroll flex-1 min-h-0 overflow-y-auto">
+                ${bagGems.length ? `<div class="smithy-gem-grid">
+                  ${bagGems.map(gem => `<button type="button" data-gem-uid="${escapeText(gem.uid || gem.id)}" aria-pressed="${this.selectedGemUid === (gem.uid || gem.id)}" class="btn-select-bag-gem smithy-gem-button">
+                    <span class="smithy-item-icon w-8 h-8 p-1 flex-shrink-0">${renderGameIcon(gem, { size: 'w-full h-full' })}</span>
+                    <span class="min-w-0"><strong>${escapeText(gem.name)}</strong><span class="smithy-gem-bonus">${gem.type === 'rune' || RUNES[gem.id] ? '符文' : '宝石'} · ${escapeText(socketBonuses(gem))}</span></span>
+                    <b class="smithy-gem-count">×${gem.count || 1}</b>
+                  </button>`).join('')}
+                </div>` : `<div class="smithy-empty py-3 text-xs"><p>行囊中暂无宝石或符文。宝石可在王国角斗场的声望商行兑换。</p><button type="button" data-goto="palace_arena" class="btn-goto-subview mota-btn-dark px-3 py-2 mt-2">前往声望商行</button></div>`}
               </div>
-              
-              <!-- 10槽位网格 -->
-              <div class="grid grid-cols-5 gap-1 mb-2.5">
-                ${ITEM_SLOTS.map(slot => {
-                  const eq = gameState.data.equipped[slot.id];
-                  const isSel = this.selectedEquipSlot === slot.id;
-                  return `
-                    <button data-socket-slot="${slot.id}" class="btn-select-socket-slot p-1 rounded-lg border text-center transition-all ${
-                      isSel 
-                        ? 'border-amber-400 bg-amber-950/60 shadow text-amber-200 font-bold' 
-                        : 'border-slate-800 bg-black/40 hover:border-slate-600 text-slate-400'
-                    }">
-                      <div class="text-[10px] truncate">${slot.name}</div>
-                      <div class="text-[9px] font-mono ${eq ? 'text-emerald-400 font-bold' : 'text-slate-600'}">
-                        ${eq ? `${eq.sockets || 0}孔` : '空'}
-                      </div>
-                    </button>
-                  `;
-                }).join('')}
-              </div>
-
-              <!-- 选中的装备简要卡片 -->
-              ${item ? `
-                <div class="p-2.5 rounded-xl bg-black/50 border border-amber-900/60 flex items-center gap-3">
-                  <div class="w-12 h-12 rounded-xl bg-amber-950/30 border border-amber-500/70 p-1 flex items-center justify-center flex-shrink-0">
-                    ${renderGameIcon(item, { size: 'w-full h-full' })}
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-xs font-black text-amber-200 truncate">${item.name}</span>
-                      ${item.stars ? `<span class="text-[10px] text-amber-300 font-mono font-bold">+${item.stars}星</span>` : ''}
-                    </div>
-                    <div class="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
-                      <span>需求: Lv.${item.reqLevel || 1}</span>
-                      <span class="text-emerald-400 font-bold">已开孔: ${curSockets} / ${maxSockets}</span>
-                    </div>
-                    <div class="text-[10px] text-slate-400 mt-0.5">
-                      已镶嵌宝石: <span class="text-amber-300 font-mono">${(item.gems || []).filter(Boolean).length}</span> 颗
-                    </div>
-                  </div>
-                </div>
-              ` : `
-                <div class="p-4 rounded-xl bg-black/30 border border-slate-800 text-center text-xs text-slate-500">
-                  当前槽位未穿戴装备
-                </div>
-              `}
-            </div>
-
-            <!-- 打孔操作区 -->
-            <div class="pt-2 border-t border-[#4a3520]">
-              <div class="flex items-center justify-between text-[11px] mb-1.5">
-                <span class="text-slate-400">开孔水晶储备:</span>
-                <span class="text-amber-300 font-mono font-bold">${drillCount} 颗</span>
-              </div>
-              ${item ? `
-                ${curSockets < maxSockets ? `
-                  <button id="btn-punch-socket" class="w-full mota-btn-gold py-2 rounded-xl text-xs font-bold shadow flex items-center justify-center gap-1">
-                    <span>开凿第 ${curSockets + 1} 孔 (耗 1 水晶 + ${nextDrillCost.toLocaleString()} 金币)</span>
-                  </button>
-                ` : `
-                  <div class="w-full py-2 rounded-xl bg-slate-900 border border-slate-700 text-center text-xs text-slate-500 font-bold">
-                    该装备已达 4 孔上限
-                  </div>
-                `}
-              ` : `
-                <button disabled class="w-full mota-btn-dark py-2 rounded-xl text-xs text-slate-600 opacity-60">
-                  请先选择装备
-                </button>
-              `}
             </div>
           </div>
-
-          <!-- 右侧：宝石孔详情与行囊宝石库 (md:col-span-7) -->
-          <div class="md:col-span-7 flex flex-col justify-between bg-black/40 border border-[#4a3520] rounded-xl p-2.5 shadow">
-            
-            <!-- 上半部：4大孔位状态 -->
-            <div class="mb-2">
-              <div class="text-[11px] font-bold text-amber-200 mb-2 flex items-center justify-between">
-                <span>装备孔位镶嵌状况:</span>
-                <span class="text-slate-400 text-[10px]">镶嵌手工费: 500 金币 · 摘除完全免费无损</span>
+          <div class="smithy-detail mota-parchment-panel flex flex-col min-h-0">
+            ${item ? `
+              <div class="smithy-heading flex items-center gap-3">
+                <span class="smithy-item-icon w-10 h-10 p-1 flex-shrink-0">${renderGameIcon(item, { size: 'w-full h-full' })}</span>
+                <div class="min-w-0"><h3 class="text-sm font-bold">${escapeText(item.name)}</h3><p class="text-xs">+${item.stars || 0} 星 · 已开 ${curSockets} / 4 孔 · 已镶嵌 ${(item.gems || []).filter(Boolean).length} 枚</p></div>
               </div>
-
-              ${item ? `
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  ${[0, 1, 2, 3].map(idx => {
-                    const isOpen = idx < curSockets;
-                    const gem = (item.gems && item.gems[idx]) || null;
-                    if (!isOpen) {
-                      return `
-                        <div class="p-2 rounded-xl border border-dashed border-slate-800 bg-black/20 flex items-center justify-between">
-                          <div class="flex items-center gap-2 text-slate-600">
-                            <div class="w-7 h-7 rounded-lg border border-dashed border-slate-800 flex items-center justify-center text-[10px]">
-                              ${idx + 1}
-                            </div>
-                            <span class="text-xs">未开孔洞</span>
-                          </div>
-                          <span class="text-[10px] text-slate-600">需打孔</span>
+              <div class="smithy-scroll flex-1 min-h-0 overflow-y-auto mt-2">
+                <p class="smithy-rule-note text-xs">镶嵌每次 500 金币；摘除免费、无损，需行囊可容纳。</p>
+                <div class="smithy-socket-grid">
+                  ${[0, 1, 2, 3].map(index => {
+                    const gem = item.gems?.[index];
+                    const open = index < curSockets;
+                    return `<div class="smithy-socket-cell" data-socket-state="${!open ? 'locked' : gem ? 'filled' : 'empty'}" data-socket-index="${index}">
+                      <div class="smithy-socket-description">
+                        <span class="smithy-item-icon w-8 h-8 p-1 flex-shrink-0">${gem ? renderGameIcon(gem, { size: 'w-full h-full' }) : `<span class="smithy-socket-number">${index + 1}</span>`}</span>
+                        <div class="min-w-0"><strong class="block">${gem ? escapeText(gem.name) : `第 ${index + 1} 孔 · ${open ? '可镶嵌' : '未开启'}`}</strong>
+                          <span class="smithy-socket-bonus">${gem ? `${gem.isRune || RUNES[gem.id] ? '符文' : '宝石'} · ${escapeText(socketBonuses(gem))}` : open ? '选择左侧材料后镶入' : '开孔后可镶嵌宝石或符文'}</span>
                         </div>
-                      `;
-                    }
-                    if (gem) {
-                      return `
-                        <div class="p-2 rounded-xl border border-amber-600/70 bg-amber-950/20 flex items-center justify-between shadow">
-                          <div class="flex items-center gap-2 min-w-0">
-                            <div class="w-7 h-7 rounded-lg bg-black/60 border border-amber-500/70 p-0.5 flex items-center justify-center flex-shrink-0">
-                              ${renderGameIcon(gem, { size: 'w-full h-full' })}
-                            </div>
-                            <div class="min-w-0">
-                              <div class="text-xs font-bold text-amber-200 truncate">${gem.name}</div>
-                              <div class="text-[10px] text-emerald-400 font-mono">+${gem.val} ${statNameMap[gem.stat] || gem.stat}</div>
-                            </div>
-                          </div>
-                          <button data-slot="${this.selectedEquipSlot}" data-socket-idx="${idx}" class="btn-remove-gem px-2 py-1 rounded-lg mota-btn-dark border border-red-700/60 text-rose-300 hover:border-red-500 text-[10px] font-bold flex-shrink-0">
-                            无损摘除
-                          </button>
-                        </div>
-                      `;
-                    }
-                    return `
-                      <div class="p-2 rounded-xl border border-emerald-600/50 bg-emerald-950/10 flex items-center justify-between">
-                        <div class="flex items-center gap-2 min-w-0">
-                          <div class="w-7 h-7 rounded-lg border border-emerald-500/50 flex items-center justify-center text-[10px] text-emerald-400 font-mono">
-                            ${idx + 1}
-                          </div>
-                          <div>
-                            <div class="text-xs font-bold text-emerald-300">孔洞已就绪</div>
-                            <div class="text-[10px] text-slate-400">可镶嵌任意宝石</div>
-                          </div>
-                        </div>
-                        <button data-slot="${this.selectedEquipSlot}" data-socket-idx="${idx}" class="btn-inlay-gem px-2.5 py-1 rounded-lg text-[10px] font-bold shadow ${
-                          this.selectedGemUid ? 'mota-btn-gold text-amber-100' : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                        }">
-                          ${this.selectedGemUid ? '镶入选定宝石' : '选宝石后镶嵌'}
-                        </button>
                       </div>
-                    `;
+                      ${!open ? '' : gem ? `<button type="button" data-slot="${this.selectedEquipSlot}" data-socket-idx="${index}" class="btn-remove-gem mota-btn-dark">无损摘除</button>`
+                        : `<button type="button" data-slot="${this.selectedEquipSlot}" data-socket-idx="${index}" class="btn-inlay-gem mota-btn-gold" ${inlayReason ? 'disabled' : ''}>${inlayReason || '镶入选定材料'}</button>`}
+                    </div>`;
                   }).join('')}
                 </div>
-              ` : `
-                <div class="p-6 rounded-xl bg-black/30 border border-slate-800 text-center text-xs text-slate-500">
-                  请先在左侧选择一件已佩戴的装备
-                </div>
-              `}
-            </div>
+                ${word ? `<p class="smithy-runic-note"><strong>${escapeText(word.name)}${item.durability === 0 ? '（装备损坏，未生效）' : ''}</strong><br>${escapeText(word.desc)}</p>` : ''}
 
-            <!-- 下半部：行囊可用宝石库 -->
-            <div class="pt-2 border-t border-[#4a3520]">
-              <div class="flex items-center justify-between text-[11px] font-bold text-amber-200 mb-1.5">
-                <span>行囊可用宝石库 (${bagGems.length} 种):</span>
-                <span class="text-slate-400 text-[10px]">点击选择宝石，再点击上方空孔完成镶嵌</span>
               </div>
-
-              ${bagGems.length > 0 ? `
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-[120px] overflow-y-auto mota-custom-scroll pr-1">
-                  ${bagGems.map(g => {
-                    const isSel = this.selectedGemUid === (g.uid || g.id);
-                    return `
-                      <button data-gem-uid="${g.uid || g.id}" class="btn-select-bag-gem p-1.5 rounded-lg border text-left flex items-center gap-1.5 transition-all ${
-                        isSel 
-                          ? 'border-amber-400 bg-amber-950/70 shadow ring-1 ring-amber-400' 
-                          : 'border-slate-800 bg-black/40 hover:border-slate-600'
-                      }">
-                        <div class="w-6 h-6 rounded bg-black/60 border border-slate-700 p-0.5 flex items-center justify-center flex-shrink-0">
-                          ${renderGameIcon(g, { size: 'w-full h-full' })}
-                        </div>
-                        <div class="min-w-0 flex-1">
-                          <div class="text-[10px] font-bold text-amber-200 truncate">${g.name}</div>
-                          <div class="text-[9px] text-emerald-400 font-mono truncate">+${g.val} ${statNameMap[g.stat] || ''}</div>
-                        </div>
-                        <span class="text-[9px] text-amber-300 font-mono font-bold">x${g.count || 1}</span>
-                      </button>
-                    `;
-                  }).join('')}
-                </div>
-              ` : `
-                <div class="p-3 rounded-lg bg-black/40 border border-slate-800 text-center flex items-center justify-between">
-                  <span class="text-xs text-slate-400">行囊中暂无宝石！可在王国角斗场商行兑换</span>
-                  <button data-goto="palace_arena" class="btn-goto-subview mota-btn-gold px-3 py-1 rounded-lg text-xs font-bold shadow">
-                    前往声望商行 ->
-                  </button>
-                </div>
-              `}
+            ` : `<div class="smithy-empty flex-1 flex flex-col items-center justify-center text-center"><h3>${SLOT_MAP[this.selectedEquipSlot]?.name || '该部位'}未穿戴装备</h3><p class="text-xs mt-2">选择其他已穿戴部位，或从行囊穿戴装备。</p></div>`}
+            <div class="smithy-action-bar pt-2 mt-2 flex-shrink-0">
+              <p class="smithy-quote text-xs">开孔水晶 / 金刚钻：<strong>${drillCount}</strong> 个 · 持有金币 <strong>${data.gold.toLocaleString()}</strong>${item && curSockets < 4 ? `<br>下一孔消耗 1 个开孔道具 + ${nextDrillCost.toLocaleString()} 金币` : ''}</p>
+              <button type="button" id="btn-punch-socket" class="mota-btn-gold w-full py-2 mt-2 text-xs font-bold" ${drillReason ? 'disabled' : ''}>${drillReason || `开凿第 ${curSockets + 1} 孔`}</button>
             </div>
-
           </div>
-
         </div>
-
       </div>
     `;
   }
 
-  // ==========================================
-  // 6. 【传奇词条 · 神兵重铸】(Smithy Reforge Sub-page)
-  // ==========================================
   renderSmithyReforge() {
     const data = gameState.data;
     const item = data.equipped[this.selectedEquipSlot];
-    const goldCrystal = data.bag.find(i => i.id === 'crystal_gold');
-    const goldCrystalCount = goldCrystal ? (goldCrystal.count || 0) : 0;
-    const darkgoldCrystal = data.bag.find(i => i.id === 'crystal_darkgold');
-    const darkgoldCrystalCount = darkgoldCrystal ? (darkgoldCrystal.count || 0) : 0;
-    const hasAnyCrystal = (goldCrystalCount + darkgoldCrystalCount) > 0;
-    const goldCost = 2000;
-    const hasEnoughGold = data.gold >= goldCost;
-
-    if (!this.selectedReforgeCrystal) {
-      this.selectedReforgeCrystal = darkgoldCrystalCount > 0 ? 'crystal_darkgold' : 'crystal_gold';
+    const crystalChoices = [
+      { id: 'crystal_darkgold', name: '暗金晶石', detail: '数值取词条区间的较高一半' },
+      { id: 'crystal_gold', name: '黄金晶石', detail: '数值取词条完整区间' }
+    ].map(crystal => ({ ...crystal, count: data.bag.filter(entry => entry.id === crystal.id).reduce((sum, entry) => sum + (entry.count || 0), 0) }));
+    if (!crystalChoices.some(crystal => crystal.id === this.selectedReforgeCrystal)) {
+      this.selectedReforgeCrystal = crystalChoices.find(crystal => crystal.count > 0)?.id || 'crystal_gold';
     }
+    const selectedCrystal = crystalChoices.find(crystal => crystal.id === this.selectedReforgeCrystal);
+    const quote = gameState.getReforgeQuote(item);
+    const pending = item?.pendingReforge;
+    const disabledReason = !item ? '请先选择已穿戴装备' : pending ? '请先处理当前重铸结果'
+      : quote.success === false ? quote.msg : selectedCrystal.count < 1 ? `${selectedCrystal.name}不足`
+      : data.gold < quote.gold ? `金币不足，还缺 ${quote.gold - data.gold}`
+      : data.crystal < quote.crystal ? `魔晶不足，还缺 ${quote.crystal - data.crystal}` : '';
+    const affixText = affix => affix ? `${escapeText(affix.name)} +${affix.val}${escapeText(affix.unit)}` : '暂无传奇词条';
 
     return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 面包屑 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-400 font-bold">圣光王都</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-300 font-bold cursor-pointer hover:underline" data-goto="smithy">皇家铁匠铺</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-purple-300 font-bold">传奇附魔 · 神兵重铸专室</span>
-          </div>
-          <button data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 rounded-lg text-xs font-semibold text-amber-300 hover:border-amber-400 flex items-center gap-1">
-            <span>← 返回铁匠铺大厅</span>
-          </button>
+      <div class="smithy-page smithy-page-reforge w-full h-full p-1.5 sm:p-2 flex flex-col select-none">
+        <div class="mota-breadcrumb px-3 py-1.5 flex items-center justify-between mb-2 flex-shrink-0">
+          <div class="flex items-center gap-2 text-xs"><span>皇家铁匠铺</span><span>→</span><strong>传奇附魔 · 神兵重铸</strong></div>
+          <button type="button" data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 text-xs">返回铁匠铺</button>
         </div>
-
-        <!-- 主体区域：左右双面板架构 -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-2.5">
-          
-          <!-- 左侧：部位选择与当前装备信息 (md:col-span-5) -->
-          <div class="md:col-span-5 flex flex-col justify-between bg-black/40 border border-[#4a3520] rounded-xl p-2.5 shadow">
-            <div>
-              <div class="text-[11px] font-bold text-amber-200 mb-1.5 flex items-center justify-between">
-                <span>选择重铸装备部位:</span>
-                <span class="text-slate-400 font-normal text-[10px]">全身 10 部位</span>
+        <div class="smithy-layout flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3">
+          ${this.renderSmithySlots('选择要重铸的装备部位', 'reforge')}
+          <div class="smithy-detail mota-parchment-panel flex flex-col min-h-0">
+            <div class="smithy-scroll flex-1 min-h-0 overflow-y-auto">
+              ${item ? `<div class="smithy-heading flex items-center gap-3">
+                <span class="smithy-item-icon w-10 h-10 p-1 flex-shrink-0">${renderGameIcon(item, { size: 'w-full h-full' })}</span>
+                <div class="min-w-0"><h3 class="text-sm font-bold">${escapeText(item.name)}</h3><p class="text-xs">${QUALITIES[item.quality]?.name || '装备'} · +${item.stars || 0} 星 · 需求等级 ${item.reqLevel || 1}</p></div>
+              </div><p class="smithy-current-affix">当前词条：<strong>${affixText(item.reforge)}</strong></p>`
+                : `<div class="smithy-empty py-3 text-center"><h3>${SLOT_MAP[this.selectedEquipSlot]?.name || '该部位'}未穿戴装备</h3><p class="text-xs mt-2">选择其他已穿戴部位，或从行囊穿戴装备。</p></div>`}
+              <h4 class="smithy-section-label">选择本次消耗的晶石</h4>
+              <div class="smithy-crystal-grid">
+                ${crystalChoices.map(crystal => `<button type="button" data-use-crystal="${crystal.id}" aria-pressed="${this.selectedReforgeCrystal === crystal.id}" class="btn-select-reforge-crystal smithy-crystal-button">
+                  <span class="smithy-item-icon w-8 h-8 p-1 flex-shrink-0">${renderGameIcon(crystal.id, { size: 'w-full h-full' })}</span>
+                  <span class="min-w-0"><strong>${crystal.name} · ${crystal.count} 颗</strong><span>${crystal.detail}</span></span>
+                </button>`).join('')}
               </div>
-              
-              <!-- 10槽位网格 -->
-              <div class="grid grid-cols-5 gap-1 mb-2.5">
-                ${ITEM_SLOTS.map(slot => {
-                  const eq = data.equipped[slot.id];
-                  const isSel = this.selectedEquipSlot === slot.id;
-                  const hasReforge = eq && eq.reforge;
-                  return `
-                    <button data-reforge-slot="${slot.id}" class="btn-select-reforge-slot p-1 rounded-lg border text-center transition-all ${
-                      isSel 
-                        ? 'border-purple-400 bg-purple-950/60 shadow text-purple-200 font-bold' 
-                        : 'border-slate-800 bg-black/40 hover:border-slate-600 text-slate-400'
-                    }">
-                      <div class="text-[10px] truncate">${slot.name}</div>
-                      <div class="text-[9px] font-mono truncate ${hasReforge ? 'text-amber-300 font-bold' : eq ? 'text-slate-400' : 'text-slate-600'}">
-                        ${hasReforge ? eq.reforge.name.slice(0, 2) : (eq ? '已佩戴' : '空')}
-                      </div>
-                    </button>
-                  `;
-                }).join('')}
-              </div>
-
-              <!-- 选中的装备卡片与当前词条 -->
-              ${item ? `
-                <div class="p-2.5 rounded-xl bg-black/50 border border-purple-900/60 space-y-2">
-                  <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-xl bg-purple-950/30 border border-purple-500/70 p-1 flex items-center justify-center flex-shrink-0">
-                      ${renderGameIcon(item, { size: 'w-full h-full' })}
-                    </div>
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-amber-200 truncate">${item.name}</span>
-                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                          +${item.stars || 0}星
-                        </span>
-                      </div>
-                      <div class="text-[10px] text-slate-400 mt-0.5">
-                        需求等级: Lv.${item.reqLevel || 1} · ${item.quality ? item.quality.toUpperCase() : '装备'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- 当前传奇词条展示槽 -->
-                  <div class="p-2 rounded-lg ${item.reforge ? 'bg-gradient-to-r from-purple-950/40 to-black/60 border border-purple-500/60' : 'bg-black/40 border border-slate-800'}">
-                    <div class="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
-                      <span>当前传奇附魔属性</span>
-                      ${item.reforge ? `<span class="text-purple-300 font-mono text-[9px]">${item.reforge.crystalUsed || '晶石洗炼'}</span>` : ''}
-                    </div>
-                    ${item.reforge ? `
-                      <div class="flex items-center justify-between">
-                        <span class="text-xs font-black text-amber-300">${item.reforge.name}</span>
-                        <span class="text-xs font-bold font-mono text-emerald-300">+${item.reforge.val}${item.reforge.unit}</span>
-                      </div>
-                    ` : `
-                      <div class="text-xs text-slate-500 py-0.5">
-                        暂无传奇词条 (点击右侧锻炉开始洗炼)
-                      </div>
-                    `}
-                  </div>
-                </div>
-              ` : `
-                <div class="p-6 rounded-xl bg-black/30 border border-slate-800 text-center text-xs text-slate-500">
-                  当前槽位未佩戴装备，请先在上方切换已佩戴槽位
-                </div>
-              `}
+              <details class="smithy-affix-catalog" ${pending ? '' : 'open'}>
+                <summary class="smithy-section-label">传奇词条图鉴 <span>· 每次随机生成一种</span></summary>
+                <dl class="smithy-affix-list">
+                  ${REFORGE_AFFIXES.map(affix => `<div data-current="${item?.reforge?.id === affix.id}"><dt><strong>${affix.name}</strong><span>${affix.desc}</span></dt><dd>+${affix.min}～${affix.max}${affix.unit}</dd></div>`).join('')}
+                </dl>
+              </details>
             </div>
-
-            <div class="mt-2 p-2 rounded-lg bg-black/50 border border-[#4a3520] text-[10px] text-slate-400 space-y-1">
-              <div class="flex items-center justify-between">
-                <span>行囊黄金晶石:</span>
-                <span class="text-amber-300 font-mono font-bold">${goldCrystalCount} 颗</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span>行囊暗金晶石:</span>
-                <span class="text-purple-300 font-mono font-bold">${darkgoldCrystalCount} 颗</span>
-              </div>
+            <div class="smithy-action-bar pt-2 mt-2 flex-shrink-0">
+              ${pending ? `<div class="smithy-reforge-pending" role="region" aria-label="重铸结果待选择">
+                <h4>重铸完成 · 请选择</h4>
+                <p>新词条：<strong>${affixText(pending.affix)}</strong></p>
+                <p>原词条：${affixText(item.reforge)}</p>
+                <p class="smithy-rule-note">材料已消耗。采用后属性才会改变；保留原词条不退材料。</p>
+                <div class="smithy-reforge-choices"><button type="button" class="btn-resolve-reforge mota-btn-gold" data-accept="true">采用新词条</button><button type="button" class="btn-resolve-reforge mota-btn-dark" data-accept="false">保留原词条</button></div>
+              </div>` : item && quote.success !== false ? `<div class="smithy-quote text-xs">
+                <p>本次消耗：${selectedCrystal.name} × 1 · ${quote.gold}金币 · ${quote.crystal}魔晶</p>
+                <p>持有：${selectedCrystal.count} 颗 · ${data.gold.toLocaleString()} 金币 · ${data.crystal.toLocaleString()} 魔晶</p>
+              </div>` : ''}
+              <button type="button" id="btn-do-reforge" class="mota-btn-gold w-full py-2 mt-2 text-xs font-bold" ${disabledReason ? 'disabled' : ''}>${disabledReason || '重铸传奇词条'}</button>
             </div>
           </div>
-
-          <!-- 右侧：传奇词条符文锻炉与词条预览 (md:col-span-7) -->
-          <div class="md:col-span-7 flex flex-col justify-between bg-black/40 border border-[#4a3520] rounded-xl p-2.5 shadow">
-            
-            <!-- 上半部：传奇词条库图鉴 -->
-            <div>
-              <div class="text-[11px] font-bold text-amber-200 mb-1.5 flex items-center justify-between">
-                <span>传奇词条库 (洗炼必出以下其一):</span>
-                <span class="text-purple-400 text-[10px]">暗金晶石必出高位极值</span>
-              </div>
-
-              <!-- 5大词条预览卡片 -->
-              <div class="space-y-1.5 mb-2">
-                ${REFORGE_AFFIXES.map(affix => {
-                  const isCurrent = item && item.reforge && item.reforge.id === affix.id;
-                  return `
-                    <div class="p-1.5 rounded-lg border flex items-center justify-between transition-all ${
-                      isCurrent 
-                        ? 'bg-amber-950/40 border-amber-500/80 shadow' 
-                        : 'bg-black/30 border-slate-800/80'
-                    }">
-                      <div class="flex items-center gap-2">
-                        <span class="w-1.5 h-1.5 rounded-full ${isCurrent ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}"></span>
-                        <span class="text-xs font-bold ${isCurrent ? 'text-amber-300' : 'text-slate-200'}">${affix.name}</span>
-                        <span class="text-[10px] text-slate-400">${affix.desc}</span>
-                      </div>
-                      <span class="text-xs font-mono font-bold ${isCurrent ? 'text-emerald-300' : 'text-amber-400/90'}">
-                        +${affix.min} ~ +${affix.max}${affix.unit}
-                      </span>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-
-            <!-- 下半部：晶石选择与洗炼控制台 -->
-            <div class="pt-2 border-t border-[#4a3520] space-y-2">
-              <div class="text-[11px] font-bold text-amber-200 flex items-center justify-between">
-                <span>洗炼消耗与晶石选择:</span>
-                <span class="text-slate-400 text-[10px]">单次消耗 1 颗晶石 + 2000 金币</span>
-              </div>
-
-              <!-- 晶石选择器 -->
-              <div class="grid grid-cols-2 gap-2">
-                <button data-use-crystal="crystal_darkgold" class="btn-select-reforge-crystal p-2 rounded-xl border text-left flex items-center justify-between transition-all ${
-                  this.selectedReforgeCrystal === 'crystal_darkgold'
-                    ? 'border-purple-400 bg-purple-950/60 text-purple-200 shadow ring-1 ring-purple-400/40'
-                    : 'border-slate-800 bg-black/40 text-slate-400 hover:border-slate-600'
-                }">
-                  <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/50 p-1 flex-shrink-0 flex items-center justify-center">
-                      ${renderGameIcon('crystal_darkgold', { size: 'w-full h-full' })}
-                    </div>
-                    <div>
-                      <div class="text-xs font-bold">暗金晶石</div>
-                      <div class="text-[9px] text-purple-400">保底 50%~100% 极值</div>
-                    </div>
-                  </div>
-                  <span class="text-xs font-mono font-bold ${darkgoldCrystalCount > 0 ? 'text-amber-300' : 'text-slate-600'}">${darkgoldCrystalCount} 颗</span>
-                </button>
-
-                <button data-use-crystal="crystal_gold" class="btn-select-reforge-crystal p-2 rounded-xl border text-left flex items-center justify-between transition-all ${
-                  this.selectedReforgeCrystal === 'crystal_gold'
-                    ? 'border-amber-400 bg-amber-950/60 text-amber-200 shadow ring-1 ring-amber-400/40'
-                    : 'border-slate-800 bg-black/40 text-slate-400 hover:border-slate-600'
-                }">
-                  <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/50 p-1 flex-shrink-0 flex items-center justify-center">
-                      ${renderGameIcon('crystal_gold', { size: 'w-full h-full' })}
-                    </div>
-                    <div>
-                      <div class="text-xs font-bold">黄金晶石</div>
-                      <div class="text-[9px] text-amber-400">标准全区间波动</div>
-                    </div>
-                  </div>
-                  <span class="text-xs font-mono font-bold ${goldCrystalCount > 0 ? 'text-amber-300' : 'text-slate-600'}">${goldCrystalCount} 颗</span>
-                </button>
-              </div>
-
-              <!-- 费用与洗炼大按钮 -->
-              <div class="flex items-center gap-2">
-                <div class="px-3 py-2 rounded-xl bg-black/50 border border-slate-800 text-[10px] text-slate-400 flex items-center gap-2 flex-shrink-0">
-                  <span>洗炼金币:</span>
-                  <span class="font-mono font-bold ${hasEnoughGold ? 'text-amber-300' : 'text-red-400'}">2000</span>
-                </div>
-                <button id="btn-do-reforge" class="flex-1 mota-btn-gold py-2 rounded-xl text-xs font-black shadow flex items-center justify-center gap-1.5 ${
-                  item && hasAnyCrystal && hasEnoughGold ? '' : 'opacity-50 cursor-not-allowed'
-                }">
-                  <span>激活 · 重铸传奇词条</span>
-                </button>
-              </div>
-            </div>
-
-          </div>
-
         </div>
-
       </div>
     `;
   }
@@ -1327,6 +581,7 @@ export class TownView {
           </button>
         </div>
 
+        ${this.renderCommissionEntrance(true)}
         <!-- 圣王大殿三大功能入口 (紧凑舒展，绝不遮挡底部按键) -->
         <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-2.5">
           
@@ -1562,7 +817,7 @@ export class TownView {
                     </div>
 
                     <div class="pt-2 border-t border-[#4a3520]">
-                      <button data-shop-id="${item.id}" class="btn-buy-prestige-item w-full py-1.5 rounded-lg text-xs font-bold shadow flex items-center justify-center gap-1 ${
+                      <button data-shop-id="${item.id}" ${canAfford ? '' : 'disabled'} class="btn-buy-prestige-item w-full py-1.5 rounded-lg text-xs font-bold shadow flex items-center justify-center gap-1 ${
                         canAfford ? 'mota-btn-gold' : 'mota-btn-dark text-slate-500 opacity-60 cursor-not-allowed'
                       }">
                         <span>${canAfford ? '立即兑换' : '声望不足'}</span>
@@ -1593,7 +848,7 @@ export class TownView {
           <div class="flex items-center gap-2 text-xs">
             <span class="text-amber-400 font-bold">圣光王都</span>
             <span class="text-slate-500">-></span>
-            <span class="text-amber-300 font-bold cursor-pointer hover:underline" data-goto="palace">圣王大殿</span>
+            <button type="button" class="btn-goto-subview text-amber-300 font-bold cursor-pointer hover:underline" data-goto="palace">圣王大殿</button>
             <span class="text-slate-500">-></span>
             <span class="text-amber-200 font-bold">圣王早朝 · 每日俸禄</span>
           </div>
@@ -1673,7 +928,7 @@ export class TownView {
           <div class="flex items-center gap-2 text-xs">
             <span class="text-amber-400 font-bold">圣光王都</span>
             <span class="text-slate-500">-></span>
-            <span class="text-amber-300 font-bold cursor-pointer hover:underline" data-goto="palace">圣王大殿</span>
+            <button type="button" class="btn-goto-subview text-amber-300 font-bold cursor-pointer hover:underline" data-goto="palace">圣王大殿</button>
             <span class="text-slate-500">-></span>
             <span class="text-amber-200 font-bold">职业七阶转职殿堂 · 封号试炼</span>
           </div>
@@ -1898,7 +1153,7 @@ export class TownView {
             <div class="flex items-center justify-between pb-3 border-b border-[#4a3520]">
               <div>
                 <h3 class="text-sm font-black text-amber-300">亚诺护城水域 · 悠闲泛舟垂钓</h3>
-                <p class="text-[11px] text-slate-400">使用普通鱼饵捕捞七鳃鳗，或使用秘制鱼饵垂钓稀世金龙鱼！</p>
+                <p class="text-[11px] text-slate-400">酒馆一星悬赏提供普通鱼饵，四星悬赏提供高级鱼饵。带来垂钓可捕获鱼类与额外魔晶。</p>
               </div>
               <div class="flex gap-3 text-xs bg-black/60 px-3 py-1.5 rounded-lg border border-slate-800 font-mono">
                 <div>七鳃鳗: <b class="text-cyan-400">${data.fishing?.lamprey || 0}</b> 尾</div>
@@ -1957,7 +1212,7 @@ export class TownView {
     const inProgressCount = bounties.filter(b => b.status === 'in_progress').length;
     const drinkBuff = data.tavern?.drinkBuff;
     const activeMercId = data.estate?.hiredMercId;
-    const activeMerc = MERCENARIES.find(m => m.id === activeMercId) || MERCENARIES[1];
+    const activeMerc = MERCENARIES.find(m => m.id === activeMercId) || { name: '尚未招募', role: '独自旅行', aura: '暂无', auraDesc: '在下方选择一位护卫，支付招募费后才会随行。' };
 
     return `
       <div class="w-full h-full p-2 flex flex-col justify-between select-none">
@@ -1974,6 +1229,7 @@ export class TownView {
           </div>
         </div>
 
+        ${this.renderCommissionEntrance(false)}
         <!-- 中部主体：横幅与三大分区卡片 -->
         <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto pr-1">
           
@@ -2044,7 +1300,7 @@ export class TownView {
                   </div>
                 </div>
                 <p class="text-xs text-slate-300 leading-relaxed">
-                  三大原著传奇佣兵：圣光救赎神官、誓约神圣铁卫与逐风游侠诗人。出战可为全队赋予减伤、大回血或速度暴增！
+                  三大传奇佣兵：圣光救赎神官、誓约神圣铁卫与逐风游侠诗人。出战可为全队赋予减伤、大回血或速度暴增！
                 </p>
                 <div class="p-2 rounded bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between font-mono">
                   <span>当前随行:</span>
@@ -2341,11 +1597,11 @@ export class TownView {
   // ==========================================
   renderTavernMercenary() {
     const data = gameState.data;
-    const hiredMercId = data.estate?.hiredMercId || 'merc_paladin';
-    const activeMerc = MERCENARIES.find(m => m.id === hiredMercId) || MERCENARIES[1];
+    const hiredMercId = data.estate?.hiredMercId;
+    const activeMerc = MERCENARIES.find(m => m.id === hiredMercId) || { name: '尚未招募', role: '独自旅行', aura: '暂无', auraDesc: '在下方选择一位护卫，支付招募费后才会随行。' };
 
     return `
-      <div class="w-full h-full p-2 flex flex-col justify-between select-none">
+      <div class="mercenary-page w-full h-full p-2 flex flex-col justify-between select-none">
         
         <!-- 顶部面包屑 -->
         <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
@@ -2365,7 +1621,7 @@ export class TownView {
         <div class="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto pr-1">
           
           <!-- 当前随行盟友状态 -->
-          <div class="p-3.5 rounded-xl border border-amber-400 bg-amber-950/40 shadow-md flex items-center justify-between">
+          <div class="mercenary-active-summary mota-parchment-panel p-3.5 rounded-xl border border-amber-400 bg-amber-950/40 shadow-md flex items-center justify-between">
             <div class="flex items-center gap-3">
               <div class="w-12 h-12 rounded-xl bg-amber-950 border border-amber-500/70 flex items-center justify-center p-1 shadow-inner">
                 ${renderGameIcon(activeMerc.avatar || 'avatar_warrior', { size: 'w-full h-full' })}
@@ -2381,19 +1637,19 @@ export class TownView {
               </div>
             </div>
             <div class="hidden sm:block text-xs font-mono text-amber-300 font-bold">
-              [随行护卫中]
+              ${hiredMercId ? '[随行护卫中]' : '[等待招募]'}
             </div>
           </div>
 
           <!-- 三大传奇佣兵卡片列表 -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="mercenary-grid grid grid-cols-1 md:grid-cols-3 gap-3">
             ${MERCENARIES.map(m => {
               const isHired = hiredMercId === m.id;
 
               return `
-                <div class="p-4 rounded-xl border-2 ${isHired ? 'border-amber-400 bg-amber-950/30 shadow-lg' : 'border-slate-800 bg-black/40 hover:border-amber-600/60'} flex flex-col justify-between transition-all">
+                <div class="mercenary-card mota-parchment-panel p-4 rounded-xl border-2 ${isHired ? 'border-amber-400 bg-amber-950/30 shadow-lg' : 'border-slate-800 bg-black/40 hover:border-amber-600/60'} flex flex-col justify-between transition-all" data-current="${isHired}">
                   <div class="space-y-2.5">
-                    <div class="flex items-center justify-between pb-2 border-b border-amber-900/40">
+                    <div class="mercenary-heading flex items-center justify-between pb-2 border-b border-amber-900/40">
                       <div>
                         <span class="text-[10px] text-amber-400/80 font-mono">${m.role}</span>
                         <h4 class="text-xs font-bold text-amber-200">${m.name}</h4>
@@ -2403,8 +1659,8 @@ export class TownView {
                       </span>
                     </div>
 
-                    <div class="flex items-center gap-3">
-                      <div class="w-12 h-12 rounded-xl bg-black/50 border border-amber-600/40 flex-shrink-0 flex items-center justify-center p-1">
+                    <div class="mercenary-introduction flex items-center gap-3">
+                      <div class="mercenary-portrait w-12 h-12 rounded-xl bg-black/50 border border-amber-600/40 flex-shrink-0 flex items-center justify-center p-1" role="img" aria-label="${m.name}肖像">
                         ${renderGameIcon(m.avatar || 'avatar_warrior', { size: 'w-full h-full' })}
                       </div>
                       <p class="text-[11px] text-slate-300 leading-relaxed font-sans">
@@ -2417,7 +1673,8 @@ export class TownView {
                     </div>
                   </div>
 
-                  <div class="pt-3 mt-3 border-t border-amber-900/40 flex items-center justify-end">
+                  <div class="mercenary-contract pt-3 mt-3 border-t border-amber-900/40 flex flex-col gap-2">
+                    ${!isHired ? `<p class="text-xs text-slate-300">雇佣费用：<strong class="text-amber-200">${m.hireCostGold.toLocaleString()} 金币</strong><br>持有：${data.gold.toLocaleString()} 金币${data.gold < m.hireCostGold ? ' · 金币不足' : ''}</p>${hiredMercId ? '<p class="text-xs text-slate-300">签订后将替换当前随行佣兵。</p>' : ''}` : ''}
                     ${isHired ? `
                       <span class="px-3.5 py-1.5 rounded-lg bg-amber-950 border border-amber-500 text-amber-300 text-xs font-bold font-mono">
                         [誓约随行中]
@@ -2450,7 +1707,130 @@ export class TownView {
   // ==========================================
   // 事件绑定与子页面跳转控制
   // ==========================================
+  renderCommissionEntrance(palace) {
+    const list = gameState.getCommissions(palace ? ['nation_guide'] : ['story_side', 'tavern']);
+    const ready = list.filter(entry => entry.status === 'ready').length;
+    const active = list.filter(entry => entry.status === 'active').length;
+    return `<button type="button" data-goto="${palace ? 'palace' : 'tavern'}_commissions" class="btn-goto-subview mota-btn-dark px-3 py-2 mb-2 text-xs flex-shrink-0">
+      ${palace ? '城邦使者 · 国家指引' : '酒馆任务簿 · 誓言的信物与一次委托'} · ${ready ? `${ready} 份可交付` : active ? `${active} 份进行中` : palace ? '12级接取' : '15级委托 / 19级支线 / 25–60级远行'}
+    </button>`;
+  }
+
+  renderCommissions(palace) {
+    const list = gameState.getCommissions(palace ? ['nation_guide'] : ['story_side', 'tavern']);
+    return `<div class="w-full h-full p-2 flex flex-col">
+      <div class="mota-breadcrumb px-3 py-2 mb-2 flex items-center justify-between flex-shrink-0">
+        <h2 id="commission-heading" tabindex="-1" class="text-sm font-bold">${palace ? '城邦使者 · 国家指引' : '皇家酒馆 · 任务簿'}</h2>
+        <button type="button" data-goto="${palace ? 'palace' : 'tavern'}" class="btn-goto-subview mota-btn-dark px-3 py-1 text-xs">返回${palace ? '圣王大殿' : '皇家酒馆'}</button>
+      </div>
+      <p class="mota-parchment-panel p-2 text-xs mb-2 flex-shrink-0">每份委托只可交付一次，接取后开始记录。${palace ? '国家在缔约时已选定，使者不会改变你的归属。' : '这里的委托独立于每日悬赏，跨日保留进度。'}暗金契约蛋可在45级起缔约；此前保留在行囊中。</p>
+      <div class="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1" aria-label="委托列表">
+        ${list.map(entry => {
+          const reward = entry.rewards, locked = Boolean(entry.lockedReason);
+          const selectedChoice = entry.choiceId || this.commissionChoices[entry.id];
+          const needsChoice = entry.status === 'ready' && entry.choices.length && !entry.choices.some(item => item.id === selectedChoice);
+          const stateText = { available: '待接取', active: '进行中', ready: '可交付', claimed: '已交付' }[entry.status];
+          return `<article class="mota-parchment-panel p-3" data-commission-card="${entry.id}">
+            <div class="flex items-center justify-between gap-2"><h3 class="text-sm font-bold">${entry.title}</h3><span class="text-xs">Lv.${entry.minLevel} · ${stateText}</span></div>
+            <p class="text-xs mt-2 whitespace-pre-line">${escapeText(entry.speaker)}：${escapeText(entry.status === 'claimed' ? entry.ending : entry.offer)}</p>
+            ${entry.progressText && ['active', 'ready'].includes(entry.status) ? `<p class="text-xs mt-2" data-commission-story="${entry.id}" role="status">${escapeText(entry.progressText)}</p>` : ''}
+            <p class="text-xs mt-2" role="status">${entry.requirement.label} · ${entry.current}/${entry.requirement.count}${entry.id === 'oath_token' && entry.current > 0 ? entry.status === 'claimed' ? ' · 银质徽记已交还巡逻队' : ' · 银质徽记已找回，待交还' : ''}</p>
+            <p class="text-xs mt-2">报酬：经验 ${reward.exp} / 金币 ${reward.gold} / 魔晶 ${reward.crystal} / 声望 ${reward.prestige} / ${reward.items.map(item => `${item.name} ×${item.count}`).join('、')}</p>
+            ${entry.choices.length ? `<fieldset class="mt-2 text-xs min-w-0">
+              <legend>${entry.status === 'claimed' ? '已领取的装备' : '装备目标 · 完成后任选一件，其他报酬照常领取'}</legend>
+              ${entry.choices.filter(item => entry.status !== 'claimed' || !entry.choiceId || item.id === entry.choiceId).map(item => `<label class="block mt-2 p-2 border border-stone-600 cursor-pointer">
+                ${entry.status === 'ready' ? `<input type="radio" name="commission-${entry.id}" data-commission-choice="${entry.id}" value="${item.id}" ${selectedChoice === item.id ? 'checked' : ''}> ` : ''}
+                <strong>${escapeText(item.name)}</strong> · ${item.level}级 · ${formatSocketStats(item.stats)}
+                <span class="block mt-1">${escapeText(item.desc)}</span>
+              </label>${entry.status !== 'claimed' ? this.renderCommissionEquipmentPreview(entry.id, item.id) : ''}`).join('')}
+            </fieldset>` : ''}
+            <div class="flex items-center gap-2 mt-3">
+              <button type="button" data-commission-id="${entry.id}" data-commission-action="${entry.status === 'ready' ? 'claim' : 'accept'}" class="btn-commission mota-btn-gold px-4 py-2 text-xs" ${(locked || needsChoice || ['active', 'claimed'].includes(entry.status)) ? 'disabled' : ''}>
+                ${entry.status === 'claimed' ? '报酬已领取' : locked ? escapeText(entry.lockedReason) : needsChoice ? '先选择一件装备' : entry.status === 'ready' ? `${entry.id === 'oath_token' ? '交还信物' : '交付报告'} · 领取报酬` : entry.status === 'active' ? '等待完成目标' : '接取委托'}
+              </button>
+              ${entry.status === 'active' ? `<button type="button" data-commission-go="${entry.id}" class="mota-btn-dark px-3 py-2 text-xs">前往${escapeText(entry.destination)}</button>` : ''}
+            </div>
+          </article>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  renderCommissionEquipmentPreview(id, choiceId) {
+    const preview = gameState.getCommissionEquipmentPreview(id, choiceId);
+    if (!preview.success) return '';
+    const rows = [['maxHp', '生命', ''], ['atk', '攻击', ''], ['magicResist', '魔抗', '%'],
+      ['dmgResist', '减伤', '%'], ['interval', '出手间隔', '秒']];
+    return `<details class="mt-1 text-xs" data-commission-preview="${choiceId}">
+      <summary class="cursor-pointer">与当前装备比较 · ${escapeText(preview.currentName)}</summary>
+      <p class="mt-1">按当前培养与搭配计算，奖励装备为无强化、无宝石。${preview.canEquip ? '等级已满足，可领取后穿戴。' : `需${preview.reqLevel}级才能穿戴。`}</p>
+      <table class="w-full mt-1"><thead><tr><th>属性</th><th>当前</th><th>换装后</th><th>变化</th></tr></thead><tbody>
+        ${rows.map(([key, label, unit]) => {
+          const before = key === 'interval' ? getPlayerActionInterval(preview.before, gameState.data) : preview.before[key] || 0;
+          const after = key === 'interval' ? getPlayerActionInterval(preview.after, gameState.data) : preview.after[key] || 0;
+          const delta = Math.round((after - before) * 100) / 100;
+          const format = value => String(Math.round(value * 100) / 100);
+          return `<tr data-goal-stat="${key}"><th scope="row">${label}</th><td>${format(before)}${unit}</td><td data-goal-value="${key}">${format(after)}${unit}</td><td>${delta > 0 ? '+' : ''}${format(delta)}${unit}</td></tr>`;
+        }).join('')}
+      </tbody></table>
+    </details>`;
+  }
+
   bindEvents() {
+    this.container.querySelectorAll('[data-town-route]').forEach(button => {
+      const entrance = this.container.querySelector(`.classic-town-location[data-goto="${button.dataset.townRoute}"]`);
+      button.onclick = () => entrance?.click();
+    });
+    this.container.querySelectorAll('[data-commission-choice]').forEach(input => {
+      input.addEventListener('change', () => {
+        this.commissionChoices[input.dataset.commissionChoice] = input.value;
+        const button = this.container.querySelector(`[data-commission-id="${input.dataset.commissionChoice}"]`);
+        if (button) { button.disabled = false; button.textContent = '交付报告 · 领取所选装备'; }
+      });
+    });
+    const focusCommission = id => {
+      const candidate = this.container.querySelector(`[data-commission-go="${id}"]`) ||
+        this.container.querySelector(`[data-commission-id="${id}"]:not(:disabled)`) ||
+        this.container.querySelector('#commission-heading');
+      candidate?.focus({ preventScroll: true });
+    };
+    this.container.querySelectorAll('.btn-commission').forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.dataset.commissionId;
+        const action = button.dataset.commissionAction;
+        const entry = gameState.getCommissions().find(config => config.id === id);
+        const choiceId = entry?.choices.length ? this.commissionChoices[id] : undefined;
+        const execute = () => {
+          const result = action === 'claim' ? gameState.claimCommission(id, choiceId) : gameState.acceptCommission(id);
+          this.render();
+          focusCommission(id);
+          gameModal.alert(result.msg, result.success ? action === 'claim' ? '委托交付' : '委托接取' : '委托提示');
+        };
+        if (action === 'claim' && entry?.choices.length) {
+          const chosen = entry.choices.find(item => item.id === choiceId);
+          if (!chosen) return;
+          gameModal.confirm(`选择【${chosen.name}】作为本次装备报酬。\n${formatSocketStats(chosen.stats)}\n\n只能取得其中一件装备，其他报酬全部照常领取。`, execute, () => {}, '确认远行装备');
+        } else if (action === 'claim') execute();
+        else {
+          gameModal.confirm(`${entry.speaker}：${entry.offer}\n\n目标：${entry.requirement.label}。`, execute, () => {}, entry.title);
+        }
+      });
+    });
+    this.container.querySelectorAll('[data-commission-go]').forEach(button => {
+      button.addEventListener('click', () => {
+        const entry = gameState.getCommissions().find(config => config.id === button.dataset.commissionGo);
+        if (entry?.status !== 'active') return;
+        if (entry.requirement.event === 'tower') {
+          window.appInstance.views.tower.subTab = 'castle';
+          window.switchMainTab('tower');
+          document.querySelector('#btn-start-redwood, #btn-challenge-castle-floor')?.focus();
+        } else {
+          window.appInstance.views.wild.selectedMapId = entry.requirement.target;
+          window.switchMainTab('wild');
+          document.querySelector(entry.requirement.event === 'wild_boss' ? '#btn-fight-wild-boss' : '.btn-fight-mob')?.focus();
+        }
+      });
+    });
     // 页面跳转路由事件
     this.container.querySelectorAll('.btn-goto-subview').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2458,16 +1838,24 @@ export class TownView {
         if (targetView) {
           this.currentView = targetView;
           this.render();
+          if (targetView.startsWith('smithy_')) this.container.querySelector(`.smithy-workshop-tabs [data-goto="${targetView}"]`)?.focus({ preventScroll: true });
+          if (targetView.endsWith('_commissions')) this.container.querySelector('#commission-heading')?.focus();
+          else if (['palace', 'tavern'].includes(targetView)) this.container.querySelector(`[data-goto="${targetView}_commissions"]`)?.focus();
         }
       });
     });
 
-    // 选装备槽位 (铁匠铺升星)
+    this.container.querySelector('#btn-workshop-bag')?.addEventListener('click', () => {
+      window.switchMainTab?.('bag');
+    });
+
+    // Preserve keyboard focus when the selected smithy slot rerenders its details.
     this.container.querySelectorAll('.btn-select-smithy-slot').forEach(btn => {
       btn.addEventListener('click', () => {
         const slotKey = btn.getAttribute('data-smithy-slot');
         this.selectedEquipSlot = slotKey;
         this.render();
+        this.container.querySelector(`[data-smithy-slot="${slotKey}"]`)?.focus();
       });
     });
 
@@ -2482,14 +1870,13 @@ export class TownView {
           return;
         }
 
-        if (gameState.data.currentQuestId === 'quest_1') {
+        if (gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_1') {
           gameModal.confirm(
-            `恭敬晋谒圣王！成功领受今日王国俸禄：金币 +1500，魔晶 +20！\n\n【主线任务达成】初临王都 · 晋谒圣王！\n圣王恩赐丰厚奖赏：经验 +500，金币 +1500，魔晶 +20，【远古重铸灵药】x3！\n\n是否立即领受圣王犒赏并开启下一阶段主线【工欲善其事 · 装备升星】？`,
+            `恭敬晋谒圣王！成功领受今日王国俸禄：金币 +1500，魔晶 +20！\n\n【主线任务达成】初临王都 · 晋谒圣王！\n圣王恩赐丰厚奖赏：经验 +500，金币 +1500，魔晶 +20，职业武器、防具各1件，升星水晶x3！\n\n是否立即领受圣王犒赏并开启下一阶段主线【工欲善其事 · 装备升星】？`,
             () => {
               gameState.claimQuestReward('quest_1');
-              gameModal.alert('丰厚犒赏已存入行囊！已自动为你开启下一阶段主线【工欲善其事 · 装备升星】，立即前往皇家铁匠铺升星工坊强化装备吧！', '主线推进', () => {
-                this.currentView = 'smithy_enhance';
-                this.render();
+              gameModal.alert('丰厚犒赏已存入行囊！已自动为你开启下一阶段主线【工欲善其事 · 装备升星】，先打开行囊穿戴职业武器和防具，再前往铁匠铺升星。', '主线推进', () => {
+                if (window.switchMainTab) window.switchMainTab('bag');
               });
             },
             () => {
@@ -2513,12 +1900,12 @@ export class TownView {
         if (res.success) {
           sound.playFanfare();
           gameState.triggerQuestAction('enhance');
-          if (gameState.data.currentQuestId === 'quest_2') {
+          if (gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_2') {
             gameModal.confirm(
-              `升星大吉！${res.msg}\n\n【主线任务达成】工欲善其事 · 装备升星！\n奖赏：经验 +800，金币 +2000，魔晶 +30，【银白骑士重剑】！\n\n是否立即领受犒赏并开启下一阶段主线【远古契约 · 神兽随行】？`,
+              `升星大吉！${res.msg}\n\n【主线任务达成】工欲善其事 · 装备升星！\n奖赏：经验 +800，金币 +2000，魔晶 +30，【远古神兽契约蛋】x1、【远古重铸灵药】x3！\n\n是否立即领受犒赏并开启下一阶段主线【远古契约 · 神兽随行】？`,
               () => {
                 gameState.claimQuestReward('quest_2');
-                gameModal.alert('丰厚犒赏已存入行囊！已为你开启下一阶段主线【远古契约 · 神兽随行】，前往神兽圣境设立出战主宠吧！', '主线推进', () => {
+                gameModal.alert('丰厚犒赏已存入行囊！已为你开启下一阶段主线【远古契约 · 神兽随行】，前往神兽圣境孵化契约蛋，再将伙伴设为出战主宠。', '主线推进', () => {
                   if (window.switchMainTab) window.switchMainTab('pets');
                 });
               },
@@ -2600,35 +1987,21 @@ export class TownView {
     this.container.querySelectorAll('.btn-fight-dragon').forEach(btn => {
       btn.addEventListener('click', () => {
         const dId = btn.getAttribute('data-dragon-id');
-        const dragon = DRAGON_TRIALS.find(d => d.id === dId);
-        if (!dragon) return;
-        gameState.resetDailyActivities();
-        if (gameState.data.level < dragon.minLevel) return gameModal.alert(`等级不足！需达到 Lv.${dragon.minLevel}`, '屠龙圣域等级限制');
-        if ((gameState.data.dragon?.trialsLeft ?? 3) <= 0) return gameModal.alert('今日 3 次屠龙讨伐次数已耗尽！', '屠龙次数耗尽');
-
-        gameState.data.dragon.trialsLeft--;
+        const entered = gameState.startDragonChallenge(dId);
+        if (!entered.success) return gameModal.alert(entered.msg, '屠龙讨伐');
+        const { dragon, challengeId } = entered;
         this.onOpenBattle({
-          enemyData: { name: `【远古巨龙】${dragon.name}`, icon: dragon.icon },
-          enemyStats: { hp: dragon.hp, atk: dragon.atk, def: dragon.def, speed: 20 },
+          enemyData: { name: `【远古巨龙】${dragon.name}`, icon: getVectorIcon(dragon.icon, 'w-full h-full'), level: dragon.minLevel, abilities: dragon.abilities },
+          enemyStats: { hp: dragon.hp, maxHp: dragon.hp, mp: dragon.mp, maxMp: dragon.mp, atk: dragon.atk, def: dragon.def, speed: 20 },
           onFinish: (victory) => {
-            if (victory) {
-              gameState.addExp(dragon.minLevel * 250);
-              gameState.gainCurrency(5000, 100, 100);
-              if (dragon.id === 'slay_red_dragon') gameState.triggerQuestAction('slay_dragon', 1);
-              if (dragon.id === 'slay_silver_dragon') {
-                gameState.triggerQuestAction('slay_silver_dragon', 1);
-                gameState.data.bag.push({ ...SPECIAL_ITEMS.destiny_stone, count: 1, uid: 'dg_s_' + Date.now() });
-                gameModal.alert('屠银龙大捷！斩杀耀光秘银巨龙！成功夺取传世【天命石】x1！', '屠龙大捷');
-              } else if (dragon.id === 'slay_golden_dragon') {
-                gameState.data.bag.push({ ...SPECIAL_ITEMS.crystal_purplegold, count: 2, uid: 'dg_g_' + Date.now() });
-                gameModal.alert('斩杀远古灭世金龙！爆出传世紫金晶石 x2！', '屠龙大捷');
-              } else {
-                gameState.data.bag.push({ ...SPECIAL_ITEMS.star_crystal, count: 5, uid: 'dg_r_' + Date.now() });
-                gameModal.alert('屠红龙告捷！缴获升星水晶 x5 及大量龙血财富！', '屠龙大捷');
-              }
-              gameState.notify();
-              this.render();
+            const result = gameState.settleDragonChallenge(dId, challengeId, victory);
+            if (!result.success) return;
+            if (result.victory) {
+              gameModal.alert(`讨伐${dragon.name}大捷！获得经验 +${result.exp}、金币 +${result.gold}、魔晶 +${result.crystal}、声望 +${result.prestige}；${result.drops.map(item => `${item.name} x${item.count || 1}`).join('、')}已存入行囊。\n\n${result.story}`, result.firstClear ? '屠龙大捷 · 新的线索' : '屠龙大捷');
+            } else {
+              gameModal.alert('讨伐未果，已使用的挑战次数不返还。', '屠龙历练');
             }
+            this.render();
           }
         });
       });
@@ -2658,6 +2031,7 @@ export class TownView {
         const slotKey = btn.getAttribute('data-socket-slot');
         this.selectedEquipSlot = slotKey;
         this.render();
+        this.container.querySelector(`[data-socket-slot="${slotKey}"]`)?.focus();
       });
     });
 
@@ -2667,6 +2041,7 @@ export class TownView {
         const gemUid = btn.getAttribute('data-gem-uid');
         this.selectedGemUid = gemUid;
         this.render();
+        [...this.container.querySelectorAll('[data-gem-uid]')].find(button => button.dataset.gemUid === gemUid)?.focus();
       });
     });
 
@@ -2689,7 +2064,7 @@ export class TownView {
     this.container.querySelectorAll('.btn-inlay-gem').forEach(btn => {
       btn.addEventListener('click', () => {
         if (!this.selectedGemUid) {
-          gameModal.alert('请先在下方【行囊可用宝石库】中点击选择一颗宝石！', '镶嵌提示');
+          gameModal.alert('请先在左侧【行囊宝石与符文】中选择材料！', '镶嵌提示');
           return;
         }
         const slotKey = btn.getAttribute('data-slot');
@@ -2698,7 +2073,7 @@ export class TownView {
         if (res.success) {
           sound.playFanfare();
           this.selectedGemUid = null;
-          if (gameState.data.currentQuestId === 'quest_10') {
+          if (gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_10') {
             gameModal.confirm(
               `镶嵌大成！${res.msg}\n\n【主线任务达成】天外奇珍 · 宝石镶嵌！\n赏赐：经验 +15000，金币 +30000，魔晶 +100，【碎裂金刚钻】x2！\n\n是否立即领受犒赏并开启下一阶段主线【巨龙之威 · 首猎焰龙】？`,
               () => {
@@ -2741,6 +2116,7 @@ export class TownView {
         const slotKey = btn.getAttribute('data-reforge-slot');
         this.selectedEquipSlot = slotKey;
         this.render();
+        this.container.querySelector(`[data-reforge-slot="${slotKey}"]`)?.focus();
       });
     });
 
@@ -2750,7 +2126,18 @@ export class TownView {
         const crystalId = btn.getAttribute('data-use-crystal');
         this.selectedReforgeCrystal = crystalId;
         this.render();
+        this.container.querySelector(`[data-use-crystal="${crystalId}"]`)?.focus();
       });
+    });
+
+    const pendingItem = gameState.data.equipped[this.selectedEquipSlot];
+    const pendingRoll = pendingItem?.pendingReforge?.rollId;
+    this.container.querySelectorAll('.btn-resolve-reforge').forEach(btn => {
+      btn.onclick = () => {
+        const result = gameState.resolveEquipmentReforge(pendingItem?.uid, pendingRoll, btn.dataset.accept === 'true');
+        gameModal.alert(result.msg, '重铸选择');
+        this.render();
+      };
     });
 
     // 执行神兵重铸 (达成主线16)
@@ -2758,10 +2145,10 @@ export class TownView {
     if (btnReforge) {
       btnReforge.addEventListener('click', () => {
         const crystalToUse = this.selectedReforgeCrystal || 'crystal_darkgold';
-        const res = gameState.reforgeEquipment(this.selectedEquipSlot, crystalToUse);
+        const res = gameState.reforgeEquipment(this.selectedEquipSlot, crystalToUse, gameState.data.onboardingVersion === 2);
         if (res.success) {
           sound.playFanfare();
-          if (gameState.data.currentQuestId === 'quest_16') {
+          if (gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_16') {
             gameModal.confirm(
               `重铸大成！${res.msg}\n\n【主线任务达成】传奇附魔 · 神兵重铸！\n赏赐：经验 +40000，金币 +80000，魔晶 +500，【暗金晶石】x3！\n\n是否立即领受犒赏并开启下一篇章【密林梦魇 · 斩杀狼王】？`,
               () => {
@@ -2805,23 +2192,19 @@ export class TownView {
     this.container.querySelectorAll('.btn-challenge-arena-opp').forEach(btn => {
       btn.addEventListener('click', () => {
         const oppId = btn.getAttribute('data-opp-id');
-        const opp = ARENA_OPPONENTS.find(o => o.id === oppId);
-        if (!opp) return;
-        gameState.resetDailyActivities();
-
-        if ((gameState.data.arena?.challengesLeft ?? 5) <= 0) {
-          gameModal.alert('今日 5 次角斗挑战已全额耗尽！明日拂晓早朝重置！', '挑战次数耗尽');
-          return;
-        }
+        const entered = gameState.startArenaChallenge(oppId);
+        if (!entered.success) return gameModal.alert(entered.msg, '角斗挑战');
+        const { opponent: opp, challengeId } = entered;
 
         this.onOpenBattle({
-          enemyData: { name: `【天梯对手】${opp.name}`, icon: opp.avatar, isPvp: true },
-          enemyStats: { hp: opp.hp, atk: opp.atk, def: opp.def, speed: opp.speed },
+          enemyData: { name: `【天梯对手】${opp.name}`, icon: getVectorIcon(opp.avatar, 'w-full h-full'), level: opp.level, isPvp: true },
+          enemyStats: { hp: opp.hp, atk: opp.atk, def: opp.def, speed: opp.speed, crit: opp.crit },
           onFinish: (victory) => {
+            const res = gameState.settleArenaChallenge(oppId, challengeId, victory);
+            if (!res.success) return;
             if (victory) {
-              const res = gameState.recordArenaVictory(opp);
               sound.playFanfare();
-              if (gameState.data.currentQuestId === 'quest_14') {
+              if (gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_14') {
                 gameModal.confirm(
                   `天梯大捷！战胜【${opp.name}】！天梯积分升至 ${res.points} 点（荣膺【${res.rank}】），获得声望 +${res.prestigeReward}、金币 +${res.goldReward}！\n\n【主线任务达成】天梯角逐 · 威震竞技！\n赏赐：经验 +35000，金币 +70000，魔晶 +400，【远古神兽契约蛋】！\n\n是否立即领受犒赏并开启下一阶段主线【魔塔破界 · 决战飞龙】？`,
                   () => {
@@ -2837,9 +2220,8 @@ export class TownView {
                 gameModal.alert(`天梯大捷！战胜【${opp.name}】！天梯积分升至 ${res.points} 点（荣膺【${res.rank}】），获得声望 +${res.prestigeReward}、金币 +${res.goldReward}！`, '角斗胜利');
               }
             } else {
-              gameState.recordArenaDefeat(opp);
               sound.playBlock();
-              gameModal.alert(`惜败于【${opp.name}】！胜败乃兵家常事，战损积分 -10，获得安慰声望 +10！`, '角斗受挫');
+              gameModal.alert(`惜败于【${opp.name}】！胜败乃兵家常事，积分变化 ${res.pointsDelta}，获得安慰声望 +${res.prestigeReward}、金币 +${res.goldReward}！`, '角斗受挫');
             }
             this.render();
           }
@@ -2951,20 +2333,42 @@ export class TownView {
       });
     });
 
-    // 符文铭刻
-    this.container.querySelectorAll('.btn-inscribe-rune').forEach(btn => {
+    // 保存配方预览，不改变存档；固定动作只负责把下一枚符文写入首个空孔。
+    this.container.querySelectorAll('button[data-runic-word]').forEach(btn => {
       btn.addEventListener('click', () => {
-        const slot = btn.getAttribute('data-inscribe-slot');
+        const wordId = btn.getAttribute('data-runic-word');
+        if (!RUNIC_WORDS.some(word => word.id === wordId)) return;
+        this.selectedRunicWord = wordId;
+        this.render();
+        this.container.querySelector(`button[data-runic-word="${wordId}"]`)?.focus();
+      });
+    });
+
+    const materials = this.container.querySelector('details.runic-materials');
+    materials?.addEventListener('toggle', () => {
+      if (materials.isConnected) this.runicMaterialsOpen = materials.open;
+    });
+
+    // A rendered action belongs to this equipment, recipe and first empty socket.
+    this.container.querySelectorAll('.btn-inscribe-rune').forEach(btn => {
+      const slot = btn.getAttribute('data-inscribe-slot');
+      const expectedItem = gameState.data.equipped[slot];
+      const expectedWord = this.selectedRunicWord;
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
         const rUid = btn.getAttribute('data-inscribe-rune-id');
-        const eq = gameState.data.equipped[slot];
-        if (!eq) return gameModal.alert('请先穿戴该部位装备！', '铭刻提示');
-        const curGems = eq.gems || [];
-        const nextEmptySocketIdx = curGems.findIndex(g => !g);
-        const targetIdx = nextEmptySocketIdx !== -1 ? nextEmptySocketIdx : curGems.length;
-        if (targetIdx >= (eq.sockets || 0)) {
-          return gameModal.alert('该装备孔位已满，无法继续铭刻符文石！', '铭刻受阻');
+        const quote = this.getRuneInscriptionQuote(slot);
+        if (quote.item !== expectedItem || Number(btn.dataset.inscribeSocket) !== quote.index) {
+          this.render();
+          return gameModal.alert('装备或孔位已变化，请重新选择后铭刻。', '铭刻提示');
         }
-        const res = gameState.inlayGem(slot, targetIdx, rUid);
+        const guided = btn.id === 'btn-inscribe-next-rune';
+        const reason = guided ? quote.reason : quote.manualReason;
+        if (reason || (guided && (expectedWord !== this.selectedRunicWord || rUid !== (quote.rune?.uid || quote.rune?.id)))) {
+          this.render();
+          return gameModal.alert(reason || '配方或符文材料已变化，请重新选择。', '铭刻提示');
+        }
+        const res = gameState.inlayGem(slot, quote.index, rUid);
         if (res.success) {
           sound.playCoin();
           gameModal.alert(res.msg, '远古神铸铭刻');
@@ -2977,9 +2381,15 @@ export class TownView {
 
     // 符文摘除
     this.container.querySelectorAll('.btn-remove-rune').forEach(btn => {
+      const slot = btn.getAttribute('data-remove-socket-slot');
+      const idx = parseInt(btn.getAttribute('data-remove-socket-idx'), 10);
+      const expectedItem = gameState.data.equipped[slot];
+      const expectedGem = expectedItem?.gems?.[idx];
       btn.addEventListener('click', () => {
-        const slot = btn.getAttribute('data-remove-socket-slot');
-        const idx = parseInt(btn.getAttribute('data-remove-socket-idx'), 10);
+        if (gameState.data.equipped[slot] !== expectedItem || expectedItem?.gems?.[idx] !== expectedGem) {
+          this.render();
+          return gameModal.alert('装备或孔内材料已变化，请重新选择。', '摘除提示');
+        }
         const res = gameState.removeGem(slot, idx);
         if (res.success) {
           sound.playCoin();
@@ -3054,214 +2464,115 @@ export class TownView {
   // ==========================================
   // 5.5 【远古神铸 · 符文之语工坊】(Smithy Runes Sub-page)
   // ==========================================
+  getRuneInscriptionQuote(slot = this.selectedEquipSlot) {
+    const data = gameState.data;
+    const item = data.equipped[slot];
+    const word = RUNIC_WORDS.find(entry => entry.id === this.selectedRunicWord);
+    const gems = item?.gems || [];
+    const sockets = item?.sockets || 0;
+    const index = Array.from({ length: sockets }, (_, i) => i).find(i => !gems[i]) ?? sockets;
+    const rune = word && data.bag.find(entry => entry.id === word.runes[index] && (entry.count ?? 1) > 0);
+    const manualReason = !item ? '当前部位未穿戴装备，请先穿戴。'
+      : !sockets ? '装备尚无孔位，请先开孔。'
+      : index >= sockets ? '孔位已满，请先摘除材料。'
+      : data.gold < 500 ? `金币不足，还缺 ${500 - data.gold} 金币。` : '';
+    let reason = '', label = '';
+    const block = (text, button) => { reason = text; label = button; };
+    // Keep physical indices: a gap must never hide a wrong rune after it.
+    const extra = word && gems.findIndex((gem, i) => gem && i >= word.runes.length);
+    const mismatch = word && gems.findIndex((gem, i) => gem && i < word.runes.length && (!gem.isRune || gem.id !== word.runes[i]));
+    if (!item) block(manualReason, '请先穿戴装备');
+    else if (!word) block('选择左侧配方，查看孔序与材料库存。', '请先选择配方');
+    else if (!word.validSlots.includes(slot)) block('当前装备部位不适用，请选择配方列出的部位。', '装备部位不适用');
+    else if (extra >= 0) block(`第 ${extra + 1} 孔有额外材料，请先摘除。`, '请先摘除额外材料');
+    else if (mismatch >= 0) block(`第 ${mismatch + 1} 孔顺序不符，应为【${RUNES[word.runes[mismatch]].name}】，请先摘除该孔材料。`, '请先调整符文顺序');
+    else if (sockets < word.runes.length) block(`配方需要 ${word.runes.length} 孔，当前 ${sockets} 孔；请先前往宝石工坊开孔。`, '孔位不足，需先开孔');
+    else if (word.runes.every((id, i) => gems[i]?.isRune && gems[i].id === id)) block('配方已完整匹配，无需继续铭刻。', '配方已完成');
+    else if (manualReason) block(manualReason, '金币不足');
+    else if (!rune) block(`缺少【${RUNES[word.runes[index]].name}】，可前往边境军需兑换。`, '缺少所需符文');
+    else label = `铭刻下一枚 · 第 ${index + 1} 孔`;
+    return { item, word, gems, sockets, index, rune, reason, label, manualReason };
+  }
+
   renderSmithyRunes() {
-    const item = gameState.data.equipped[this.selectedEquipSlot];
-    const curSockets = item ? (item.sockets || 0) : 0;
-    const gems = item ? (item.gems || []) : [];
-    const activeRw = item && item.runicWord ? RUNIC_WORDS.find(r => r.id === item.runicWord) : null;
-
-    // 行囊中的符文石
-    const bagRunes = gameState.data.bag.filter(i => i && (i.type === "rune" || RUNES[i.id]));
-
+    const data = gameState.data;
+    const { item, word, gems, sockets, index, rune, reason, label, manualReason } = this.getRuneInscriptionQuote();
+    const storedWord = RUNIC_WORDS.find(entry => entry.id === item?.runicWord);
+    const active = Boolean(storedWord && item.durability !== 0);
+    const shortName = entry => entry.name.replace('【符文之语】', '').replace(/\s*\([^)]*\)/g, '').trim();
+    const bagRunes = data.bag.filter(entry => (entry.type === 'rune' || RUNES[entry.id]) && (entry.count ?? 1) > 0);
+    const stock = id => bagRunes.filter(entry => entry.id === id).reduce((sum, entry) => sum + (entry.count ?? 1), 0);
+    const slotNames = entry => entry.validSlots.map(slot => SLOT_MAP[slot]?.name || slot).join('、');
+    const status = storedWord
+      ? `${shortName(storedWord)} · ${active ? '符文共鸣已生效' : '装备损坏，共鸣未生效；修理后恢复。'}`
+      : item?.durability === 0 ? `装备损坏，属性未生效。${reason || '可铭刻，修理后恢复属性。'}`
+      : reason || `配方尚未完成，下一枚：${rune.name}。`;
+    const targetAttributes = `data-inscribe-slot="${this.selectedEquipSlot}" data-inscribe-socket="${index}" data-equipment-uid="${escapeText(item?.uid || '')}"`;
     return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 面包屑 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-400 font-bold">圣光王都</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-300 font-bold">皇家铁匠铺</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-cyan-300 font-bold">远古神铸 · 符文之语铭刻工坊</span>
-          </div>
-          <button data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 rounded-lg text-xs font-semibold text-amber-300 hover:border-amber-400 flex items-center gap-1">
-            <span>← 返回铁匠铺大厅</span>
-          </button>
+      <div class="smithy-page smithy-page-runes w-full h-full p-1.5 sm:p-2 flex flex-col select-none">
+        <div class="mota-breadcrumb px-3 py-1.5 flex items-center justify-between mb-2 flex-shrink-0">
+          <div class="flex items-center gap-2 text-xs"><span>皇家铁匠铺</span><span>→</span><strong>符文之语铭刻工坊</strong></div>
+          <button type="button" data-goto="smithy" class="btn-goto-subview mota-btn-dark px-3 py-1 text-xs">返回铁匠铺</button>
         </div>
-
-        <!-- 主体区域：左右双面板架构 -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-2.5">
-          
-          <!-- 左侧：装备孔位、当前符文与行囊符文 (md:col-span-5) -->
-          <div class="md:col-span-5 flex flex-col justify-between bg-black/40 border border-[#4a3520] rounded-xl p-2.5 shadow">
-            <div>
-              <div class="text-[11px] font-bold text-amber-200 mb-1.5 flex items-center justify-between">
-                <span>选择神铸装备部位:</span>
-                <span class="text-slate-400 font-normal text-[10px]">支持全身 10 部位</span>
+        <div class="smithy-layout flex-1 min-h-0 grid gap-3">
+          <div class="smithy-rune-inventory">
+            ${this.renderSmithySlots('选择装备部位', 'socket')}
+            <section class="smithy-material-panel mota-parchment-panel runic-catalog">
+              <h3 class="smithy-heading text-xs font-bold">符文圣典 · 7 种配方</h3>
+              <div class="smithy-rune-recipes smithy-scroll">${RUNIC_WORDS.map(entry => `
+                <button type="button" data-runic-word="${entry.id}" aria-pressed="${word?.id === entry.id}" class="runic-recipe-choice">
+                  <strong>${escapeText(shortName(entry))}</strong>
+                  <span>${slotNames(entry)}</span>
+                </button>`).join('')}
               </div>
-              
-              <!-- 10槽位网格 -->
-              <div class="grid grid-cols-5 gap-1 mb-2">
-                ${ITEM_SLOTS.map(slot => {
-                  const eq = gameState.data.equipped[slot.id];
-                  const isSel = this.selectedEquipSlot === slot.id;
-                  const hasRw = eq && eq.runicWord;
-                  return `
-                    <button data-socket-slot="${slot.id}" class="btn-select-socket-slot p-1 rounded-lg border text-center transition-all ${
-                      isSel 
-                        ? "border-cyan-400 bg-cyan-950/60 shadow text-cyan-200 font-bold" 
-                        : "border-slate-800 bg-black/40 hover:border-slate-600 text-slate-400"
-                    }">
-                      <div class="text-[10px] truncate">${slot.name}</div>
-                      <div class="text-[9px] font-mono ${hasRw ? "text-amber-300 font-bold animate-pulse" : (eq ? "text-emerald-400" : "text-slate-600")}">
-                        ${hasRw ? "符语" : (eq ? `${eq.sockets || 0}孔` : "空")}
-                      </div>
-                    </button>
-                  `;
-                }).join("")}
-              </div>
-
-              <!-- 选中的装备展示与激活的符文之语卡片 -->
-              ${item ? `
-                <div class="p-2.5 rounded-xl bg-black/50 border ${activeRw ? "border-amber-500 shadow-amber-500/20" : "border-slate-800"} flex items-center gap-2.5 mb-2">
-                  <div class="w-11 h-11 rounded-xl bg-cyan-950/40 border border-cyan-500/70 p-1 flex items-center justify-center flex-shrink-0">
-                    ${renderGameIcon(item, { size: "w-full h-full" })}
-                  </div>
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5">
-                      <span class="text-xs font-black text-amber-200 truncate">${item.name}</span>
-                      ${activeRw ? `<span class="px-1.5 py-0.2 rounded bg-amber-500/30 border border-amber-500 text-amber-300 text-[10px] font-black">${activeRw.name}</span>` : ""}
-                    </div>
-                    <div class="text-[10px] text-slate-400 font-mono">
-                      孔位: <b class="text-amber-300">${curSockets}</b> 孔 · 符文: <b class="text-cyan-300">${gems.filter(g => g && g.isRune).length}</b> / ${curSockets}
-                    </div>
-                    ${activeRw ? `<div class="text-[10px] text-amber-300 mt-0.5 leading-tight">${activeRw.desc}</div>` : ""}
-                  </div>
-                </div>
-
-                <!-- 宝石/符文孔位展示与铭刻/摘除 -->
-                <div class="space-y-1.5 mb-2">
-                  <div class="text-[10px] font-bold text-slate-300">当前装备孔位 (${gems.filter(Boolean).length}/${curSockets}):</div>
-                  ${curSockets === 0 ? `
-                    <div class="p-2 rounded-lg bg-black/50 border border-slate-800 text-center text-[10px] text-slate-500">
-                      该装备尚未开启宝石孔，请先前往【宝石工坊】开孔！
-                    </div>
-                  ` : `
-                    <div class="grid grid-cols-2 gap-1.5">
-                      ${Array.from({ length: curSockets }).map((_, idx) => {
-                        const g = gems[idx];
-                        return `
-                          <div class="p-1.5 rounded-lg bg-black/60 border ${g ? (g.isRune ? "border-cyan-500/60" : "border-amber-600/60") : "border-dashed border-slate-700"} flex items-center justify-between">
-                            <div class="flex items-center gap-1.5 min-w-0">
-                              <div class="w-6 h-6 rounded bg-black/80 p-0.5 flex items-center justify-center flex-shrink-0">
-                                ${g ? renderGameIcon(g, { size: "w-full h-full" }) : '<span class="text-[10px] text-slate-600">空</span>'}
-                              </div>
-                              <div class="min-w-0">
-                                <div class="text-[10px] font-bold ${g ? (g.isRune ? "text-cyan-300" : "text-amber-200") : "text-slate-500"} truncate">
-                                  ${g ? g.name : `第 ${idx + 1} 孔 (空)`}
-                                </div>
-                              </div>
-                            </div>
-                            ${g ? `
-                              <button data-remove-socket-slot="${this.selectedEquipSlot}" data-remove-socket-idx="${idx}" class="btn-remove-rune px-1.5 py-0.5 rounded bg-rose-950/80 hover:bg-rose-900 border border-rose-600 text-rose-300 text-[9px] flex-shrink-0">
-                                取下
-                              </button>
-                            ` : ""}
-                          </div>
-                        `;
-                      }).join("")}
-                    </div>
-                  `}
-                </div>
-              ` : `
-                <div class="p-6 text-center text-slate-500 text-xs">请先在上方点选要铭刻神铸符文的装备部位！</div>
-              `}
-            </div>
-
-            <!-- 底部：行囊中的远古符文石 -->
-            <div class="pt-2 border-t border-[#4a3520]">
-              <div class="text-[10px] font-bold text-cyan-300 mb-1 flex items-center justify-between">
-                <span>行囊中的符文石 (${bagRunes.length} 种):</span>
-                <span class="text-[9px] text-slate-400">点击铭刻至首个空孔</span>
-              </div>
-              ${bagRunes.length === 0 ? `
-                <div class="p-2 rounded-lg bg-black/40 border border-slate-800 text-center text-[10px] text-slate-500">
-                  行囊中暂无符文石，可通过深渊魔塔破界或阵营战军勋开启宝匣获取！
-                </div>
-              ` : `
-                <div class="grid grid-cols-2 gap-1.5 max-h-[140px] overflow-y-auto pr-1">
-                  ${bagRunes.map(r => `
-                    <div class="p-1.5 rounded-lg bg-black/60 border border-cyan-800/60 flex items-center justify-between">
-                      <div class="flex items-center gap-1.5 min-w-0">
-                        <div class="w-6 h-6 rounded bg-black/80 p-0.5 flex items-center justify-center flex-shrink-0">
-                          ${renderGameIcon(r, { size: "w-full h-full" })}
-                        </div>
-                        <div class="min-w-0">
-                          <div class="text-[10px] font-bold text-cyan-200 truncate">${r.name}</div>
-                          <div class="text-[8px] text-slate-400 font-mono">拥有: ${r.count || 1}</div>
-                        </div>
-                      </div>
-                      <button data-inscribe-slot="${this.selectedEquipSlot}" data-inscribe-rune-id="${r.uid || r.id}" class="btn-inscribe-rune px-1.5 py-0.5 rounded mota-btn-gold text-[9px] font-bold flex-shrink-0">
-                        铭刻
-                      </button>
-                    </div>
-                  `).join("")}
-                </div>
-              `}
-            </div>
+              <button type="button" data-goto="faction_war" class="btn-goto-subview mota-btn-dark runic-source-link">获取符文 · 边境军需</button>
+            </section>
           </div>
-
-          <!-- 右侧：远古符文之语配方圣典 (md:col-span-7) -->
-          <div class="md:col-span-7 flex flex-col justify-between bg-black/40 border border-[#4a3520] rounded-xl p-2.5 shadow">
-            <div>
-              <div class="flex items-center justify-between pb-1.5 border-b border-[#4a3520] mb-2">
-                <div class="flex items-center gap-1.5">
-                  <span class="w-5 h-5 flex items-center justify-center">${getVectorIcon("rune_stone", "w-5 h-5")}</span>
-                  <h3 class="font-bold text-xs text-amber-300">远古符文之语配方圣典</h3>
-                </div>
-                <span class="text-[10px] text-slate-400 font-mono">按指定序列镶嵌符文石即可觉醒</span>
+          <section class="smithy-detail mota-parchment-panel flex flex-col min-h-0">
+            <div class="smithy-heading flex items-center gap-2">
+              <span class="smithy-item-icon w-8 h-8 p-1 flex-shrink-0">${renderGameIcon(item || this.selectedEquipSlot, { size: 'w-full h-full' })}</span>
+              <div class="min-w-0"><h3 class="text-sm font-bold">${escapeText(item?.name || `${SLOT_MAP[this.selectedEquipSlot]?.name}未穿戴装备`)}</h3>
+                <p class="text-xs">${item ? `+${item.stars || 0} 星 · ${sockets} 孔 · 耐久 ${item.durability ?? 100}/${item.maxDurability ?? 100}` : '先从行囊穿戴，再进行铭刻。'}</p></div>
+            </div>
+            <p class="runic-status smithy-rune-state" data-active="${active}" role="status">${escapeText(status)}</p>
+            <div class="smithy-scroll runic-detail-scroll flex-1 min-h-0 overflow-y-auto">
+              <div class="runic-recipe-detail">
+                ${word ? `<h4>${escapeText(word.name)}</h4><p class="runic-recipe-slots">适用：${slotNames(word)}</p>
+                  <ol class="runic-recipe-order">${word.runes.map((id, i) => `<li>第 ${i + 1} 孔 · ${escapeText(RUNES[id].name)} <span>行囊 ${stock(id)} 枚${gems[i]?.isRune && gems[i].id === id ? ' · 已铭刻' : ''}</span></li>`).join('')}</ol>
+                  <p>${escapeText(word.desc)}</p>` : '<p>选择左侧配方，查看每孔顺序、效果与行囊库存。</p>'}
               </div>
-
-              <!-- 7大符文之语卡片列表 -->
-              <div class="space-y-2 max-h-[460px] overflow-y-auto pr-1">
-                ${RUNIC_WORDS.map(rw => {
-                  const isCurrentActive = activeRw && activeRw.id === rw.id;
-                  const validSlotsText = rw.validSlots.map(s => {
-                    const found = ITEM_SLOTS.find(sl => sl.id === s);
-                    return found ? found.name : s;
-                  }).join(" / ");
-                  return `
-                    <div class="p-2 rounded-xl bg-black/60 border ${isCurrentActive ? "border-amber-400 bg-amber-950/30 shadow" : "border-slate-800"} transition-all">
-                      <div class="flex items-center justify-between pb-1 border-b border-slate-800">
-                        <div class="flex items-center gap-1.5">
-                          <span class="text-xs font-black ${isCurrentActive ? "text-amber-300" : "text-cyan-200"}">${rw.name}</span>
-                          ${isCurrentActive ? '<span class="px-1.5 py-0.2 rounded bg-amber-500 text-slate-950 text-[9px] font-black animate-pulse">当前生效中</span>' : ""}
-                        </div>
-                        <span class="text-[9px] text-slate-400 font-mono">适用部位: <b class="text-amber-200">${validSlotsText}</b></span>
-                      </div>
-                      <div class="mt-1.5 flex items-center gap-2">
-                        <div class="text-[10px] text-slate-400 font-mono">所需符文序列:</div>
-                        <div class="flex items-center gap-1">
-                          ${rw.runes.map(rId => {
-                            const rCfg = RUNES[rId];
-                            return `
-                              <span class="px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-600/70 text-cyan-300 text-[9px] font-bold">
-                                ${rCfg ? rCfg.name.split("·")[1] || rCfg.name : rId}
-                              </span>
-                            `;
-                          }).join('<span class="text-slate-500 text-[10px]">+</span>')}
-                        </div>
-                      </div>
-                      <div class="mt-1 text-[10px] text-amber-300/90 leading-relaxed bg-black/40 p-1.5 rounded-lg border border-slate-800">
-                        ${rw.desc}
-                      </div>
-                    </div>
-                  `;
-                }).join("")}
+              <h4 class="smithy-section-label">装备孔位 <span>· 摘除免费，需行囊可容纳</span></h4>
+              <div class="smithy-socket-grid smithy-rune-sockets">${Array.from({ length: sockets }, (_, i) => {
+                const gem = gems[i];
+                return `<div class="smithy-socket-cell runic-socket-cell" data-runic-socket="${i}" data-socket-state="${gem ? 'filled' : 'empty'}">
+                  <div class="smithy-socket-description"><span class="smithy-item-icon w-8 h-8 p-1 flex-shrink-0">${gem ? renderGameIcon(gem, { size: 'w-full h-full' }) : `<span class="smithy-socket-number">${i + 1}</span>`}</span>
+                    <div class="min-w-0"><strong>第 ${i + 1} 孔 · ${gem ? escapeText(gem.name) : i === index ? '下一空孔' : '空孔'}</strong>
+                    <span class="smithy-socket-bonus">${gem ? escapeText(socketBonuses(gem)) : '可保留空孔'}</span></div></div>
+                  ${gem ? `<button type="button" data-remove-socket-slot="${this.selectedEquipSlot}" data-remove-socket-idx="${i}" class="btn-remove-rune mota-btn-dark">无损摘除</button>` : ''}
+                </div>`;
+              }).join('')}</div>
+              ${item && sockets < (word?.runes.length || 1) ? '<button type="button" data-goto="smithy_socket" class="btn-goto-subview mota-btn-dark runic-source-link">前往宝石工坊开孔</button>' : ''}
+              <details class="runic-materials smithy-affix-catalog" ${this.runicMaterialsOpen ? 'open' : ''}>
+                <summary class="smithy-section-label">手动铭刻 · 行囊符文 ${bagRunes.length} 组</summary>
+                <p class="smithy-rule-note text-xs">每次填入最靠前的空孔。额外符文会中断已完成的共鸣。</p>
+                <div class="smithy-gem-grid">${bagRunes.map(entry => `
+                  <button type="button" ${targetAttributes} data-inscribe-rune-id="${escapeText(entry.uid || entry.id)}" class="btn-inscribe-rune smithy-gem-button" ${manualReason ? 'disabled' : ''}>
+                    <span class="min-w-0"><strong>${escapeText(entry.name)}</strong><span class="smithy-gem-bonus">${escapeText(socketBonuses(entry))}</span></span><b class="smithy-gem-count">×${entry.count ?? 1}</b>
+                  </button>`).join('') || '<p>暂无符文，可在边境军需兑换。</p>'}</div>
+              </details>
+              <p class="smithy-rule-note runic-rule">共鸣从第 1 孔按配方校验；允许尾部空孔，中间空洞、普通宝石或额外符文会中断共鸣。</p>
+            </div>
+            <div class="smithy-action-bar runic-action-bar">
+              <p class="smithy-quote text-xs">每次 500 金币 + 1 枚符文 · 持有 ${data.gold.toLocaleString()} 金币</p>
+              <p id="runic-action-reason" class="smithy-rune-target">${escapeText(reason || `第 ${index + 1} 孔：${rune.name}`)}</p>
+              <div class="runic-actions">
+                <button type="button" id="btn-inscribe-next-rune" ${targetAttributes} data-inscribe-rune-id="${escapeText(rune?.uid || rune?.id || '')}" aria-describedby="runic-action-reason" class="btn-inscribe-rune mota-btn-gold" ${reason ? 'disabled' : ''}>${label}</button>
+                ${item?.durability === 0 ? '<button type="button" data-goto="smithy_repair" class="btn-goto-subview mota-btn-dark">前往修理室</button>' : ''}
               </div>
             </div>
-
-            <div class="pt-2 border-t border-[#4a3520] flex items-center justify-between text-[10px] text-slate-400">
-              <span>注：符文之语必须按配方严格顺序铭刻，孔数必须满足要求。</span>
-              <span class="text-cyan-300 font-mono">随时可无损取下符文重新组合</span>
-            </div>
-          </div>
-
+          </section>
         </div>
-
-      </div>
-    `;
+      </div>`;
   }
 
   // ==========================================

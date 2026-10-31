@@ -1,3 +1,5 @@
+import { renderGameIcon } from './iconHelper.js';
+
 // 2011 经典页游纯内部拟真羊皮纸弹窗与浮动 Toast 系统
 // 彻底接管与替代浏览器原生 alert() / confirm()，保证 100% 游戏沉浸感
 
@@ -14,6 +16,9 @@ export class GameModal {
     this.onConfirmCallback = null;
     this.onCancelCallback = null;
     this.isOpen = false;
+    this.previousFocus = null;
+    this.background = null;
+    this.backgroundWasInert = false;
   }
 
   init() {
@@ -28,6 +33,7 @@ export class GameModal {
 
     if (this.btnConfirm) {
       this.btnConfirm.addEventListener('click', () => {
+        if (!this.isOpen) return;
         const cb = this.onConfirmCallback;
         this.close();
         if (cb) cb();
@@ -36,6 +42,7 @@ export class GameModal {
 
     if (this.btnCancel) {
       this.btnCancel.addEventListener('click', () => {
+        if (!this.isOpen) return;
         const cb = this.onCancelCallback;
         this.close();
         if (cb) cb();
@@ -44,6 +51,7 @@ export class GameModal {
 
     if (this.btnClose) {
       this.btnClose.addEventListener('click', () => {
+        if (!this.isOpen) return;
         const cb = this.onCancelCallback;
         this.close();
         if (cb) cb();
@@ -53,7 +61,7 @@ export class GameModal {
     // 点击背景遮罩关闭
     if (this.overlay) {
       this.overlay.addEventListener('click', (e) => {
-        if (e.target === this.overlay) {
+        if (this.isOpen && e.target === this.overlay) {
           const cb = this.onCancelCallback;
           this.close();
           if (cb) cb();
@@ -61,14 +69,32 @@ export class GameModal {
       });
     }
 
-    // 键盘响应 (Enter 确定，Esc 取消)
+    // Let focused controls handle Enter; cancellation must never confirm a purchase.
     window.addEventListener('keydown', (e) => {
       if (!this.isOpen) return;
       if (e.key === 'Escape') {
+        e.preventDefault();
         const cb = this.onCancelCallback;
         this.close();
         if (cb) cb();
+      } else if (e.key === 'Tab') {
+        const controls = [...this.box.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')]
+          .filter(element => element.getClientRects().length > 0);
+        const first = controls[0], last = controls[controls.length - 1];
+        if (!first) {
+          e.preventDefault();
+          this.box.focus();
+        } else if (e.shiftKey && (document.activeElement === first || !this.box.contains(document.activeElement))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || !this.box.contains(document.activeElement))) {
+          e.preventDefault();
+          first.focus();
+        }
       } else if (e.key === 'Enter') {
+        if (e.repeat) { e.preventDefault(); return; }
+        if (e.target.closest?.('button,a,input,select,textarea,[contenteditable="true"]')) return;
+        e.preventDefault();
         const cb = this.onConfirmCallback;
         this.close();
         if (cb) cb();
@@ -110,7 +136,7 @@ export class GameModal {
     }
 
     if (this.titleEl) this.titleEl.innerText = finalTitle;
-    if (this.messageEl) this.messageEl.innerText = finalMsg;
+    this.setContent(finalMsg);
 
     if (this.btnCancel) this.btnCancel.classList.add('hidden');
     if (this.btnConfirm) {
@@ -125,20 +151,20 @@ export class GameModal {
   }
 
   // 内部确认弹窗 (替代原生 confirm)
-  confirm(message, onConfirm = null, onCancel = null, title = '皇家确认') {
+  confirm(message, onConfirm = null, onCancel = null, title = '皇家确认', labels = {}) {
     if (!this.overlay) {
       return onConfirm ? onConfirm() : true;
     }
 
     if (this.titleEl) this.titleEl.innerText = title;
-    if (this.messageEl) this.messageEl.innerText = String(message || '');
+    this.setContent(String(message || ''), labels.npc);
 
     if (this.btnCancel) {
-      this.btnCancel.innerText = '放弃';
+      this.btnCancel.innerText = labels.cancelLabel || '放弃';
       this.btnCancel.classList.remove('hidden');
     }
     if (this.btnConfirm) {
-      this.btnConfirm.innerText = '确定执行';
+      this.btnConfirm.innerText = labels.confirmLabel || '确定执行';
       this.btnConfirm.classList.remove('hidden');
     }
 
@@ -148,7 +174,44 @@ export class GameModal {
     this.show();
   }
 
+  dialogue(message, onConfirm = null, onCancel = null, npc = {}, labels = {}) {
+    this.confirm(message, onConfirm, onCancel, npc.name, { ...labels, npc });
+  }
+
+  setContent(message, npc = null) {
+    if (!this.messageEl) return;
+    this.box.classList.toggle('npc-dialogue', Boolean(npc));
+    this.box.querySelector('.npc-dialogue-portrait')?.remove();
+    this.messageEl.replaceChildren();
+    if (npc) {
+      const portrait = document.createElement('aside');
+      portrait.className = 'npc-dialogue-portrait';
+      portrait.setAttribute('role', 'img');
+      portrait.setAttribute('aria-label', `${npc.name}肖像`);
+      const position = { warrior: '0%', mage: '50%', hunter: '100%' }[npc.portrait];
+      if (position) {
+        portrait.classList.add('class-portrait');
+        portrait.style.setProperty('--class-portrait-position', position);
+      } else portrait.innerHTML = renderGameIcon(npc.portrait || 'warrior', { size: 'w-full h-full' });
+      this.messageEl.before(portrait);
+      const name = document.createElement('h4');
+      name.className = 'npc-dialogue-name';
+      name.textContent = npc.name;
+      this.messageEl.append(name);
+      const text = document.createElement('div');
+      text.className = 'npc-dialogue-text';
+      text.textContent = message;
+      this.messageEl.append(text);
+    } else this.messageEl.textContent = message;
+  }
+
   show() {
+    if (!this.isOpen) {
+      this.previousFocus = document.activeElement;
+      this.background = document.querySelector('.classic-client');
+      this.backgroundWasInert = Boolean(this.background?.inert);
+    }
+    if (this.background) this.background.inert = true;
     this.isOpen = true;
     if (this.overlay) {
       this.overlay.classList.remove('hidden');
@@ -158,10 +221,15 @@ export class GameModal {
       this.box.classList.remove('scale-95', 'opacity-0');
       this.box.classList.add('scale-100', 'opacity-100');
     }
+    const initialFocus = this.btnCancel && !this.btnCancel.classList.contains('hidden') ? this.btnCancel : this.btnConfirm;
+    initialFocus?.focus?.();
   }
 
   close() {
     this.isOpen = false;
+    this.onConfirmCallback = null;
+    this.onCancelCallback = null;
+    if (this.background) this.background.inert = this.backgroundWasInert;
     if (this.box) {
       this.box.classList.add('scale-95', 'opacity-0');
       this.box.classList.remove('scale-100', 'opacity-100');
@@ -174,6 +242,10 @@ export class GameModal {
         }
       }, 150);
     }
+    const opener = this.previousFocus;
+    this.previousFocus = null;
+    if (opener?.isConnected && !this.box?.contains(opener) && opener.getClientRects().length) opener.focus();
+    else document.querySelector('.classic-navigation [aria-current="page"]')?.focus?.();
   }
 
   // 顶部浮动 Toast 飘字 (轻量提示)

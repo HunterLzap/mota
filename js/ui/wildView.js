@@ -5,6 +5,8 @@ import { SPECIAL_ITEMS } from '../config/items.js';
 import { sound } from '../core/sound.js';
 import { gameModal } from './modal.js';
 import { getVectorIcon } from '../assets/vectorIcons.js';
+import { renderGameIcon } from './iconHelper.js';
+import { getWildPortraitStyle, getWildRegionStyle } from './wildArtwork.js';
 
 export class WildView {
   constructor(containerId, onStartBattle) {
@@ -17,6 +19,8 @@ export class WildView {
     const data = gameState.data;
     const currentPatrolMap = MAPS.find(m => m.id === (data.currentMapId || 'forest')) || MAPS[0];
     const selectedMap = MAPS.find(m => m.id === this.selectedMapId) || currentPatrolMap;
+    const patrolRates = gameState.getPatrolRates(selectedMap.id);
+    const formatRate = value => Number(value.toFixed(2)).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
     const thief = data.maskedThief;
 
     if (data.currentQuestId === 'quest_18' && (!thief || !thief.appeared)) {
@@ -32,246 +36,34 @@ export class WildView {
     const pendingGold = pending.gold;
     const pendingCrystal = pending.crystal;
 
-    this.container.innerHTML = `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 顶栏：面包屑 + 挂机巡逻营地收益一体化栏 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-200 font-bold text-xs">【野外征战】</span>
-            <span class="text-slate-500">></span>
-            <span class="text-amber-300 font-medium">亚诺大陆全境据点与魔物讨伐</span>
-          </div>
-
-          <!-- 挂机收益集成状态 -->
-          <div class="flex items-center gap-3 text-xs">
-            <div class="flex items-center gap-2 font-mono text-[11px] bg-black/50 px-2.5 py-0.5 rounded-lg border border-slate-800">
-              <span class="text-emerald-300">营地: <b>${currentPatrolMap.name}</b> (${minutesAway}分)</span>
-              <span class="text-slate-600">|</span>
-              <span class="text-emerald-400">+${pendingExp} EXP</span>
-              <span class="text-amber-400">+${pendingGold} 金</span>
-              <span class="text-cyan-400">+${pendingCrystal} 晶</span>
-            </div>
-            <button id="btn-claim-idle" class="mota-btn-gold px-2.5 py-1 rounded-lg text-xs font-bold shadow flex items-center gap-1">
-              <span>收获挂机收益</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 主体：左右两大核心面板 (5列据点选择 + 7列魔物讨伐与奇遇) -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3">
-          
-          <!-- 左侧：亚诺大陆 5 大征战据点 (5列) -->
-          <div class="md:col-span-5 mota-parchment-panel p-3 rounded-xl border-2 border-[#caa048] flex flex-col justify-between">
-            <div class="text-xs font-bold text-amber-300 pb-1.5 border-b border-[#4a3520]/70 flex items-center justify-between flex-shrink-0">
-              <span>亚诺全境 5 大据点</span>
-              <span class="text-[10px] text-slate-400 font-mono">点击据点立即探查</span>
-            </div>
-
-            <div class="space-y-2 my-1.5 flex-1 content-center">
-              ${MAPS.map((m) => {
-                const isPatrol = currentPatrolMap.id === m.id;
-                const isSelected = selectedMap.id === m.id;
-                const isLocked = data.level < m.reqLevel;
-                const isThiefHere = thief && thief.appeared && (m.id === 'swamp' || thief.location.includes(m.name.slice(-2)));
-
-                return `
-                  <div data-map-id="${m.id}" class="map-node-card cursor-pointer rounded-xl p-2 sm:p-2.5 border transition-all flex items-center justify-between ${
-                    isSelected 
-                      ? 'border-[#f5c042] bg-amber-950/80 shadow-[0_0_10px_rgba(245,192,66,0.35)]' 
-                      : isPatrol
-                      ? 'border-emerald-500 bg-emerald-950/40 shadow-[0_0_6px_rgba(16,185,129,0.25)]'
-                      : 'border-slate-800 bg-black/40 hover:border-slate-600'
-                  } ${isLocked ? 'opacity-60' : ''}">
-                    
-                    <div class="flex items-center gap-2.5 min-w-0">
-                      <div class="w-8 h-8 rounded-lg bg-black/60 border border-amber-800/80 p-1 flex items-center justify-center flex-shrink-0">
-                        ${getVectorIcon('bld_dragons', 'w-full h-full')}
-                      </div>
-                      <div class="truncate min-w-0 leading-tight">
-                        <div class="flex items-center gap-1.5">
-                          <span class="font-bold text-xs ${isSelected ? 'text-amber-300' : 'text-slate-200'}">${m.name}</span>
-                          <span class="text-[9px] px-1 py-0.2 rounded font-mono font-bold ${
-                            isLocked ? 'bg-red-950 text-red-300 border border-red-800' : 'bg-slate-800 text-slate-300'
-                          }">
-                            Lv.${m.reqLevel}+
-                          </span>
-                        </div>
-                        <div class="text-[10px] text-slate-400 mt-0.5 truncate">${m.description}</div>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center gap-1.5 flex-shrink-0">
-                      ${isPatrol ? `
-                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500 font-bold flex items-center gap-1">
-                          <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                          巡逻中
-                        </span>
-                      ` : ''}
-
-                      ${isThiefHere ? `
-                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-red-950 text-red-300 border border-red-500 font-black animate-bounce">
-                          女盗现身
-                        </span>
-                      ` : ''}
-                    </div>
-
-                  </div>
-                `;
-              }).join('')}
-            </div>
-
-            <div class="text-[10px] text-slate-500 text-center pt-1 border-t border-[#4a3520]/70 font-mono flex-shrink-0">
-              设置巡逻营地可享持续挂机经验与金币产出
-            </div>
-          </div>
-
-          <!-- 右侧：选定据点情报与魔物巢穴 (7列) -->
-          <div class="md:col-span-7 mota-parchment-panel p-3.5 sm:p-4 rounded-xl border-2 border-[#caa048] flex flex-col justify-between">
-            <div class="space-y-2.5">
-              
-              <!-- 据点抬头与营地迁移 -->
-              <div class="flex items-center justify-between pb-2 border-b border-[#4a3520]/70">
-                <div class="flex items-center gap-3 min-w-0">
-                  <div class="w-10 h-10 rounded-xl bg-black/60 border border-amber-700/80 p-1 flex items-center justify-center flex-shrink-0">
-                    ${getVectorIcon('bld_dragons', 'w-full h-full')}
-                  </div>
-                  <div class="truncate min-w-0">
-                    <div class="flex items-center gap-2">
-                      <h3 class="font-black text-sm text-amber-300">${selectedMap.name}</h3>
-                      <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-mono">
-                        推荐 Lv.${selectedMap.reqLevel}+
-                      </span>
-                    </div>
-                    <p class="text-[11px] text-slate-400 mt-0.5 truncate">${selectedMap.description}</p>
-                  </div>
-                </div>
-
-                <div class="flex-shrink-0">
-                  ${currentPatrolMap.id !== selectedMap.id ? `
-                    <button id="btn-set-patrol" data-map-id="${selectedMap.id}" class="mota-btn-gold px-3 py-1 rounded-lg text-xs font-bold shadow flex items-center gap-1">
-                      <span>移防营地至此处</span>
-                    </button>
-                  ` : `
-                    <span class="text-[10px] px-2 py-1 rounded bg-emerald-950 text-emerald-300 border border-emerald-500 font-bold">
-                      当前巡航营地
-                    </span>
-                  `}
-                </div>
+    this.container.innerHTML = `<section class="wild-page wild-atlas">
+      <header class="mota-breadcrumb wild-atlas-heading"><h2>野外征战</h2><span>营地：${currentPatrolMap.name} · ${minutesAway}分 · +${pendingExp} EXP / +${pendingGold} 金 / +${pendingCrystal} 晶</span><button id="btn-claim-idle" class="mota-btn-gold">收获挂机收益</button></header>
+      <div class="wild-grid">
+        <nav class="wild-map-list mota-parchment-panel" aria-label="亚诺大陆据点"><div class="wild-map-nodes">
+          ${MAPS.map(map => `<button type="button" data-map-id="${map.id}" aria-pressed="${selectedMap.id === map.id}" class="map-node-card"><span class="wild-map-copy"><span class="wild-region-art wild-map-thumbnail" style="${getWildRegionStyle(map.id)}" aria-hidden="true"></span><span class="wild-map-label"><strong>${map.name}</strong><small>Lv.${map.reqLevel}+${currentPatrolMap.id === map.id ? ' · 巡逻中' : data.level < map.reqLevel ? ' · 未解锁' : ''}</small></span></span></button>`).join('')}
+        </div></nav>
+        <section class="wild-map-detail mota-parchment-panel">
+          <div class="wild-dossier">
+            <div class="wild-region-summary"><div class="wild-region-art wild-region-panorama" role="img" aria-label="${selectedMap.name}景观" data-region-art="${selectedMap.id}" style="${getWildRegionStyle(selectedMap.id)}"></div>
+              <div class="wild-region-heading"><h3>${selectedMap.name}</h3><p>${selectedMap.description}</p><small>推荐 Lv.${selectedMap.reqLevel}+</small>
+                ${currentPatrolMap.id !== selectedMap.id ? `<button id="btn-set-patrol" data-map-id="${selectedMap.id}" class="mota-btn-gold">移防营地至此处</button>` : '<span>当前巡航营地</span>'}
               </div>
-
-              <!-- 【黑羽蒙面女盗】现身悬赏条 (若女盗在此或通缉时醒目呈现) -->
-              ${thief && thief.appeared ? `
-                <div class="p-2.5 rounded-xl bg-red-950/60 border border-red-500/80 flex items-center justify-between gap-3 shadow-md">
-                  <div class="flex items-center gap-2.5 min-w-0">
-                    <div class="w-8 h-8 rounded bg-red-900/60 border border-red-500 p-1 flex items-center justify-center flex-shrink-0">
-                      ${getVectorIcon('weapon_sword', 'w-full h-full')}
-                    </div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-xs text-red-300">【王国通缉】黑羽蒙面女盗现身据点！</span>
-                        <span class="text-[9px] px-1 py-0.2 rounded bg-red-900 text-white font-mono">限时夺宝</span>
-                      </div>
-                      <div class="text-[10px] text-slate-300 mt-0.5 truncate">女盗携巨量王国晶石与【保护水晶】潜伏于【${thief.location}】！</div>
-                    </div>
-                  </div>
-                  <button id="btn-challenge-thief" class="mota-btn-gold px-3 py-1 rounded-lg text-xs font-black shadow flex-shrink-0 flex items-center gap-1">
-                    <span>截击暗影女盗</span>
-                  </button>
-                </div>
-              ` : ''}
-
-              <!-- 驻地首领 / 区域霸主 Boss 特写卡片 -->
-              ${selectedMap.boss ? `
-                <div class="p-2.5 rounded-xl bg-gradient-to-r from-amber-950/50 via-red-950/30 to-black/60 border-2 border-amber-500/70 shadow flex items-center justify-between gap-3">
-                  <div class="flex items-center gap-2.5 min-w-0">
-                    <div class="w-10 h-10 rounded-xl bg-red-950/60 border border-amber-500/80 p-1 flex items-center justify-center flex-shrink-0">
-                      ${getVectorIcon('bld_dragons', 'w-full h-full')}
-                    </div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="text-xs font-black text-amber-300 truncate">${selectedMap.boss.name}</span>
-                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-red-950 text-red-200 border border-red-700 font-mono font-bold">
-                          驻地领主 · Lv.${selectedMap.boss.level}
-                        </span>
-                      </div>
-                      <div class="text-[10px] text-slate-300 mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
-                        <span>生命: <b class="text-red-400 font-mono">${selectedMap.boss.hp}</b></span>
-                        <span>攻击: <b class="text-amber-400 font-mono">${selectedMap.boss.atk}</b></span>
-                        <span>防御: <b class="text-blue-400 font-mono">${selectedMap.boss.def}</b></span>
-                        <span class="text-amber-300">必掉: <b>【${selectedMap.boss.guaranteedDrop.name}】x${selectedMap.boss.guaranteedDrop.count}</b></span>
-                      </div>
-                    </div>
-                  </div>
-                  <button id="btn-fight-wild-boss" class="mota-btn-gold px-3.5 py-1.5 rounded-xl text-xs font-black shadow flex-shrink-0 flex items-center gap-1">
-                    <span>讨伐领主</span>
-                  </button>
-                </div>
-              ` : ''}
-
-              <!-- 该区域栖息魔物列表 -->
-              <div class="space-y-1.5">
-                <div class="flex items-center justify-between text-xs pb-1">
-                  <span class="font-bold text-amber-300 text-xs">盘踞魔物 (击杀掉落装备与珍稀材料)：</span>
-                  <span class="text-[10px] text-slate-400 font-mono">挂机产出: ${selectedMap.idleRate.expPerMin} EXP/分 · ${selectedMap.idleRate.goldPerMin} 金/分</span>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                  ${selectedMap.monsters.map((mob, mIdx) => {
-                    return `
-                      <div class="p-2.5 rounded-xl bg-black/40 border border-slate-800 hover:border-slate-600 transition-all flex flex-col justify-between space-y-2">
-                        <div class="flex items-center gap-2">
-                          <div class="w-8 h-8 rounded-lg bg-black/60 border border-slate-700 p-1 flex items-center justify-center flex-shrink-0">
-                            ${getVectorIcon('weapon_sword', 'w-full h-full')}
-                          </div>
-                          <div class="min-w-0 leading-tight">
-                            <div class="text-xs font-bold text-amber-200 truncate">${mob.name}</div>
-                            <div class="text-[10px] text-slate-400">爆装率: <b class="text-amber-400 font-mono">${Math.floor((mob.dropRate || 0.2) * 100)}%</b></div>
-                          </div>
-                        </div>
-
-                        <!-- 属性简报 -->
-                        <div class="grid grid-cols-3 gap-1 text-[10px] bg-black/50 p-1.5 rounded-lg border border-slate-800 text-center font-mono">
-                          <div>
-                            <span class="text-slate-500">生命</span>
-                            <div class="text-red-400 font-bold">${mob.hp}</div>
-                          </div>
-                          <div>
-                            <span class="text-slate-500">攻击</span>
-                            <div class="text-amber-400 font-bold">${mob.atk}</div>
-                          </div>
-                          <div>
-                            <span class="text-slate-500">护甲</span>
-                            <div class="text-blue-400 font-bold">${mob.def}</div>
-                          </div>
-                        </div>
-
-                        <div class="text-[10px] text-slate-400 flex items-center justify-between font-mono">
-                          <span>+${mob.gold} 金</span>
-                          <span>+${mob.exp} EXP</span>
-                        </div>
-
-                        <!-- 讨伐按键 -->
-                        <button data-mob-idx="${mIdx}" data-mob-name="${mob.name}" data-mob-hp="${mob.hp}" data-mob-atk="${mob.atk}" data-mob-def="${mob.def}" data-mob-icon="${mob.icon}" data-mob-drop="${mob.dropRate || 0.2}" class="btn-fight-mob w-full mota-btn-dark py-1.5 rounded-lg text-xs font-bold hover:text-amber-200 hover:border-amber-500 transition-all">
-                          拔剑讨伐
-                        </button>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              </div>
-
             </div>
-
-            <div class="text-[10px] text-slate-500 text-right pt-2 border-t border-[#4a3520]/70 font-mono">
-              击败野外魔物可随机缴获各阶神装散件与升星结晶
+            <div class="wild-dossier-list">
+              ${thief && thief.appeared ? `<div class="wild-thief-card"><span class="wild-thief-icon">${renderGameIcon('boss_thief', { size: 'w-full h-full' })}</span><div><strong>黑羽蒙面女盗</strong><small>潜伏于【${thief.location}】 · 追索王国晶石</small></div><button id="btn-challenge-thief" class="mota-btn-gold">截击暗影女盗</button></div>` : ''}
+              ${selectedMap.boss ? `<div class="wild-boss-card"><div class="wild-enemy-portrait" role="img" aria-label="${selectedMap.boss.name}肖像" style="${getWildPortraitStyle(selectedMap.boss.id)}"></div><div class="wild-boss-copy"><strong>${selectedMap.boss.name} · Lv.${selectedMap.boss.level}</strong><small>生命 ${selectedMap.boss.hp} · 攻击 ${selectedMap.boss.atk} · 防御 ${selectedMap.boss.def}</small><small>必掉：${selectedMap.boss.guaranteedDrop.name} ×${selectedMap.boss.guaranteedDrop.count}</small></div><button id="btn-fight-wild-boss" class="mota-btn-gold">讨伐领主</button></div>` : ''}
+              <section class="wild-encounters"><h3 class="wild-monster-caption">盘踞魔物</h3><div class="wild-monster-grid">
+                ${selectedMap.monsters.map((mob, index) => `<article class="wild-monster-card"><div class="wild-monster-identity"><div class="wild-enemy-portrait" role="img" aria-label="${mob.name}肖像" style="${getWildPortraitStyle(mob.icon)}"></div><strong>${mob.name}</strong></div>
+                  <dl>${[['生命', mob.hp], ['攻击', mob.atk], ['护甲', mob.def]].map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
+                  <p>爆装率 ${Math.floor((mob.dropRate || 0.2) * 100)}%</p><p>+${mob.gold} 金 · +${mob.exp} EXP</p>
+                  <button data-mob-idx="${index}" data-mob-name="${mob.name}" data-mob-hp="${mob.hp}" data-mob-atk="${mob.atk}" data-mob-def="${mob.def}" data-mob-icon="${mob.icon}" data-mob-drop="${mob.dropRate || 0.2}" class="btn-fight-mob mota-btn-dark">拔剑讨伐</button></article>`).join('')}
+              </div></section>
+              <p class="wild-patrol-rates">巡逻产出：${formatRate(patrolRates.expPerMin)} 经验 / ${formatRate(patrolRates.goldPerMin)} 金币 / ${formatRate(patrolRates.crystalPerMin)} 魔晶，每分钟</p>
             </div>
           </div>
-
-        </div>
-
+        </section>
       </div>
-    `;
+    </section>`;
 
     this.bindEvents();
   }
@@ -329,7 +121,7 @@ export class WildView {
         if (!thief || !thief.appeared) return;
 
         this.onStartBattle({
-          enemyData: { name: '【盗贼团精锐】黑羽蒙面女盗', icon: '' },
+          enemyData: { name: '【盗贼团精锐】黑羽蒙面女盗', icon: 'boss_thief' },
           enemyStats: { hp: thief.hp || 8000, atk: 380, def: 180, speed: 30 },
           onFinish: (victory) => {
             if (victory) {
@@ -340,7 +132,7 @@ export class WildView {
               gameState.data.maskedThief.appeared = false;
               gameState.triggerQuestAction('catch_thief', 1);
 
-              if (gameState.data.currentQuestId === 'quest_18') {
+              if (gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_18') {
                 gameModal.confirm(
                   `击溃黑羽蒙面女盗！成功截获被盗宝物：黄金晶石x5、保护水晶x2、魔晶+80、金币+4500！
 
@@ -383,8 +175,8 @@ export class WildView {
         }
 
         this.onStartBattle({
-          enemyData: { name: `【驻地领主】${boss.name}`, icon: '' },
-          enemyStats: { hp: boss.hp, atk: boss.atk, def: boss.def, speed: 22 },
+          enemyData: { name: `【驻地领主】${boss.name}`, portraitKey: boss.id, icon: boss.icon === 'monster_wolf' ? 'images/pets/pet_winter_wolf.svg' : getVectorIcon(boss.icon, 'w-full h-full'), level: boss.level },
+          enemyStats: { hp: boss.hp, atk: boss.atk, def: boss.def, speed: boss.speed },
           onFinish: (victory) => {
             if (victory) {
               sound.playFanfare();
@@ -393,7 +185,7 @@ export class WildView {
               const gDrop = reward.drop;
               const bossGear = reward.gear;
 
-              if (boss.id === 'boss_forest' && gameState.data.currentQuestId === 'quest_17') {
+              if (boss.id === 'boss_forest' && gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_17') {
                 gameModal.confirm(
                   `讨伐大胜！诛灭驻地霸主【${boss.name}】！
 缴获：经验 +${reward.exp}，金币 +${reward.gold}，魔晶 +${reward.crystal}，【${gDrop.name}】x${gDrop.count}，装备【${bossGear.name}】！
@@ -444,9 +236,13 @@ export class WildView {
         const dropRate = parseFloat(btn.getAttribute('data-mob-drop') || '0.2');
 
         const curMap = MAPS.find(m => m.id === this.selectedMapId) || MAPS[0];
+        if (gameState.data.level < curMap.reqLevel) {
+          gameModal.alert(`勇者等级不足！需达到 Lv.${curMap.reqLevel} 方可在【${curMap.name}】讨伐魔物。`, '区域尚未解锁');
+          return;
+        }
 
         this.onStartBattle({
-          enemyData: { name, icon: '' },
+          enemyData: { name, portraitKey: icon, icon: icon === 'monster_wolf' ? 'images/pets/pet_winter_wolf.svg' : getVectorIcon(icon, 'w-full h-full') },
           enemyStats: { hp, atk, def, speed: 18 },
           onFinish: (victory) => {
             if (victory) {

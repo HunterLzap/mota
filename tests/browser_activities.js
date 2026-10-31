@@ -24,6 +24,7 @@ async (page) => {
       const d = window.gameState.data;
       d.level = 80; d.gold = 1000000;
       d.bag = d.bag.filter(i => !i.slot);
+      d.equipped.weapon ??= { id:'fixture_weapon',uid:'fixture_weapon',name:'Fixture weapon',slot:'weapon',quality:'blue',durability:100,maxDurability:100,stars:1,sockets:1,gems:[],stats:{atk:35} };
       d.equipped.weapon.stats = { atk: 100000, hp: 1000000, def: 10000 };
       window.gameState.notify();
     });

@@ -1,0 +1,627 @@
+/* =========================================================
+   《魔塔世界》原版 (2006-2010 页游) 色板覆盖层  original-ui.css
+   ---------------------------------------------------------
+   全部色值取自原版客户端实测（非估计）：
+     按钮底   an_1.png  中列采样  #7f6d59 → #6a5844（上下仅差 12% 亮度）
+     按钮亮边 an_1.png              #c39d52（1px）
+     悬停亮边 an_2.png              #f5aa13
+     面板底   t_2.jpg   95% 占比    #d8b878（原版为纯色平铺，非彩绘）
+     导航文字 官网实测               rgb(245,170,19) = #f5aa13
+     深底     bg.jpg / topbg.png   #000000 / #291520
+     暗红点缀 t_h2.png              #500000
+   设计原则：有文字的地方一律平色底 + 1px 亮边，不上纹理、不上发光。
+   ---------------------------------------------------------
+   回退方法：删除 index.html 中引用本文件的那一行 <link> 即可。
+   ========================================================= */
+
+:root {
+  --ou-btn-top:    #7f6d59;
+  --ou-btn-bot:    #6a5844;
+  --ou-btn-hover-top: #8d7a63;
+  --ou-btn-hover-bot: #75634c;
+  --ou-edge:       #c39d52;
+  --ou-edge-hi:    #f5aa13;
+  --ou-edge-lo:    #3a2c1e;
+  --ou-on-btn:     #ffeec2;
+
+  --ou-panel-1:    #1b1611;
+  --ou-panel-2:    #120e0a;
+  --ou-line:       #6b5636;
+  --ou-line-dim:   #5c4a34;
+  --ou-track:      #070504;
+  --ou-text:       #ffeec2;
+  --ou-text-dim:   #d9c9a8;
+}
+
+/* ============ 1. 按钮：平色底 + 1px 亮边（原版做法，文字才清楚） ============ */
+
+.mota-btn-gold {
+  background: linear-gradient(180deg, var(--ou-btn-top) 0%, var(--ou-btn-bot) 100%) !important;
+  color: var(--ou-on-btn) !important;
+  border: 1px solid var(--ou-edge) !important;
+  border-bottom: 2px solid var(--ou-edge-lo) !important;
+  border-radius: 3px !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.85) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 238, 194, 0.18), 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+  transition: none !important;
+}
+
+.mota-btn-gold:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--ou-btn-hover-top) 0%, var(--ou-btn-hover-bot) 100%) !important;
+  border-color: var(--ou-edge-hi) !important;
+  color: #fff6df !important;
+  transform: none !important;
+  box-shadow: inset 0 1px 0 rgba(255, 238, 194, 0.26), 0 0 7px rgba(245, 170, 19, 0.4) !important;
+}
+
+.mota-btn-gold:active:not(:disabled) {
+  background: #5c4a38 !important;
+  transform: none !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.75) !important;
+}
+
+/* 未解锁入口：必须比可用入口明显更弱，不能被上面的 !important 抹平 */
+.feature-entry-locked.mota-btn-gold,
+.mota-btn-gold.feature-locked {
+  background: linear-gradient(180deg, #45403a 0%, #241f1a 100%) !important;
+  color: #a1947d !important;
+  border-color: #5f564a !important;
+  text-shadow: 0 1px 1px #000 !important;
+  box-shadow: inset 0 1px 0 rgba(120, 110, 95, 0.25) !important;
+  cursor: not-allowed !important;
+}
+.feature-entry-locked.mota-btn-gold:hover,
+.mota-btn-gold.feature-locked:hover {
+  background: linear-gradient(180deg, #4d4740 0%, #2a241e 100%) !important;
+  border-color: #6d6355 !important;
+  color: #a1947d !important;
+  box-shadow: inset 0 1px 0 rgba(120, 110, 95, 0.25) !important;
+}
+
+.mota-btn-dark {
+  background: linear-gradient(180deg, #3b322a 0%, #241e18 100%) !important;
+  color: var(--ou-text-dim) !important;
+  border: 1px solid var(--ou-line-dim) !important;
+  border-bottom: 2px solid #14100b !important;
+  border-radius: 3px !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 238, 194, 0.08) !important;
+  transition: none !important;
+}
+
+.mota-btn-dark:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4a4036 0%, #2f2820 100%) !important;
+  border-color: var(--ou-edge) !important;
+  color: var(--ou-text) !important;
+  transform: none !important;
+}
+
+.mota-btn-dark:active:not(:disabled) {
+  transform: none !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7) !important;
+}
+
+.mota-btn-dock {
+  background: linear-gradient(180deg, #3b322a 0%, #241e18 100%) !important;
+  color: var(--ou-text-dim) !important;
+  border: 1px solid var(--ou-line-dim) !important;
+  border-bottom: 2px solid #14100b !important;
+  border-radius: 3px !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 238, 194, 0.08) !important;
+  transition: none !important;
+}
+
+.mota-btn-dock:hover {
+  background: linear-gradient(180deg, #4a4036 0%, #2f2820 100%) !important;
+  border-color: var(--ou-edge) !important;
+  color: var(--ou-text) !important;
+  transform: none !important;
+}
+
+.mota-btn-dock.active {
+  background: linear-gradient(180deg, var(--ou-btn-top) 0%, var(--ou-btn-bot) 100%) !important;
+  color: var(--ou-on-btn) !important;
+  border-color: var(--ou-edge-hi) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 238, 194, 0.22), 0 0 8px rgba(245, 170, 19, 0.35) !important;
+}
+
+/* ============ 2. 面板与卡片：去掉厚描边与光晕，改为 1px 细线 ============ */
+
+.mota-parchment-panel {
+  background: linear-gradient(180deg, var(--ou-panel-1) 0%, var(--ou-panel-2) 100%) !important;
+  border: 1px solid var(--ou-line) !important;
+  border-radius: 4px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 238, 194, 0.10), 0 3px 12px rgba(0, 0, 0, 0.7) !important;
+}
+
+.mota-building-card {
+  background: linear-gradient(180deg, var(--ou-panel-1) 0%, #131009 100%) !important;
+  border: 1px solid var(--ou-line) !important;
+  border-radius: 4px !important;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.75), 0 3px 10px rgba(0, 0, 0, 0.6) !important;
+  transition: none !important;
+}
+
+.mota-building-card:hover {
+  transform: none !important;
+  border-color: var(--ou-edge) !important;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.75), 0 0 8px rgba(195, 157, 82, 0.3) !important;
+}
+
+.mota-building-card.feature-locked,
+.mota-building-card.feature-locked:hover {
+  border-color: #4a3f30 !important;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.75) !important;
+}
+
+.mota-breadcrumb {
+  background: linear-gradient(180deg, #241e18 0%, #1a1510 100%) !important;
+  border: 1px solid var(--ou-line-dim) !important;
+  border-left: 3px solid var(--ou-edge) !important;
+  border-radius: 3px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 238, 194, 0.08) !important;
+}
+
+.mota-metal-plaque {
+  background: linear-gradient(180deg, #241e18 0%, #15110d 100%) !important;
+  border: 1px solid var(--ou-line-dim) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 238, 194, 0.10) !important;
+}
+
+.mota-slot-socket {
+  background: var(--ou-track) !important;
+  border: 1px solid var(--ou-line-dim) !important;
+  border-radius: 4px !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.95) !important;
+  transition: none !important;
+}
+.mota-slot-socket:hover {
+  border-color: var(--ou-edge) !important;
+}
+
+/* ============ 3. 弹窗 / 浮层 ============ */
+
+/* 弹窗 = 亮羊皮纸 + 深棕字（原版实测 #ddcead → #d9b881，正文近黑） */
+#game-modal-overlay {
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: none !important;
+}
+
+#game-modal-box {
+  background: linear-gradient(180deg, #ddcead 0%, #d9b881 100%) !important;
+  border: 2px solid #3a2c1e !important;
+  border-radius: 2px !important;
+  box-shadow:
+    inset 0 0 0 1px #b59871,
+    inset 0 2px 10px rgba(255, 255, 255, 0.35),
+    0 0 0 1px #1a1208,
+    0 14px 44px rgba(0, 0, 0, 0.9) !important;
+}
+/* 标题栏：原版是深色木铁条 + 居中近白字 */
+#game-modal-box > div:first-child {
+  background: linear-gradient(180deg, #3a3730 0%, #26241f 100%) !important;
+  border-bottom: 1px solid #b59871 !important;
+}
+#game-modal-box > div:first-child > div:first-child {
+  flex: 1 !important;
+  justify-content: center !important;
+}
+/* 标题前的金色圆点是现代装饰，原版没有 */
+#game-modal-box > div:first-child > div:first-child > span:first-child {
+  display: none !important;
+}
+#game-modal-title { color: #f9f7f1 !important; font-weight: 700 !important; letter-spacing: 1px; }
+
+/* 关闭按钮：原版是右上角红色方钮 */
+#game-modal-close {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 2px !important;
+  background: linear-gradient(180deg, #8a3b32 0%, #6a2620 100%) !important;
+  border: 1px solid #b59871 !important;
+  color: #f6e9d8 !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+}
+
+/* 正文：去掉那层多余黑框，深棕字 + 大行距 */
+/* 注意：正文外层包裹 div 带硬编码深色底 bg-[#17130f]/95，必须一并覆盖，否则深字压深底 */
+#game-modal-box > div:nth-child(2) {
+  background: transparent !important;
+  background-image: none !important;
+}
+#game-modal-message {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 4px 2px !important;
+  color: #2a1f14 !important;
+  font-size: 13px !important;
+  line-height: 1.9 !important;
+  text-shadow: none !important;
+}
+/* 文案里若带 Tailwind 颜色 span，统一压成深棕，再给强调色 */
+#game-modal-message,
+#game-modal-message * {
+  color: #2a1f14 !important;
+  text-shadow: none !important;
+}
+#game-modal-message b,
+#game-modal-message strong,
+#game-modal-message .text-amber-300,
+#game-modal-message .text-emerald-400,
+#game-modal-message .text-cyan-300 {
+  color: #7a3f10 !important;
+}
+
+#game-modal-actions {
+  background: rgba(60, 42, 24, 0.14) !important;
+  border-top: 1px solid #b59871 !important;
+}
+
+/* 弹窗内按钮：原版为暗红底 + 浅字 */
+#game-modal-btn-confirm,
+#game-modal-btn-cancel {
+  background: linear-gradient(180deg, #8a3b32 0%, #6a2620 100%) !important;
+  color: #f6e9d8 !important;
+  border: 1px solid #b59871 !important;
+  border-bottom: 2px solid #3a1512 !important;
+  border-radius: 2px !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+#game-modal-btn-confirm:hover,
+#game-modal-btn-cancel:hover {
+  background: linear-gradient(180deg, #9d453a 0%, #7a2d25 100%) !important;
+  color: #fff7ec !important;
+}
+
+.mota-tooltip-panel {
+  background: linear-gradient(180deg, var(--ou-panel-1) 0%, #0f0b07 100%) !important;
+  border: 1px solid var(--ou-edge) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0 0 1px var(--ou-edge-lo), 0 8px 24px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* ============ 4. 状态槽：原版是深槽 + 1px 亮边 ============ */
+
+.mota-bar-frame {
+  background: var(--ou-track) !important;
+  border: 1px solid var(--ou-line-dim) !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.95) !important;
+}
+
+/* 去掉现代感的流光扫过动效，原版血条是静止的 */
+.mota-hp-fill::after,
+.mota-mp-fill::after,
+.mota-exp-fill::after {
+  display: none !important;
+}
+
+/* ============ 5. 客户端外框：收薄，去掉重投影 ============ */
+
+.mota-client-shell {
+  background: #0d0a07 !important;
+  border: 2px solid var(--ou-edge-lo) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 0 0 1px var(--ou-line), 0 10px 36px rgba(0, 0, 0, 0.9) !important;
+}
+.mota-client-shell::before,
+.mota-client-shell::after {
+  border-color: var(--ou-edge) !important;
+  box-shadow: none !important;
+}
+
+/* ============ 6. 文字对比度（原版高亮色 #f5aa13） ============ */
+
+.mota-client-shell .text-amber-300 { color: #f5aa13 !important; }
+.mota-client-shell .mota-breadcrumb,
+.mota-client-shell .mota-breadcrumb * { color: var(--ou-text-dim); }
+
+/* =========================================================
+   7. 主内容面板改亮羊皮纸（原版实测 #ddcead → #d9b881）
+   ---------------------------------------------------------
+   只作用于 main 内的面板：
+     header 顶栏 / footer 任务栏与日志 / 弹窗 都保持各自配色，
+     与原版「主要信息面板亮、工具面板暗」的分工一致。
+   面板内文字统一压深，再按语义给回强调色；
+   深色小块背景转为浅色痕迹，避免出现「深底 + 深字」。
+   ========================================================= */
+
+main .mota-parchment-panel {
+  background: linear-gradient(180deg, #ddcead 0%, #d5c096 100%) !important;
+  border: 2px solid #3a2c1e !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 0 0 1px #b59871, 0 3px 12px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* 面板内文字全部压成深棕 */
+main .mota-parchment-panel,
+main .mota-parchment-panel * {
+  color: #3a2c1e !important;
+  text-shadow: none !important;
+}
+
+/* 语义色重映射到浅底可读的深色系 */
+main .mota-parchment-panel .text-amber-100,
+main .mota-parchment-panel .text-amber-200,
+main .mota-parchment-panel .text-amber-300,
+main .mota-parchment-panel .text-amber-400,
+main .mota-parchment-panel [class~="text-[#f5c042]"] { color: #7a3f10 !important; }
+
+main .mota-parchment-panel .text-slate-200,
+main .mota-parchment-panel .text-slate-300,
+main .mota-parchment-panel .text-white { color: #33261a !important; }
+
+main .mota-parchment-panel .text-slate-400,
+main .mota-parchment-panel .text-slate-500,
+main .mota-parchment-panel .text-slate-600,
+main .mota-parchment-panel .text-slate-700 { color: #6b5a44 !important; }
+
+main .mota-parchment-panel .text-red-300,
+main .mota-parchment-panel .text-red-400,
+main .mota-parchment-panel .text-rose-200,
+main .mota-parchment-panel .text-rose-300,
+main .mota-parchment-panel .text-rose-400 { color: #8a2b2b !important; }
+
+main .mota-parchment-panel .text-emerald-200,
+main .mota-parchment-panel .text-emerald-300,
+main .mota-parchment-panel .text-emerald-400,
+main .mota-parchment-panel .text-green-300,
+main .mota-parchment-panel .text-green-400 { color: #2f6b3f !important; }
+
+main .mota-parchment-panel .text-cyan-200,
+main .mota-parchment-panel .text-cyan-300,
+main .mota-parchment-panel .text-cyan-400,
+main .mota-parchment-panel .text-teal-300 { color: #1d5a68 !important; }
+
+main .mota-parchment-panel .text-blue-200,
+main .mota-parchment-panel .text-blue-300,
+main .mota-parchment-panel .text-blue-400,
+main .mota-parchment-panel .text-indigo-200,
+main .mota-parchment-panel .text-indigo-300 { color: #2a4a8a !important; }
+
+main .mota-parchment-panel .text-purple-200,
+main .mota-parchment-panel .text-purple-300,
+main .mota-parchment-panel .text-purple-400,
+main .mota-parchment-panel .text-fuchsia-300 { color: #5f3a8a !important; }
+
+/* 面板内的深色小块（品质角标、标签、提示条）转成浅色痕迹 */
+main .mota-parchment-panel [class*="bg-slate-8"],
+main .mota-parchment-panel [class*="bg-slate-9"],
+main .mota-parchment-panel [class*="bg-zinc-8"],
+main .mota-parchment-panel [class*="bg-neutral-8"],
+main .mota-parchment-panel [class*="bg-black/"],
+main .mota-parchment-panel [class*="bg-black "],
+main .mota-parchment-panel [class*="bg-amber-9"],
+main .mota-parchment-panel [class*="bg-red-9"],
+main .mota-parchment-panel [class*="bg-purple-9"],
+main .mota-parchment-panel [class*="bg-blue-9"],
+main .mota-parchment-panel [class*="bg-emerald-9"],
+main .mota-parchment-panel [class*="bg-cyan-9"] {
+  background-color: rgba(58, 44, 30, 0.14) !important;
+  background-image: none !important;
+}
+
+/* 装备/物品槽在浅底上仍保持深色内凹，才像凹槽 */
+main .mota-parchment-panel .mota-slot-socket,
+main .mota-parchment-panel .bag-item-icon {
+  background: var(--ou-track) !important;
+  background-image: none !important;
+}
+main .mota-parchment-panel .bag-item-icon { color: var(--ou-text-dim) !important; }
+
+/* 面板内按钮沿用深色系，保证在浅底上仍是「按钮」而不是一片纸 */
+main .mota-parchment-panel .mota-btn-gold,
+main .mota-parchment-panel .mota-btn-dark,
+main .mota-parchment-panel .mota-btn-dock {
+  color: currentColor !important;
+}
+main .mota-parchment-panel .mota-btn-gold { color: var(--ou-on-btn) !important; }
+main .mota-parchment-panel .mota-btn-gold > * { color: var(--ou-on-btn) !important; }
+main .mota-parchment-panel .mota-btn-dark,
+main .mota-parchment-panel .mota-btn-dark > * { color: var(--ou-text-dim) !important; }
+
+/* =========================================================
+   8. 王都 / 庄园 的建筑卡片并入亮羊皮纸体系
+   ========================================================= */
+main .mota-building-card {
+  background: linear-gradient(180deg, #ddcead 0%, #d5c096 100%) !important;
+  border-width: 2px !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 0 0 1px #b59871, 0 3px 12px rgba(0, 0, 0, 0.6) !important;
+  overflow: visible !important;
+}
+main .mota-building-card:hover {
+  transform: none !important;
+  box-shadow: inset 0 0 0 1px #d8c9a0, 0 0 12px rgba(195, 157, 82, 0.55) !important;
+}
+main .mota-building-card,
+main .mota-building-card * {
+  color: #3a2c1e !important;
+  text-shadow: none !important;
+}
+main .mota-building-card [class*="bg-slate-8"],
+main .mota-building-card [class*="bg-slate-9"],
+main .mota-building-card [class*="bg-black/"],
+main .mota-building-card [class*="bg-amber-9"],
+main .mota-building-card [class*="bg-red-9"],
+main .mota-building-card [class*="bg-purple-9"],
+main .mota-building-card [class*="bg-blue-9"],
+main .mota-building-card [class*="bg-emerald-9"],
+main .mota-building-card [class*="bg-cyan-9"],
+main .mota-building-card [class*="bg-indigo-9"],
+main .mota-building-card [class*="bg-rose-9"] {
+  background-color: rgba(58, 44, 30, 0.14) !important;
+  background-image: none !important;
+}
+/* 卡片内按钮回到深色系 */
+main .mota-building-card .mota-btn-gold { color: var(--ou-on-btn) !important; }
+main .mota-building-card .mota-btn-gold > * { color: var(--ou-on-btn) !important; }
+main .mota-building-card .mota-btn-dark,
+main .mota-building-card .mota-btn-dark > * { color: var(--ou-text-dim) !important; }
+/* 未解锁卡片整体压暗一点，与可用卡片区分 */
+main .mota-building-card.feature-locked {
+  background: linear-gradient(180deg, #cdbe9d 0%, #c2ae86 100%) !important;
+}
+main .mota-building-card.feature-locked,
+main .mota-building-card.feature-locked * { color: #6a5a44 !important; }
+
+/* =========================================================
+   9. 修复：长弹窗超出屏幕（标题栏与按钮点不到）
+   —— overlay 可滚 + 正文区限高内滚 + margin:auto 保证顶部可达
+   ========================================================= */
+#game-modal-overlay {
+  overflow-y: auto !important;
+  padding: 16px !important;
+}
+#game-modal-box {
+  margin: auto !important;
+  width: 100% !important;
+  max-width: 620px !important;
+}
+/* 放大弹窗正文（原版弹窗占屏宽约 61%，字号与行距也更大） */
+#game-modal-message {
+  font-size: 14px !important;
+  line-height: 2 !important;
+}
+#game-modal-title { font-size: 15px !important; }
+#game-modal-btn-confirm,
+#game-modal-btn-cancel {
+  font-size: 13px !important;
+  padding: 7px 20px !important;
+}
+/* 正文区限高 + 内部滚动，标题栏与按钮永远可见 */
+#game-modal-box > div:nth-child(2) {
+  max-height: calc(100vh - 210px) !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #8a6a3a #cdbb95 !important;
+}
+#game-modal-box > div:nth-child(2)::-webkit-scrollbar { display: block !important; width: 8px !important; }
+#game-modal-box > div:nth-child(2)::-webkit-scrollbar-thumb { background: #8a6a3a !important; border-radius: 4px; }
+#game-modal-box > div:nth-child(2)::-webkit-scrollbar-track { background: #cdbb95 !important; }
+
+/* =========================================================
+   10. 修复：矮屏下主内容被裁
+   —— 按视口高度逐级压缩固定开销（顶栏 / 引导条 / 底栏）
+   ========================================================= */
+@media (max-height: 920px) {
+  .mota-client-shell > footer { height: 168px !important; }
+}
+@media (max-height: 860px) {
+  .mota-client-shell > header { padding-top: 4px !important; padding-bottom: 4px !important; }
+  .mota-client-shell .journey-guide { padding: 7px 12px !important; }
+  .mota-client-shell > footer { height: 150px !important; }
+}
+@media (max-height: 880px) {
+  /* 矮屏下 main 允许滚动，并让页签容器随内容增高，
+     保证任何内容都能滚到，不再被 overflow:hidden 永久裁掉 */
+  .mota-client-shell main {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #88653a #1a140e !important;
+  }
+  .mota-client-shell main > [id^="tab-content-"] {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+  }
+  .mota-client-shell main > [id^="tab-content-"] > * { min-height: 0 !important; }
+  .mota-client-shell main::-webkit-scrollbar { display: block !important; width: 7px !important; }
+  .mota-client-shell main::-webkit-scrollbar-thumb { background: #88653a !important; border-radius: 3px; }
+  .mota-client-shell main::-webkit-scrollbar-track { background: #1a140e !important; }
+}
+@media (max-height: 780px) {
+  .mota-client-shell > header { padding-top: 3px !important; padding-bottom: 3px !important; }
+  .mota-client-shell .journey-guide { padding: 5px 10px !important; }
+  .mota-client-shell .journey-guide p { font-size: 11px !important; line-height: 1.35 !important; }
+  .mota-client-shell > footer { height: 132px !important; }
+  .mota-client-shell main { padding: 4px !important; }
+}
+
+/* 单机王都：设施目录与实际整备状态；浅羊皮纸使用深墨色正文。 */
+.mota-client-shell main .mota-building-card [class*="text-amber"],
+.mota-client-shell main .mota-building-card [class*="text-slate"],
+.mota-client-shell main .mota-building-card.feature-locked,
+.mota-client-shell main .mota-building-card.feature-locked * { color: #493825 !important; }
+.mota-client-shell main .mota-building-card .mota-btn-gold,
+.mota-client-shell main .mota-building-card .mota-btn-gold *,
+.mota-client-shell main .mota-building-card .mota-btn-dark,
+.mota-client-shell main .mota-building-card .mota-btn-dark * { color: #f3e2bc !important; }
+.town-directory .mota-breadcrumb h2 { font-size: 16px; font-weight: 700; }
+.town-directory .mota-breadcrumb > span { font-size: 13px; color: #d9c9a8; }
+.town-directory-layout { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr); gap: 12px; flex: 1; min-height: 0; }
+.town-places { min-height: 0; overflow-y: auto; padding: 0 14px; display: flex; flex-direction: column; }
+.mota-client-shell main .town-place { display: grid; grid-template-columns: 40px minmax(0, 1fr) 230px; align-items: center; gap: 12px; padding: 6px 0; flex: 1; min-height: 74px; border: 0 !important; border-bottom: 1px solid #ad916a !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; cursor: pointer; }
+.mota-client-shell main .town-place:last-child { border-bottom: 0 !important; }
+.mota-client-shell main .town-place:hover { background: #bfa57735 !important; }
+.town-place-icon { width: 40px; height: 40px; padding: 5px; }
+.town-place-copy { min-width: 0; }
+.town-place-copy h3 { font-size: 16px; font-weight: 700; line-height: 1.4; }
+.town-place-copy p { font-size: 12px; line-height: 1.5; }
+.town-place-status { font-weight: 600; }
+.mota-client-shell main .town-place > .town-place-action { display: flex; flex-direction: column; align-items: flex-end; margin: 0; padding: 0; gap: 5px; }
+.town-place-action button { padding: 4px 15px; font-size: 13px; white-space: nowrap; }
+.mota-client-shell main .town-place .feature-lock-hint { font-size: 12px; line-height: 1.45; text-align: right; color: #493825 !important; }
+.town-readiness { overflow-y: auto; padding: 18px; color: #3a2c1e; }
+.town-readiness h3 { font-size: 18px; font-weight: 700; border-bottom: 1px solid #ae9168; padding-bottom: 10px; }
+.town-readiness-identity { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+.town-readiness-identity > :first-child { width: 48px; height: 48px; flex: 0 0 48px; }
+.town-readiness-identity strong { font-size: 16px; }
+.town-readiness-identity p { font-size: 13px; }
+.town-readiness-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px 18px; padding-bottom: 14px; }
+.town-readiness-stats > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.town-readiness-stats dt { font-size: 13px; }
+.town-readiness-stats dd { font-size: 17px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.town-readiness-section { border-top: 1px solid #ae9168; padding-top: 10px; margin-top: 10px; }
+.town-readiness-section h4 { font-weight: 700; font-size: 14px; margin-bottom: 5px; }
+.town-readiness-section p, .town-readiness-note { font-size: 13px; line-height: 1.6; }
+.town-readiness-section button { padding: 6px 12px; margin-top: 10px; font-size: 13px; }
+.town-readiness-note { margin-top: 12px; border-top: 1px solid #ae9168; padding-top: 10px; }
+
+/* 装备中心呈现生产层计算的属性，替代无信息的大幅留白。 */
+.equip-combat-summary { overflow-y: auto; gap: 12px; justify-content: flex-start; }
+.equip-identity { display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #ae9168; padding-bottom: 12px; }
+.equip-crest { flex: 0 0 56px; width: 56px; height: 56px; }
+.equip-identity h3 { font-size: 18px; font-weight: 700; color: #3a2c1e; }
+.equip-identity p { font-size: 13px; color: #58452e; }
+.equip-effective-stats h4 { font-size: 14px; font-weight: 700; color: #3a2c1e; margin-bottom: 9px; }
+.equip-effective-stats dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: 22px; }
+.equip-effective-stats dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; border-bottom: 1px solid #bba07a; padding: 8px 0; }
+.equip-effective-stats dt { font-size: 13px; color: #58452e; }
+.equip-effective-stats dd { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; color: #33261a; }
+.equip-effective-stats > p { color: #58452e; font-size: 12px; line-height: 1.6; margin-top: 10px; }
+.equip-combat-summary .equip-set-summary { margin-top: auto; }
+.mota-client-shell main .equip-combat-summary .equip-set-summary .text-slate-500 { color: #493825 !important; font-style: normal; }
+.equip-workbench .equip-slot-list > div { padding: 7px; }
+.equip-workbench .equip-slot-list > div > div:first-child { width: 38px; height: 38px; }
+.equip-workbench .equip-slot-list .text-\[10px\] { font-size: 12px; }
+@media (max-width: 1300px) {
+  .town-directory-layout { grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); gap: 8px; }
+  .mota-client-shell main .town-place { grid-template-columns: 32px minmax(0,1fr) 200px; gap: 8px; padding: 6px 0; }
+  .town-place-icon { width: 32px; height: 32px; padding: 2px; }
+  .town-place-copy h3 { font-size: 15px; }
+  .town-readiness { padding: 14px; }
+  .equip-combat-summary { gap: 8px; }
+  .equip-effective-stats dl > div { padding: 6px 0; }
+}
+/* Character training follows the existing iron headings and parchment sheets. */
+#tab-content-hero .hero-profile > .grid > .mota-parchment-panel { min-height: 0; overflow-y: auto; }
+#tab-content-hero .class-training { height: 100%; min-height: 0; padding: 8px; display: flex; flex-direction: column; gap: 8px; color: #32271b; font-size: 12px; }
+#tab-content-hero .class-training > header { display: flex; align-items: center; gap: 14px; padding: 6px 9px; background: #292b27; border: 1px solid #8d8269; color: #e9dbb7; }
+#tab-content-hero .class-training h2 { flex: 1; font-size: 15px; font-weight: bold; }
+#tab-content-hero .class-skill-priority { display: flex; align-items: center; gap: 10px; }
+#tab-content-hero .class-skill-priority select { padding: 4px 12px; color: #f2e4bf; background: #252923; border: 1px solid #8d8269; }
+#tab-content-hero .class-training-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; overflow-y: auto; min-height: 0; align-content: start; }
+#tab-content-hero .class-training-grid article { padding: 9px; background: #dfc99b url('../images/ui/classic-parchment.png') center / 450px; border: 1px solid #695b43; color: #32271b; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+#tab-content-hero .class-training-grid h3 { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; }
+#tab-content-hero .class-training-grid small { font-size: 11px; }
+#tab-content-hero .class-training-grid p { line-height: 1.6; }
+#tab-content-hero .class-training-grid footer { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-top: auto; }
+#tab-content-hero .class-training-grid button { padding: 4px 8px; white-space: nowrap; }
+#tab-content-hero .class-training button:disabled { opacity: .55; cursor: default; }
+#tab-content-hero .class-training button:focus-visible, #tab-content-hero .class-training select:focus-visible { outline: 2px solid #d6ac55; outline-offset: 2px; }

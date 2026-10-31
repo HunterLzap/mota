@@ -197,7 +197,7 @@ body {
   width: 100%;
   height: calc(100vh - 12px);
   max-height: 920px;
-  min-height: 600px;
+  min-height: 0;
   margin: 0 auto;
   background: #100c09;
   border: 3px solid #5a401e;
@@ -284,6 +284,109 @@ body {
   width: 0px !important;
   height: 0px !important;
   display: none !important;
+}
+
+/* 固定主舞台：背包分页、操作常驻，不用滚动容纳工作台内容。 */
+#tab-content-bag, #tab-content-equip, #tab-content-hero {
+  flex: 1 1 0%; min-height: 0; overflow: hidden;
+}
+.bag-layout { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.bag-inventory, .bag-detail { min-width: 0; min-height: 0; padding: 8px; overflow: hidden; }
+.bag-items { padding: 5px; gap: 5px; align-items: stretch; align-content: stretch; }
+.bag-items > div { height: auto; min-height: 0; max-height: 48px; }
+.bag-pagination { display: flex; align-items: center; justify-content: space-between; gap: 5px; flex-shrink: 0; font-size: 10px; }
+.bag-pagination button { padding: 3px 8px; }
+.bag-pagination button:disabled { opacity: .4; cursor: default; }
+.bag-item-title { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-bottom: 6px; }
+.bag-item-icon { width: 36px; height: 36px; padding: 3px; flex-shrink: 0; border: 1px solid #9b7634; border-radius: 8px; }
+.bag-detail-tabs { display: flex; gap: 5px; margin-bottom: 5px; flex-shrink: 0; }
+.bag-detail-tabs button { padding: 3px 8px; font-size: 10px; }
+.bag-detail-content { flex: 1; min-height: 0; font-size: 11px; display: flex; flex-direction: column; gap: 4px; }
+.bag-detail-content > button { padding: 5px; font-size: 10px; }
+.bag-stat-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bag-primary-action { flex-shrink: 0; padding-top: 5px; }
+.bag-primary-action button { width: 100%; padding: 7px; font-size: 12px; }
+.bag-inventory .btn-bag-filter { font-size: 10px; padding: 4px 6px; }
+.equip-workbench > .grid > div { min-height: 0; min-width: 0; padding: 8px; }
+.equip-slot-list { display: grid; grid-template-rows: repeat(5,minmax(0,1fr)); gap: 5px; min-height: 0; flex: 1; padding-top: 5px; }
+.equip-slot-list > div { min-height: 0; padding: 4px; }
+.equip-slot-list > div > div:first-child { width: 28px; height: 28px; }
+.equip-slot-list > div + div { margin-top: 0; }
+.equip-workbench .equip-set-summary { min-height: 0; }
+.equip-workbench .equip-set-summary .max-h-24 { max-height: none; overflow: hidden; }
+.equip-portrait { flex: 1; min-height: 0; padding: 5px; }
+.equip-portrait > div:first-child { width: clamp(30px,8vh,80px); height: clamp(30px,8vh,80px); }
+@media (max-width: 760px) {
+  .bag-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 5px; }
+  .bag-workbench .mota-breadcrumb > div:first-child > span:last-child,
+  .bag-workbench .mota-breadcrumb .hidden { display: none; }
+  .bag-workbench .mota-breadcrumb { padding: 4px; gap: 3px; }
+  .bag-workbench .mota-breadcrumb > div:last-child { gap: 4px; }
+  .bag-inventory, .bag-detail { padding: 5px; }
+  .bag-inventory .btn-bag-filter { padding: 3px; font-size: 9px; }
+  .bag-inventory > div:first-child > div { flex-wrap: wrap; gap: 3px; }
+  .bag-item-icon { width: 25px; height: 25px; }
+  .bag-item-title { gap: 4px; }
+  .equip-workbench > .grid { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0,1fr) auto; gap: 5px; }
+  .equip-workbench > .grid > div:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .equip-workbench > .grid > div:nth-child(3) { grid-column: 2; grid-row: 1; }
+  .equip-workbench .equip-portrait { display: none; }
+  .equip-workbench > .grid > div:nth-child(2) { padding: 5px; }
+  .equip-workbench > .grid > div:nth-child(2) > div:first-child { padding-bottom: 3px; }
+  .equip-workbench .equip-set-summary { padding: 4px; }
+  .equip-workbench .equip-actions { margin-top: 4px; padding-top: 4px; gap: 4px; }
+  .equip-workbench .equip-actions button { padding: 5px 2px; font-size: 10px; }
+  .equip-slot-list > div { padding: 2px; gap: 4px; }
+  .equip-slot-list > div > div:first-child { width: 24px; height: 24px; }
+  .equip-slot-list .text-\[10px\] { display: none; }
+  .equip-workbench .mota-breadcrumb { padding: 4px; gap: 4px; }
+  .equip-workbench .mota-breadcrumb > div:last-child button { font-size: 10px; padding: 4px; }
+  .equip-workbench .mota-breadcrumb > div:last-child button:last-child { display: none; }
+}
+@media (max-height: 650px) {
+  .mota-client-shell > footer { height: 128px; }
+  .mota-client-shell .journey-guide { padding: 6px 10px; flex-shrink: 0; }
+  .mota-client-shell .journey-guide h2 { font-size: 13px; }
+  .mota-client-shell .journey-guide p { font-size: 10px; }
+  .bag-workbench, .equip-workbench { padding: 3px; }
+  .bag-workbench .mota-breadcrumb { padding: 3px 6px; margin-bottom: 4px; }
+  .bag-workbench .mota-breadcrumb > div:first-child > span:last-child { display: none; }
+  .bag-item-icon { width: 24px; height: 24px; }
+  .bag-item-title { margin-bottom: 3px; gap: 4px; }
+  .bag-primary-action button { padding: 4px; font-size: 11px; }
+  .bag-detail-tabs { margin-bottom: 3px; }
+  .bag-detail-tabs button, .bag-pagination button { padding: 2px 5px; }
+  .equip-workbench > .grid { gap: 5px; }
+  .equip-workbench > .grid > div { padding: 4px; }
+  .equip-slot-list { gap: 2px; padding-top: 2px; }
+  .equip-slot-list > div { padding: 2px; gap: 4px; }
+  .equip-slot-list > div > div:first-child { width: 20px; height: 20px; padding: 1px; }
+  .equip-slot-list .text-xs { font-size: 10px; }
+  .equip-slot-list .text-\[10px\] { font-size: 9px; }
+  .equip-workbench .equip-portrait > div:last-child { margin-top: 2px; }
+  .equip-workbench .equip-portrait > div:last-child > div:last-child { display: none; }
+  .equip-workbench .equip-set-summary { padding: 3px; font-size: 10px; }
+  .equip-workbench .equip-set-summary > div:last-child { padding: 0; font-size: 9px; }
+  .equip-workbench .equip-actions { margin-top: 3px; padding-top: 3px; gap: 4px; }
+  .equip-workbench .equip-actions button { padding: 3px; font-size: 10px; }
+}
+@media (max-height: 500px) {
+  .mota-client-shell > header { padding: 3px 10px; }
+  #header-char-box > div:first-child { width: 32px; height: 32px; }
+  .mota-client-shell .journey-guide { padding: 3px 8px; margin-bottom: 4px; }
+  .mota-client-shell .journey-guide button { padding: 4px 10px; font-size: 11px; }
+  .bag-workbench .mota-breadcrumb > div:last-child { gap: 5px; }
+  .bag-workbench .mota-breadcrumb button { padding: 2px 6px; font-size: 10px; }
+  .bag-workbench .mota-breadcrumb { padding: 2px 6px; }
+  .bag-detail, .bag-inventory { padding: 4px; }
+  .bag-items { margin: 3px 0; padding: 3px; }
+  .bag-inventory > div:first-child { padding-bottom: 3px; }
+  .bag-primary-action { padding-top: 2px; }
+  .bag-primary-action button { padding: 2px; }
+  .bag-item-title { margin-bottom: 1px; }
+  .equip-workbench .equip-portrait { display: none; }
+  .equip-workbench .mota-breadcrumb { padding: 3px 6px; margin-bottom: 4px; }
+  .equip-workbench .equip-slot-list .text-\[10px\] { display: none; }
 }
 
 /* ================= 2011 Flash 经典页游质感特效库 ================= */
@@ -461,5 +564,39 @@ body {
   color: #fffde6 !important;
   border-color: #ffe58f !important;
   box-shadow: 0 0 12px rgba(245, 192, 66, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
+/* 桌面设计与验收范围：强化信息层级，保留锻铁、羊皮纸与金色主行动。 */
+@media (min-width: 1024px) {
+  .mota-client-shell main [class~="text-xs"] { font-size: 13px; line-height: 1.5; }
+  .mota-client-shell [class~="text-[9px]"] { font-size: 11px; }
+  .mota-client-shell [class~="text-[10px]"] { font-size: 12px; line-height: 1.45; }
+  .mota-client-shell [class~="text-[11px]"] { font-size: 13px; line-height: 1.5; }
+  .mota-client-shell .text-slate-500 { color: #b8a78f; }
+  .mota-client-shell .text-slate-400 { color: #c4b49b; }
+  .mota-client-shell .text-slate-600 { color: #a89b85; }
+  .mota-client-shell .mota-building-card { border-color: #80613b; box-shadow: inset 0 0 12px #0009, 0 4px 12px #0008; }
+  .mota-building-card > div:last-child { margin-top: auto; padding-top: 12px; }
+  .mota-building-card.feature-locked { border-color: #66523b; }
+  .mota-building-card.feature-locked:hover { transform: none; border-color: #9c8056; box-shadow: inset 0 0 12px #0009, 0 4px 12px #0008; }
+  .feature-entry-locked.mota-btn-gold {
+    background: linear-gradient(180deg, #4b4032, #241b12);
+    color: #d2c3a9; border-color: #806849; text-shadow: 0 1px 1px #000;
+    box-shadow: inset 0 1px 0 #88735560, 0 2px 4px #0008;
+  }
+  .mota-building-card.feature-locked > div:last-child { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .feature-lock-hint { flex-basis: 100%; font-size: 12px; line-height: 1.5; font-weight: 400; color: #c4b49b; }
+  button.feature-locked { display: flex; flex-direction: column; gap: 2px; white-space: normal; }
+  button.feature-locked .feature-lock-hint { margin-top: 4px; }
+  .quest-story summary { cursor: pointer; color: #c4b49b; }
+  .quest-story p { margin-top: 6px; }
+  .bag-detail-content { font-size: 13px; line-height: 1.5; }
+  .bag-detail-tabs button, .bag-detail-content > button, .bag-inventory .btn-bag-filter, .bag-pagination { font-size: 12px; }
+  .mercenary-contract > button { margin-top: auto; align-self: stretch; }
+  .mota-client-shell button:focus-visible, .mota-client-shell summary:focus-visible { outline: 2px solid #f2cd78; outline-offset: 3px; }
+  .mota-client-shell main [class*="overflow-y-auto"], .mota-client-shell main [class~="overflow-auto"], .mota-client-shell footer [class*="overflow-y-auto"], .battle-roster, .battle-log { scrollbar-width: thin !important; scrollbar-color: #88653a #1a140e; }
+  .mota-client-shell main ::-webkit-scrollbar, .mota-client-shell footer ::-webkit-scrollbar { display: block !important; width: 6px !important; height: 6px !important; }
+  .mota-client-shell ::-webkit-scrollbar-thumb { background: #88653a; border-radius: 2px; }
+  .mota-client-shell ::-webkit-scrollbar-track { background: #1a140e; }
 }
 

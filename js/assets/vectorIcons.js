@@ -1,4 +1,5 @@
-// 《魔塔世界》2010经典页游全套纯代码高保真魔幻矢量图标库 (Pure SVG Game Assets)
+import { renderPaintedIcon } from './paintedIcons.js';
+// Compatibility entry point; mapped interface/portrait keys use painted assets.
 // 无需任何外部位图下载，毫秒级即时矢量渲染，支持任意分辨率、高光金属倒角与宝石反射
 
 export const VECTOR_ICONS = {
@@ -452,6 +453,8 @@ export const VECTOR_ICONS = {
  */
 export function getVectorIcon(key, wrapperClass = 'w-8 h-8', extraClass = '') {
   if (!key) return '';
+  const painted = renderPaintedIcon(key, { size: wrapperClass, className: extraClass });
+  if (painted) return painted;
   const svg = VECTOR_ICONS[key];
   if (svg) {
     return `<div class="inline-flex items-center justify-center ${wrapperClass} ${extraClass} pointer-events-none">${svg}</div>`;

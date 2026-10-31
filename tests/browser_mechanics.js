@@ -33,6 +33,7 @@ async (page) => {
       const state = window.gameState;
       state.data.level = 20;
       state.data.currentQuestId = 'quest_17';
+      state.data.equipped.weapon ??= { id:'fixture_weapon',uid:'fixture_weapon',name:'Fixture weapon',slot:'weapon',quality:'blue',durability:100,maxDurability:100,stars:1,sockets:1,gems:[],stats:{atk:35} };
       state.data.equipped.weapon.stats = { atk: 10000, hp: 100000 };
       state.notify();
     });
@@ -65,7 +66,7 @@ async (page) => {
     // Isolated floor fixture tests real boss battle, reward adapter and persisted replay behavior.
     await game.evaluate(() => {
       const state = window.gameState;
-      state.data.castle.isExploring = true; state.data.castle.floor = 10; state.data.castle.finished = false;
+      state.data.castle.isExploring = true; state.data.castle.expeditionId = "tower-fixture"; state.data.castle.floor = 10; state.data.castle.finished = false;
       state.notify(); window.appInstance.views.tower.render();
     });
     const beforeFirst = await data();

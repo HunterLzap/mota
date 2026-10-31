@@ -421,7 +421,26 @@ const EQUIP_NAMES = {
   ring: ['誓约之戒', '龙眼宝石戒', '符文秘银戒', '荣耀指环', '破晓金戒']
 };
 
-export function generateEquipment(slot, level = 1, quality = 'blue', setId = null) {
+// 职业装备模板；首饰共用，其他部位按职业塑形并标明专精。
+export const CLASS_EQUIPMENT = {
+  warrior: { stat: 'str', weapon: '精钢长剑', armor: '骑士胸甲', pants: '精钢护腿', cloak: '卫士披风', helmet: '骑士战盔', gloves: '精钢护手', boots: '行军战靴', belt: '力量腰带', icon: 'wpn_sword' },
+  mage: { stat: 'int', weapon: '星辉法杖', armor: '织法长袍', pants: '织法长裤', cloak: '星纹斗篷', helmet: '秘法兜帽', gloves: '魔导手套', boots: '织法软靴', belt: '秘法束带', icon: 'wpn_staff' },
+  hunter: { stat: 'dex', weapon: '巡林长弓', armor: '游侠皮甲', pants: '游侠护腿', cloak: '巡林披风', helmet: '游侠兜帽', gloves: '弓手护手', boots: '追踪短靴', belt: '游侠革带', icon: 'wpn_bow' }
+};
+
+export function specializeEquipment(item, classId) {
+  const template = CLASS_EQUIPMENT[classId];
+  if (!item?.slot || !template?.[item.slot]) return item;
+  const prefix = item.name?.includes('·') ? item.name.slice(0, item.name.lastIndexOf('·')) : (OFFICIAL_SETS[item.setId || item.set]?.name || item.name?.replace(/(?:重剑|圣剑|长剑|铁剑|之刃|法杖|长弓|短弓|重铠|法袍|皮甲|胸甲|战盔|护手|护腿|战胫|战靴|腰带|长袍)$/, '') || '冒险者');
+  const stats = { ...item.stats };
+  const attributes = (stats.str || 0) + (stats.int || 0) + (stats.dex || 0);
+  delete stats.str; delete stats.int; delete stats.dex;
+  if (attributes) stats[template.stat] = attributes;
+  return { ...item, quality: item.quality === 'purple' ? 'darkgold' : item.quality, name: `${prefix}·${template[item.slot]}`, reqClass: classId, stats,
+    icon: item.slot === 'weapon' ? `images/items/${template.icon}.svg` : item.slot === 'armor' && classId === 'mage' ? 'images/items/arm_robe.svg' : (SLOT_MAP[item.slot]?.icon || item.icon) };
+}
+
+export function generateEquipment(slot, level = 1, quality = 'blue', setId = null, classId = null) {
   const slotObj = SLOT_MAP[slot] || ITEM_SLOTS[0];
   const qObj = QUALITIES[quality] || QUALITIES.blue;
   const mult = qObj.multiplier || 1.0;
@@ -443,10 +462,22 @@ export function generateEquipment(slot, level = 1, quality = 'blue', setId = nul
     if (slot === 'boots') stats.speed = Math.floor((6 + level * 1.5) * mult);
     if (slot === 'gloves') stats.atk = Math.floor((6 + level * 2) * mult);
     if (slot === 'helmet') stats.hp = Math.floor((50 + level * 15) * mult);
+  } else if (slot === 'cloak') {
+    stats.def = Math.floor((6 + level * 2) * mult);
+    stats.maxMp = Math.floor((20 + level * 3) * mult);
   } else if (slot === 'necklace' || slot === 'ring') {
     if (Math.random() > 0.4) stats.atk = Math.floor((10 + level * 3) * mult);
     if (Math.random() > 0.4) stats.crit = Math.floor((3 + level * 0.4) * mult);
     if (Math.random() > 0.5) stats.maxHp = Math.floor((60 + level * 18) * mult);
+    if (!Object.keys(stats).length) stats.maxHp = Math.floor((60 + level * 18) * mult);
+  }
+
+  if (CLASS_EQUIPMENT[classId] && ['weapon', 'armor', 'gloves'].includes(slot)) {
+    stats[CLASS_EQUIPMENT[classId].stat] = Math.floor((2 + level * 0.4) * mult);
+    if (slot === 'armor' && classId === 'mage') stats.maxMp = Math.floor((25 + level * 4) * mult);
+    if (slot === 'armor' && classId === 'warrior') stats.hp = Math.floor(stats.hp * 1.15);
+    if (slot === 'gloves' && classId === 'warrior') stats.counter = 4;
+    if (slot === 'gloves' && classId === 'hunter') stats.speed = Math.floor((3 + level * .3) * mult);
   }
 
   // 宝石孔 (白装0，蓝装1，黄金1~2，暗金2~3，紫金3)
@@ -456,7 +487,7 @@ export function generateEquipment(slot, level = 1, quality = 'blue', setId = nul
   else if (quality === 'darkgold') maxSockets = slot === 'weapon' ? 3 : 2;
   else if (quality === 'purplegold') maxSockets = 3;
 
-  return {
+  return specializeEquipment({
     id: `eq_${slot}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
     name,
     slot,
@@ -471,6 +502,6 @@ export function generateEquipment(slot, level = 1, quality = 'blue', setId = nul
     icon: slotObj.icon,
     setId: setId || null,
     uid: 'eq_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)
-  };
+  }, classId);
 }
 

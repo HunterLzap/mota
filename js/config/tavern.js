@@ -17,6 +17,7 @@ export const TAVERN_BOUNTIES = [
       prestige: 30,
       crystal: 15,
       items: [
+        { id: 'bait_normal', name: '普通鱼饵', count: 2, type: 'material', quality: 'blue', icon: 'images/items/bait_normal.svg', desc: '带到王都垂钓水域使用；一星悬赏每天提供。' },
         { id: 'key_redwood', name: '红木钥匙', count: 2, type: 'key', quality: 'green', icon: 'images/items/key_redwood.svg', desc: '开启魔塔1~10层' },
         { id: 'pet_food', name: '魔能兽肉排', count: 5, type: 'material', quality: 'blue', icon: 'images/items/pet_food.svg', desc: '补充神兽体力' }
       ]
@@ -81,6 +82,7 @@ export const TAVERN_BOUNTIES = [
       crystal: 100,
       items: [
         { id: 'crystal_gold', name: '黄金晶石', count: 3, type: 'material', quality: 'gold', icon: 'images/items/crystal_gold.svg', desc: '神兽突破与重铸' },
+        { id: 'bait_luxury', name: '高级鱼饵', count: 2, type: 'material', quality: 'gold', icon: 'images/items/bait_luxury.svg', desc: '带到王都垂钓水域使用；四星悬赏每天提供。' },
         { id: 'diamond_1', name: '碎裂金刚钻', count: 1, type: 'material', quality: 'darkgold', icon: 'images/items/crystal_socket.svg', desc: '开启装备宝石孔' }
       ]
     },

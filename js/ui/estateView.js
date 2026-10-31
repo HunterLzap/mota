@@ -1,11 +1,13 @@
 // 领地庄园系统：100% 还原《魔塔世界》百度百科原著
 // 采用多层级、全屏独立、高保真羊皮纸子页面流转架构 (庄园大厅 -> 炼金工坊/温室矿脉/佣兵营/侍从牢房)
 import { gameState } from '../core/state.js';
+import { markFeatureEntrances } from './featureAccess.js';
 import { ALCHEMY_RECIPES, MERCENARIES } from '../config/estate.js';
 import { SLAVE_CANDIDATES } from '../config/slaves.js';
 import { sound } from '../core/sound.js';
 import { gameModal } from './modal.js';
 import { atmosphere } from '../effects/atmosphere.js';
+import { renderGameIcon } from './iconHelper.js';
 
 export class EstateView {
   constructor(containerId) {
@@ -73,6 +75,7 @@ export class EstateView {
 
       this.container.innerHTML = html;
       this.bindEvents();
+      markFeatureEntrances(this.container, { '[data-goto="alchemy"]': 'alchemy', '[data-goto="mercenaries"]': 'mercenaries' });
     } catch (err) {
       console.error('EstateView render error:', err);
       if (this.container) {
@@ -88,130 +91,29 @@ export class EstateView {
     const data = gameState.data;
     const herbs = data.estate.herbs || {};
     const slaveCount = data.slaves.list.length;
-    const hiredMerc = MERCENARIES.find(m => m.id === data.estate.hiredMercId) || MERCENARIES[0];
+    const hiredMerc = MERCENARIES.find(m => m.id === data.estate.hiredMercId) || { name: '尚未招募', aura: '暂无随行光环' };
 
-    return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
-        
-        <!-- 顶部面包屑与庄园总揽 -->
-        <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-amber-400 font-bold">领地庄园</span>
-            <span class="text-slate-500">-></span>
-            <span class="text-amber-200 font-bold">领地产业</span>
-          </div>
-          <div class="text-[11px] text-slate-300 font-mono hidden sm:block">
-            封地领主：${data.name}
-          </div>
-        </div>
-
-        <!-- 主体：四大领地产业卡片 (2行 x 2列，紧凑舒展，绝不遮挡底部按键) -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-2.5">
-          
-          <!-- 1. 皇家炼金工坊 -->
-          <div data-goto="alchemy" class="btn-estate-goto mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-amber-600/70 hover:border-amber-400 transition-all">
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-amber-500/30">
-                <div>
-                  <h3 class="text-sm font-black text-amber-200 tracking-wide">皇家炼金工坊</h3>
-                  <p class="text-[10px] text-amber-400/80">古法魔药研制 · 战力常驻提升</p>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-amber-950/80 border border-amber-600/60 text-amber-300 font-mono">
-                  4大秘方
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>草药库存:</span>
-                <span class="text-amber-300 font-mono">龙血 ${herbs.herb_dragonblood || 0} · 星光 ${herbs.herb_starlight || 0} · 灵花 ${herbs.herb_spiritflower || 0}</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-amber-900/40 flex items-center justify-between text-xs text-amber-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">研制泰坦魔药与淬体丹</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-gold text-xs font-bold shadow">
-                开启炼金 ->
-              </button>
-            </div>
-          </div>
-
-          <!-- 2. 温室药园与魔晶矿脉 -->
-          <div data-goto="resources" class="btn-estate-goto mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-emerald-600/70 hover:border-emerald-400 transition-all">
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-emerald-500/30">
-                <div>
-                  <h3 class="text-sm font-black text-emerald-200 tracking-wide">温室药园与魔晶矿脉</h3>
-                  <p class="text-[10px] text-emerald-400/80">天地灵脉丰饶 · 一键定期丰收</p>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-600/60 text-emerald-300 font-mono">
-                  领地灵脉
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>周期产出:</span>
-                <span class="text-emerald-400 font-mono">各草药 +5 棵 · 魔晶 +25 颗</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-emerald-900/40 flex items-center justify-between text-xs text-emerald-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">采撷储备炼金与升星材料</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-gold text-xs font-bold shadow">
-                巡视丰收 ->
-              </button>
-            </div>
-          </div>
-
-          <!-- 3. 专属佣兵营地 -->
-          <div data-goto="mercenaries" class="btn-estate-goto mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-blue-600/70 hover:border-blue-400 transition-all">
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-blue-500/30">
-                <div>
-                  <h3 class="text-sm font-black text-blue-200 tracking-wide">专属佣兵营地</h3>
-                  <p class="text-[10px] text-blue-400/80">传奇战友驻扎 · 战场光环协力</p>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-blue-950/80 border border-blue-600/60 text-blue-300 font-mono">
-                  ${hiredMerc.name.split('·')[0]}
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>随行光环:</span>
-                <span class="text-blue-300 font-mono">【${hiredMerc.aura}】生效中</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-blue-900/40 flex items-center justify-between text-xs text-blue-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">主教/铁卫/诗人战友招募</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-gold text-xs font-bold shadow">
-                佣兵调遣 ->
-              </button>
-            </div>
-          </div>
-
-          <!-- 4. 侍从战俘牢房 -->
-          <div data-goto="slaves" class="btn-estate-goto mota-building-card p-3.5 rounded-xl flex flex-col justify-between cursor-pointer border-2 border-purple-600/70 hover:border-purple-400 transition-all">
-            <div>
-              <div class="flex items-center justify-between pb-2 border-b border-purple-500/30">
-                <div>
-                  <h3 class="text-sm font-black text-purple-200 tracking-wide">战俘侍从管理牢房</h3>
-                  <p class="text-[10px] text-purple-400/80">俘虏役使惩戒 · 采矿与榨取</p>
-                </div>
-                <span class="text-[10px] px-2 py-0.5 rounded bg-purple-950/80 border border-purple-600/60 text-purple-300 font-mono">
-                  羁押 ${slaveCount} 人
-                </span>
-              </div>
-              <div class="mt-2.5 p-2 rounded-lg bg-black/40 border border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-                <span>牢房动态:</span>
-                <span class="text-purple-300 font-mono">${slaveCount > 0 ? `${slaveCount} 名侍从戴罪立功` : '牢房空虚，可征伐抓捕'}</span>
-              </div>
-            </div>
-            <div class="pt-2 border-t border-purple-900/40 flex items-center justify-between text-xs text-purple-300 font-bold">
-              <span class="text-[11px] text-slate-400 font-normal">役使采矿、安抚与折磨榨取</span>
-              <button class="px-3.5 py-1 rounded-lg mota-btn-gold text-xs font-bold shadow">
-                牢房管理 ->
-              </button>
-            </div>
-          </div>
-
-        </div>
-
+    const facilities = [
+      ['alchemy', '皇家炼金工坊', '古法魔药研制', '开启炼金', '草药炼制战斗魔药与潜能秘药'],
+      ['resources', '温室药园与魔晶矿脉', '药园与矿脉产出', '巡视丰收', '采撷草药，收获魔晶'],
+      ['mercenaries', '专属佣兵营地', hiredMerc.name.split('·')[0], '佣兵调遣', data.estate.hiredMercId ? hiredMerc.aura : '招募战友，获得随行光环'],
+      ['slaves', '战俘侍从管理牢房', `羁押 ${slaveCount} 人`, '牢房管理', '役使采矿、安抚与管理']
+    ];
+    return `<section class="estate-hub">
+      <header class="mota-breadcrumb"><h2>领地庄园</h2><span>封地领主：${data.name}</span></header>
+      <div class="estate-hub-layout">
+        <aside class="estate-ledger mota-parchment-panel"><h3 class="dossier-section-heading">领地账簿</h3>
+          <p class="estate-ledger-intro">远征之外，炉火不息。</p>
+          <h4>草药储备</h4><dl>${[['herb_dragonblood', '龙血草'], ['herb_starlight', '星光草'], ['herb_spiritflower', '灵花']].map(([id, label]) => `<div><dt>${label}</dt><dd>${herbs[id] || 0}</dd></div>`).join('')}</dl>
+          <h4>随行佣兵</h4><p>${hiredMerc.name}</p><p>${data.estate.hiredMercId ? hiredMerc.aura : '尚无随行光环'}</p>
+          <h4>侍从牢房</h4><p>羁押 ${slaveCount} 人</p>
+        </aside>
+        <div class="estate-facilities">${facilities.map(([id, name, status, action, desc]) => `<article data-goto="${id}" class="btn-estate-goto mota-building-card estate-facility">
+          <div class="estate-facility-art" aria-hidden="true"></div><span class="estate-facility-status">${status}</span>
+          <div class="estate-facility-caption"><div><h3>${name}</h3><p>${desc}</p></div><button class="mota-btn-gold">${action}</button></div>
+        </article>`).join('')}</div>
       </div>
-    `;
+    </section>`;
   }
 
   // ==========================================
@@ -251,7 +153,7 @@ export class EstateView {
         </div>
 
         <!-- 主体：四大古法魔药卡片 (2行 x 2列) -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        <div class="alchemy-grid flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-2.5">
           ${ALCHEMY_RECIPES.map(r => {
             const mats = r.materials || {};
             const reqDragon = mats.herb_dragonblood || 0;
@@ -259,19 +161,21 @@ export class EstateView {
             const reqSpirit = mats.herb_spiritflower || 0;
             const canBrew = (herbs.herb_dragonblood || 0) >= reqDragon &&
                             (herbs.herb_starlight || 0) >= reqStar &&
-                            (herbs.herb_spiritflower || 0) >= reqSpirit;
+                            (herbs.herb_spiritflower || 0) >= reqSpirit &&
+                            data.crystal >= (r.costCrystal || 0) &&
+                            (!r.effect.permanentStatsCap || (data.estate.permanentPotionPoints || 0) +
+                              r.effect.permanentStats <= r.effect.permanentStatsCap);
 
             return `
-              <div class="mota-parchment-panel rounded-xl p-3 border border-[#caa048] flex flex-col justify-between">
-                <div>
+              <div class="alchemy-card mota-parchment-panel rounded-xl p-3 border border-[#caa048] flex flex-col justify-between">
+                <div class="alchemy-card-content">
                   <div class="flex items-center justify-between border-b border-slate-700/80 pb-1.5 mb-1.5">
                     <div>
                       <h4 class="font-bold text-xs text-amber-300">${r.name}</h4>
                       <p class="text-[10px] text-slate-400 mt-0.5">${r.desc}</p>
+                      ${r.effect.permanentStatsCap ? `<p class="text-[10px] text-amber-300">已获得额外潜能：${data.estate.permanentPotionPoints || 0}/${r.effect.permanentStatsCap}</p>` : ''}
                     </div>
-                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-200 border border-amber-600/50 font-mono">
-                      秘方
-                    </span>
+                    ${renderGameIcon(r, { size: 'w-12 h-12', className: 'flex-shrink-0 ml-2' })}
                   </div>
 
                   <div class="p-2 rounded bg-black/50 border border-slate-800 text-xs space-y-1">
@@ -286,11 +190,12 @@ export class EstateView {
                         圣灵草 x${reqSpirit} (存:${herbs.herb_spiritflower || 0})
                       </span>
                     </div>
+                    ${r.costCrystal ? `<div class="${data.crystal >= r.costCrystal ? 'text-green-400' : 'text-red-400'}">魔晶 x${r.costCrystal} (存:${data.crystal})</div>` : ''}
                   </div>
                 </div>
 
                 <div class="mt-2 pt-2 border-t border-slate-700">
-                  <button data-recipe-id="${r.id}" class="btn-brew-potion w-full mota-btn-gold py-1.5 rounded-lg text-xs font-bold ${canBrew ? '' : 'opacity-40 cursor-not-allowed'}">
+                  <button data-recipe-id="${r.id}" ${canBrew ? '' : 'disabled'} class="btn-brew-potion w-full mota-btn-gold py-1.5 rounded-lg text-xs font-bold ${canBrew ? '' : 'opacity-40 cursor-not-allowed'}">
                     配制并痛饮魔药
                   </button>
                 </div>
@@ -309,6 +214,10 @@ export class EstateView {
   renderResourcesView() {
     const data = gameState.data;
     const herbs = data.estate.herbs || {};
+    const interval = 30 * 60 * 1000;
+    const elapsed = Date.now() - data.estate.lastHarvestTime;
+    const batches = Number.isFinite(elapsed) ? Math.min(20, Math.max(0, Math.floor(elapsed / interval))) : 0;
+    const nextHarvest = new Date(Date.now() + interval - (Math.max(0, elapsed || 0) % interval)).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
     return `
       <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
@@ -330,38 +239,42 @@ export class EstateView {
           <div>
             <div class="flex items-center justify-between border-b border-slate-700 pb-3">
               <div>
-                <h3 class="font-bold text-sm text-amber-300">封地灵脉天然生长池</h3>
+                <h3 class="font-bold text-sm text-amber-300">庄园资源生长池</h3>
                 <p class="text-xs text-slate-400 mt-0.5">每 30 分钟成熟一批，最多积累 20 批；采收后三种草药各 +5、魔晶 +25 / 批</p>
+                <p class="text-xs text-amber-200 mt-2">已成熟 ${batches} / 20 批 · ${batches === 20 ? '储存已满，请及时采收' : `下次成熟 ${nextHarvest}`}${batches ? ` · 本次三种草药各 +${batches * 5}` : ''}</p>
               </div>
               <button id="btn-harvest-all" class="mota-btn-gold px-4 py-2 rounded-xl text-xs font-bold shadow-lg">
-                一键丰收采撷
+                ${batches ? `采收 ${batches} 批资源` : '查看成熟情况'}
               </button>
             </div>
 
             <!-- 三大草药与魔晶展台 -->
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 my-4">
               <div class="p-3 bg-black/60 rounded-xl border border-red-500/40 text-center space-y-1">
+                ${renderGameIcon('herb_dragonblood', { size: 'w-12 h-12' })}
                 <div class="text-red-300 font-bold text-xs">龙血草</div>
                 <div class="text-xl font-mono font-bold text-red-400">${herbs.herb_dragonblood || 0}</div>
-                <div class="text-[10px] text-slate-500">炼制狂暴合剂</div>
+                <div class="text-[10px] text-slate-500">当前库存 · 炼制狂暴合剂</div>
               </div>
 
               <div class="p-3 bg-black/60 rounded-xl border border-cyan-500/40 text-center space-y-1">
+                ${renderGameIcon('herb_starlight', { size: 'w-12 h-12' })}
                 <div class="text-cyan-300 font-bold text-xs">星光草</div>
                 <div class="text-xl font-mono font-bold text-cyan-400">${herbs.herb_starlight || 0}</div>
-                <div class="text-[10px] text-slate-500">研磨圣水祝福</div>
+                <div class="text-[10px] text-slate-500">当前库存 · 研磨圣水祝福</div>
               </div>
 
               <div class="p-3 bg-black/60 rounded-xl border border-amber-500/40 text-center space-y-1">
+                ${renderGameIcon('herb_spiritflower', { size: 'w-12 h-12' })}
                 <div class="text-amber-300 font-bold text-xs">圣灵草</div>
                 <div class="text-xl font-mono font-bold text-amber-400">${herbs.herb_spiritflower || 0}</div>
-                <div class="text-[10px] text-slate-500">调配龙血秘药</div>
+                <div class="text-[10px] text-slate-500">当前库存 · 调配龙血秘药</div>
               </div>
 
               <div class="p-3 bg-black/60 rounded-xl border border-purple-500/40 text-center space-y-1">
-                <div class="text-purple-300 font-bold text-xs">丰收魔晶</div>
-                <div class="text-xl font-mono font-bold text-purple-400">+25 颗</div>
-                <div class="text-[10px] text-slate-500">每次丰收额外产出</div>
+                <div class="text-purple-300 font-bold text-xs">待采收魔晶</div>
+                <div class="text-xl font-mono font-bold text-purple-400">${batches * 25} 颗</div>
+                <div class="text-[10px] text-slate-500">每批 +25 · 采收后计入持有</div>
               </div>
             </div>
           </div>
@@ -383,10 +296,10 @@ export class EstateView {
   // ==========================================
   renderMercenariesView() {
     const data = gameState.data;
-    const hiredMercId = data.estate.hiredMercId || 'merc_paladin';
+    const hiredMercId = data.estate.hiredMercId;
 
     return `
-      <div class="w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
+      <div class="mercenary-page w-full h-full p-1.5 sm:p-2 flex flex-col justify-between select-none">
         
         <!-- 顶部面包屑与返回按键 -->
         <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
@@ -401,13 +314,13 @@ export class EstateView {
         </div>
 
         <!-- 3位传奇佣兵卡片 (3列并排) -->
-        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="mercenary-grid flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-3">
           ${MERCENARIES.map(m => {
             const isHired = hiredMercId === m.id;
             return `
-              <div class="mota-parchment-panel rounded-xl p-3 border-2 ${isHired ? 'border-amber-400 shadow-lg bg-amber-950/20' : 'border-[#caa048]'} flex flex-col justify-between">
+              <div class="mercenary-card mota-parchment-panel rounded-xl p-3 border-2 ${isHired ? 'border-amber-400 shadow-lg bg-amber-950/20' : 'border-[#caa048]'} flex flex-col justify-between" data-current="${isHired}">
                 <div>
-                  <div class="flex items-center justify-between border-b border-slate-700 pb-2 mb-2">
+                  <div class="mercenary-heading flex items-center justify-between border-b border-slate-700 pb-2 mb-2">
                     <div>
                       <h4 class="font-bold text-xs text-amber-300">${m.name}</h4>
                       <div class="text-[10px] text-slate-400 mt-0.5">${m.role}</div>
@@ -417,7 +330,10 @@ export class EstateView {
                     </span>
                   </div>
 
-                  <p class="text-[11px] text-slate-300 my-1.5">${m.desc}</p>
+                  <div class="mercenary-introduction flex items-center gap-3">
+                    <div class="mercenary-portrait" role="img" aria-label="${m.name}肖像">${renderGameIcon(m.avatar, { size: 'w-full h-full' })}</div>
+                    <p class="text-[11px] text-slate-300 my-1.5">${m.desc}</p>
+                  </div>
 
                   <div class="p-2 rounded-lg bg-black/60 border border-slate-800 space-y-1 my-1.5">
                     <div class="text-xs font-bold text-cyan-300">常驻光环：【${m.aura}】</div>
@@ -425,7 +341,8 @@ export class EstateView {
                   </div>
                 </div>
 
-                <div class="mt-2 pt-2 border-t border-slate-700">
+                <div class="mercenary-contract mt-2 pt-2 border-t border-slate-700">
+                  ${!isHired ? `<p class="text-xs text-slate-300 mb-2">雇佣费用：<strong class="text-amber-200">${m.hireCostGold.toLocaleString()} 金币</strong><br>持有：${data.gold.toLocaleString()} 金币${data.gold < m.hireCostGold ? ' · 金币不足' : ''}</p>${hiredMercId ? '<p class="text-xs text-slate-300 mb-2">签订后将替换当前随行佣兵。</p>' : ''}` : ''}
                   <button data-merc-id="${m.id}" class="btn-hire-merc w-full py-1.5 rounded-lg text-xs font-bold ${
                     isHired ? 'mota-btn-gold shadow' : 'mota-btn-dark border-amber-500/60 text-amber-200'
                   }">
@@ -555,7 +472,7 @@ export class EstateView {
         const questRes = gameState.triggerQuestAction('brew_potion');
         gameState.addSystemLog(`【庄园】皇家炼金工坊成功研制出魔药【${r.name}】！`, 'estate');
 
-        if (gameState.data.currentQuestId === 'quest_7' && questRes.completed) {
+        if (gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_7' && questRes.completed) {
           gameModal.confirm(
             `炼金成功！痛饮【${r.name}】。${r.desc}
 
@@ -578,9 +495,12 @@ export class EstateView {
           return;
         }
 
-        gameModal.alert(`炼金成功！痛饮【${r.name}】，战斗中将获得专属威能加持！`, '炼金成功');
         gameState.notify();
         this.render();
+        const focus = this.container.querySelector(`.btn-brew-potion[data-recipe-id="${rId}"]:enabled`) ||
+          this.container.querySelector('.btn-brew-potion:enabled') || this.container.querySelector('button[data-goto="hub"]');
+        focus?.focus({ preventScroll: true });
+        gameModal.alert(`炼金成功！痛饮【${r.name}】，战斗中将获得专属威能加持！`, '炼金成功');
       });
     });
 
@@ -606,7 +526,7 @@ export class EstateView {
         const questRes = gameState.triggerQuestAction('hire_merc');
         gameState.addSystemLog(`【庄园】与传奇随从【${merc?.name}】立下誓约！随行光环【${merc?.aura}】生效！`, 'estate');
 
-        if (gameState.data.currentQuestId === 'quest_8' && questRes.completed) {
+        if (gameState.data.onboardingVersion !== 2 && gameState.data.currentQuestId === 'quest_8' && questRes.completed) {
           gameModal.confirm(
             `盟誓订立！传奇战友【${merc?.name}】将与你一同驰骋沙场！
 

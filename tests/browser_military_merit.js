@@ -18,12 +18,17 @@ async (page) => {
   try {
     await game.goto('http://127.0.0.1:8088');
     await game.locator('[data-class-id="warrior"]').click(); await game.locator('#btn-confirm-character').click();
-    // Only level/equipment prerequisite is prepared; all military merit is earned in five actual battles.
+    await game.locator('#game-modal-btn-cancel').click();
+    await game.locator('#game-modal-overlay').waitFor({ state: 'hidden' });
+    // Explicit legacy access and strong equipment fixture; merit is earned in five real battles.
     await game.evaluate(() => {
-      const state = window.gameState; state.data.level = 20;
+      const state = window.gameState; state.data.level = 20; state.data.onboardingVersion = 0;
+      state.data.equipped.weapon ??= { id:'fixture_weapon',uid:'fixture_weapon',name:'Fixture weapon',slot:'weapon',quality:'blue',durability:100,maxDurability:100,stars:1,sockets:1,gems:[],stats:{atk:35} };
       state.data.equipped.weapon.stats = { atk: 100000, hp: 1000000, def: 10000 }; state.notify();
-      window.appInstance.views.town.currentView = 'faction_war'; window.switchMainTab('town');
+
     });
+    await game.locator('#nav-tab-town').click();
+    await game.locator('.classic-town-location[data-goto="faction_war"]').click();
     for (let n = 0; n < 4; n++) await fight();
     const earned = (await data()).factionWar;
     if (earned.merit !== 480 || earned.totalMerit !== 480 || earned.militaryRank !== 'scout') throw new Error('Earned rank incorrect');

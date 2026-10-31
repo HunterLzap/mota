@@ -33,6 +33,7 @@ async (page) => {
       d.level = 100; d.gold = 1000000; d.prestige = 100000; d.crystal = 10000;
       d.currentQuestId = 'completed'; d.questProgress.quest_20 = { current: 1, completed: true, claimed: true };
       d.royalTrials.completedStage = 6;
+      d.equipped.weapon ??= { id:'fixture_weapon',uid:'fixture_weapon',name:'Fixture weapon',slot:'weapon',quality:'blue',durability:100,maxDurability:100,stars:1,sockets:1,gems:[],stats:{atk:35} };
       d.equipped.weapon.stats = { atk: 1000000, hp: 10000000, def: 100000 };
       state.notify();
     });

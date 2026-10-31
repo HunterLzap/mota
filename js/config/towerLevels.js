@@ -145,6 +145,7 @@ export const LANDMARK_BOSSES = {
     crit: 32,
     dodge: 22,
     skills: ['堕落圣裁', '暗夜悲歌'],
+    abilities: [{ name: '堕落圣裁', interval: 2, mpCost: 90, multiplier: 1.1, damageType: 'magic', statuses: [{ type: 'weaken', ratio: 0.18, duration: 2 }] }],
     dialogue: '圣光背叛了我，现在轮到我来审判整个大陆！',
     firstClearReward: { exp: 110000, gold: 200000, crystal: 3000, item: 'destiny_ring' }
   },
@@ -161,6 +162,7 @@ export const LANDMARK_BOSSES = {
     crit: 35,
     dodge: 15,
     skills: ['泰坦神雷', '天崩地裂'],
+    abilities: [{ name: '泰坦神雷', interval: 3, mpCost: 120, multiplier: 1.15, damageType: 'magic', statuses: [{ type: 'slow', ratio: 0.25, duration: 2 }] }],
     dialogue: '蝼蚁在神明的脚下，唯有被碾碎一途！',
     firstClearReward: { exp: 180000, gold: 350000, crystal: 5000, item: 'dragon_slayer_blade' }
   },
@@ -177,6 +179,7 @@ export const LANDMARK_BOSSES = {
     crit: 40,
     dodge: 25,
     skills: ['巨龙怒啸', '红莲烈焰'],
+    abilities: [{ name: '红莲烈焰', interval: 3, mpCost: 120, multiplier: 1.15, damageType: 'magic', statuses: [{ type: 'wound', damageBonus: 0.2, duration: 2 }] }],
     dialogue: '吼！！！在巨龙的烈焰面前，整个王国都将被焚为焦土！',
     firstClearReward: { exp: 280000, gold: 600000, crystal: 8000, item: 'dragon_slayer_plate' }
   },
@@ -212,9 +215,38 @@ const MONSTER_TYPES = [
 ];
 
 // 获取指定层数魔塔的怪物数据
-export function getTowerFloorData(floor) {
+export function getTowerFloorData(floor, adventureVersion = 1) {
   if (LANDMARK_BOSSES[floor]) {
-    const boss = LANDMARK_BOSSES[floor];
+    const campaignBosses = {
+      10: { hp: 5200, atk: 190, def: 85, abilities: [{ name: '岩石重砸', interval: 2, mpCost: 30, multiplier: 1.15, damageType: 'physical', statuses: [{ type: 'slow', ratio: 0.15, duration: 2 }] }] },
+      70: { hp: 124200, speed: 100 },
+      90: { hp: 310500, speed: 130 },
+      100: { hp: 400000, speed: 110, openingShield: 60000,
+        abilities: [
+          { ...LANDMARK_BOSSES[100].abilities[0], interval: 3 },
+          { name: '黑焰龙息', interval: 2, hpThreshold: 0.7, mpCost: 250, multiplier: 1,
+            damageType: 'magic', maxHpDamageRatio: 0.22, minHitChance: 85,
+            healingSuppression: { ratio: 0.9, duration: 20 },
+            manaDrainRatio: 0.6,
+            manaBacklashMultiplier: 3,
+            echoes: { charges: 2, maxHpDamageRatio: 0.02, mpCost: 100 },
+            statuses: [{ type: 'wound', damageBonus: 0.15, duration: 2 }] },
+          { name: '终焉回响', interval: 2, hpThreshold: 0.35, mpCost: 300, multiplier: 1,
+            damageType: 'magic', maxHpDamageRatio: 0.28, minHitChance: 85,
+            healingSuppression: { ratio: 0.9, duration: 20 },
+            manaDrainRatio: 0.6,
+            manaBacklashMultiplier: 3,
+            echoes: { charges: 2, maxHpDamageRatio: 0.02, mpCost: 100 },
+            statuses: [{ type: 'slow', ratio: 0.2, duration: 2 }] }
+        ] }
+    };
+    const boss = adventureVersion === 2 ? { ...LANDMARK_BOSSES[floor], ...campaignBosses[floor] } : LANDMARK_BOSSES[floor];
+    const firstClearReward = adventureVersion === 2 ? {
+      ...boss.firstClearReward,
+      gold: Math.min(boss.firstClearReward.gold, floor * 500),
+      crystal: Math.min(boss.firstClearReward.crystal, floor * 3),
+      ...(floor === 10 ? { item: 'star_crystal' } : {})
+    } : boss.firstClearReward;
     return {
       floor,
       isBoss: true,
@@ -233,10 +265,11 @@ export function getTowerFloorData(floor) {
       dialogue: boss.dialogue,
       abilities: boss.abilities || [],
       rebirth: boss.rebirth || null,
-      expReward: boss.firstClearReward.exp,
-      goldReward: boss.firstClearReward.gold,
-      crystalReward: boss.firstClearReward.crystal,
-      firstClearReward: boss.firstClearReward
+      openingShield: boss.openingShield || 0,
+      expReward: firstClearReward.exp,
+      goldReward: firstClearReward.gold,
+      crystalReward: firstClearReward.crystal,
+      firstClearReward
     };
   }
 
@@ -246,9 +279,9 @@ export function getTowerFloorData(floor) {
   const name = `${prefix}${typeObj.name}`;
 
   // 随层数平滑提升数值
-  const hp = Math.floor(180 * Math.pow(floor, 1.45) + 120);
-  const atk = Math.floor(25 * Math.pow(floor, 1.15) + 20);
-  const def = Math.floor(15 * Math.pow(floor, 1.12) + 12);
+  const hp = adventureVersion === 2 && floor < 10 ? Math.floor(180 * Math.pow(floor, 1.3) + 120) : Math.floor(180 * Math.pow(floor, 1.45) + 120);
+  const atk = adventureVersion === 2 && floor < 10 ? 20 + floor * 13 : Math.floor(25 * Math.pow(floor, 1.15) + 20);
+  const def = adventureVersion === 2 && floor < 10 ? 10 + floor * 7 : Math.floor(15 * Math.pow(floor, 1.12) + 12);
   const speed = Math.min(80, Math.floor(12 + floor * 0.55));
   const expReward = Math.floor(60 * Math.pow(floor, 1.25) + 30);
   const goldReward = Math.floor(45 * Math.pow(floor, 1.2) + 25);

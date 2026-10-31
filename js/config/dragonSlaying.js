@@ -1,4 +1,4 @@
-// 屠龙系统配置：100% 还原《魔塔世界》百度百科屠龙玩法
+// 三龙讨伐：原版归属待核实；以下概率/保底为单机重制规则。
 // 屠红龙（黄金装备/黄金蛋）、屠银龙（命运女神紫金/天命石/暗金蛋）、屠金龙（智慧/战神/胜利女神紫金）
 export const DRAGON_TRIALS = [
   {
@@ -10,9 +10,14 @@ export const DRAGON_TRIALS = [
     hp: 28000,
     atk: 420,
     def: 220,
+    mp: 90,
+    abilities: [{ name: '烈焰撕裂', interval: 3, mpCost: 30, multiplier: 1.15, damageType: 'magic', statuses: [{ type: 'wound', critBonus: 0, damageBonus: 0.15, duration: 2 }] }],
     title: '烈焰领主',
     desc: '栖息在熔岩火山深处的赤焰巨龙。',
-    rewardDesc: '高概率掉落黄金品质装备、黄金宠物蛋、升星水晶、大量金币',
+    firstVictoryStory: '龙焰终于熄灭，被困的巡林斥候从焦黑岩缝中走出。他交给你一枚刻着黑翼徽记的秘宝残片：有人借巨龙袭击掩盖了对王室商队的劫掠。亚诺大陆的灾祸并非偶然，线索仍指向魔塔与王都。',
+    repeatVictoryText: '赤焰巢穴再次恢复平静，边境商队得以安全通行。',
+    rewardDesc: '黄金装备x1、升星水晶x5，30%黄金宠物蛋；5000金币/100魔晶/100声望',
+    rewards: { gold: 5000, crystal: 100, prestige: 100, equipmentSets: [null], equipmentQuality: 'gold', material: 'star_crystal', materialCount: 5, egg: 'pet_egg_gold', eggChance: 0.3 },
     dropPool: ['gold_equip', 'pet_egg_gold', 'star_crystal']
   },
   {
@@ -24,9 +29,14 @@ export const DRAGON_TRIALS = [
     hp: 95000,
     atk: 880,
     def: 520,
+    mp: 120,
+    abilities: [{ name: '极地霜息', interval: 4, mpCost: 40, multiplier: 1.1, damageType: 'magic', statuses: [{ type: 'weaken', ratio: 0.15, duration: 2 }, { type: 'slow', ratio: 0.2, duration: 2 }] }],
     title: '圣银破晓',
     desc: '拥有圣光与时空庇佑的耀银古龙。',
-    rewardDesc: '掉落【命运女神】紫金套装部件、天命石、暗金宠物蛋、保护水晶',
+    firstVictoryStory: '银龙身上的深渊符印破碎，圣殿重现微光。你取回天命石，在石座下发现一张与王室秘宝相互呼应的星图：冰原之外，还有一道通往黑翼势力的裂隙。将线索带回王都，为神兽与远征做好准备。',
+    repeatVictoryText: '圣殿的侵蚀再次被净除，天命石的微光照亮归途。',
+    rewardDesc: '命运女神紫金装备x1、天命石x1，20%暗金宠物蛋、20%保护水晶；5000金币/100魔晶/100声望',
+    rewards: { gold: 5000, crystal: 100, prestige: 100, equipmentSets: ['destiny_goddess'], equipmentQuality: 'purplegold', material: 'destiny_stone', materialCount: 1, egg: 'pet_egg_darkgold', eggChance: 0.2, extraMaterial: 'protect_crystal', extraChance: 0.2 },
     dropPool: ['destiny_goddess', 'destiny_stone', 'pet_egg_darkgold', 'protect_crystal']
   },
   {
@@ -38,9 +48,14 @@ export const DRAGON_TRIALS = [
     hp: 350000,
     atk: 1950,
     def: 1100,
+    mp: 180,
+    abilities: [{ name: '王者震慑', interval: 5, mpCost: 60, multiplier: 1.2, damageType: 'magic', statuses: [{ type: 'stun', duration: 1 }] }],
     title: '黄金龙王',
     desc: '亚诺文明古魔力凝聚而成的金色巨擘，巅峰荣耀挑战！',
-    rewardDesc: '高爆【智慧女神】、【战神】、【胜利女神】极品紫金套装、紫金晶石、极品天命秘宝！',
+    firstVictoryStory: '金龙坠落，古老殿堂中的黑翼烙印随之崩裂。祭坛上的誓约记录将秘宝残片与极地星图连成一条路线：巨龙背后的阴谋尚未终结。带上女神遗物，继续向魔塔深处追查深渊的源头。',
+    repeatVictoryText: '古老殿堂再次归于寂静，女神遗物成为下一次远征的助力。',
+    rewardDesc: '智慧/战神/胜利女神紫金装备x1（三套等概率）、紫金晶石x2；5000金币/100魔晶/100声望',
+    rewards: { gold: 5000, crystal: 100, prestige: 100, equipmentSets: ['wisdom_goddess', 'wargod_set', 'victory_goddess'], equipmentQuality: 'purplegold', material: 'crystal_purplegold', materialCount: 2 },
     dropPool: ['wisdom_goddess', 'wargod_set', 'victory_goddess', 'crystal_purplegold']
   }
 ];

@@ -22,6 +22,8 @@ async (page) => {
     // Isolated level/equipment prerequisite only; all entries, retreat and six battles are actual UI paths.
     await game.evaluate(() => {
       const state = window.gameState; state.data.level = 20; state.data.currentQuestId = 'quest_13';
+      state.grantBattleLoot({ id:'crystal_darkgold', name:'暗金晶石', count:3, uid:'owned_crystal_fixture' });
+      state.data.equipped.weapon ??= { id:'fixture_weapon',uid:'fixture_weapon',name:'Fixture weapon',slot:'weapon',quality:'blue',durability:100,maxDurability:100,stars:1,sockets:1,gems:[],stats:{atk:35} };
       state.data.equipped.weapon.stats = { atk: 100000, hp: 1000000, def: 10000 }; state.notify();
       window.appInstance.views.tower.subTab = 'dungeons'; window.appInstance.views.tower.selectedGateId = 'trial_gate'; window.switchMainTab('tower');
     });

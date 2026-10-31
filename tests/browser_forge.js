@@ -13,6 +13,7 @@ async (page) => {
       const state = window.gameState;
       state.data.level = 20; state.data.prestige = 0;
       state.data.bag = state.data.bag.filter(item => !['protect_crystal', 'crystal_protect'].includes(item.id));
+      state.data.equipped.weapon ??= { id:'fixture_weapon',uid:'fixture_weapon',name:'Fixture weapon',slot:'weapon',quality:'blue',durability:100,maxDurability:100,stars:1,sockets:1,gems:[],stats:{atk:35} };
       state.data.equipped.weapon.stars = 7;
       state.data.equipped.weapon.stats = { atk: 10000, hp: 100000 };
       state.notify();

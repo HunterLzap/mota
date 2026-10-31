@@ -46,6 +46,7 @@ def test_syntax_and_init():
     window.requestAnimationFrame = function() {};
     globalThis.document = {
       readyState: "complete",
+      documentElement: { style: { setProperty(key, value) { this[key] = value; } } },
       getElementById(id) {
         return {
           id,
@@ -136,6 +137,15 @@ def test_new_features_runtime():
 
     import('../js/core/state.js').then(async ({ gameState }) => {
       gameState.resetToNewGame();
+      // This subsystem fixture represents earned equipment/resources, not a fresh save.
+      gameState.claimSalary(); gameState.claimQuestReward('quest_1');
+      const earnedWeapon = gameState.data.bag.find(item => item.id === 'novice_weapon');
+      gameState.equipItem(earnedWeapon.uid);
+      const { SPECIAL_ITEMS } = await import('../js/config/items.js');
+      gameState.data.gold = 100000; gameState.data.crystal = 10000; gameState.data.prestige = 200;
+      gameState.data.bag.push({ ...SPECIAL_ITEMS.socket_crystal, count: 3 }, { ...SPECIAL_ITEMS.crystal_gold, count: 3 }, { id:'gem_atk',type:'gem',stat:'atk',val:25,count:1 });
+      gameState.data.bag.push({ id:'pet_egg_random',type:'egg',count:1 }); gameState.hatchPetEgg();
+      gameState.data.activePetId = gameState.data.pets[0].id;
       const initialStats = gameState.getEffectiveStats();
 
       // 1. 宝石打孔
@@ -177,13 +187,14 @@ def test_new_features_runtime():
       const initialPrestige = gameState.data.prestige;
       const initialChallenges = gameState.data.arena.challengesLeft;
 
-      gameState.recordArenaVictory(opp);
+      const arenaEntry = gameState.startArenaChallenge(opp.id);
+      gameState.settleArenaChallenge(opp.id, arenaEntry.challengeId, true);
       if (gameState.data.arena.points !== initialPoints + 25) throw new Error('天梯胜场积分未增加25分');
       if (gameState.data.arena.challengesLeft !== initialChallenges - 1) throw new Error('挑战次数未递减');
       if (gameState.data.prestige < initialPrestige + opp.prestigeReward) throw new Error('声望胜场奖励未到账');
       print('  ✓ 角斗场胜场结算正确：积分从 ' + initialPoints + ' 升至 ' + gameState.data.arena.points + '，声望 +' + opp.prestigeReward);
 
-      const shopItem = PRESTIGE_SHOP_ITEMS[0];
+      const shopItem = PRESTIGE_SHOP_ITEMS.find(item => item.id === 'diamond_1');
       const prestigeBeforeBuy = gameState.data.prestige;
       const buyRes = gameState.buyPrestigeItem(shopItem.id);
       if (!buyRes.success) throw new Error('声望兑换失败: ' + buyRes.msg);

@@ -23,7 +23,7 @@ export const ALCHEMY_RECIPES = [
     name: '圣水祝福灵药',
     icon: 'pot_blessing',
     quality: 'darkgold',
-    desc: '神圣光辉环绕！战斗中每回合结束时自动回复 12% 最大生命值，生效 3 场战斗！',
+    desc: '神圣光辉环绕！战斗中每10秒自动回复12%最大生命值，生效3场战斗！',
     materials: { herb_starlight: 3, herb_spiritflower: 3 },
     effect: { regenPercent: 0.12, fights: 3 }
   },
@@ -32,10 +32,10 @@ export const ALCHEMY_RECIPES = [
     name: '古代龙血潜能秘药',
     icon: 'pot_dragonblood',
     quality: 'darkgold',
-    desc: '以古代巨龙精华与圣域奇草炼制的圣堂秘药！直接永久获得 5 点全四维自由潜能点！',
+    desc: '永久获得5点自由潜能；此药累计最多提供100点额外潜能。已获得的潜能不会减少。',
     materials: { herb_dragonblood: 6, herb_spiritflower: 6, herb_starlight: 6 },
     costCrystal: 60,
-    effect: { permanentStats: 5 }
+    effect: { permanentStats: 5, permanentStatsCap: 100 }
   }
 ];
 
@@ -72,6 +72,6 @@ export const MERCENARIES = [
     rewardBonus: { goldMultiplier: 1.4, crystalBonus: 1 },
     desc: '周游列国的传奇乐手，他的琴音能点燃战士的潜能。',
     aura: '疾风战歌',
-    auraDesc: '全队先手速度提升 25 点；野外探索与魔塔征伐获得的金币提升 40%，魔晶掉落 +1！'
+    auraDesc: '行动速度提升25点，缩短出手间隔；野外探索与魔塔征伐获得的金币提升40%，魔晶掉落+1。'
   }
 ];

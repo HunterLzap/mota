@@ -38,9 +38,10 @@
 1. **纯正西方魔幻题材 (Strict Western High Fantasy)**：
    - 彻底杜绝中式仙侠/修真/武侠/道家词汇（如：气血、秘籍、飞贼、乾坤、混元、至尊、太古、真武、玄冰等）。
    - 必须统一使用纯正西方高魔词汇（如：生命、魔导书、女盗、远古、禁咒、神圣、极光、元素等）。
-2. **100% 矢量 SVG 图标 (Zero Unicode Emoji)**：
+2. **绘画美术与功能图标 (Zero Unicode Emoji)**：
    - 全代码库（JS/HTML/CSS）与界面严禁使用任何 Unicode Emoji 符号。
-   - 所有图标统一调用 `renderGameIcon()` 或 `getVectorIcon()` 渲染 SVG 矢量图标。
+   - 用户于 2026-10-29 明确要求装备、道具使用真正绘画贴图，覆盖历史“100% SVG”限制。此类内容统一经 `renderGameIcon()` 使用 `images/items/artwork/` 的 PNG 图集，禁止用 SVG 转位图冒充绘画。
+   - 用户同日补充要求头像与常用界面徽记也使用绘画：统一由 `js/assets/paintedIcons.js` 供 `renderGameIcon()` 与兼容 `getVectorIcon()` 入口解析。保留旧路径兼容，不迁移存档字段；不要把未映射的旧符号宣称为已替换。
 3. **单存档职业唯一选定 (Single Class Choice Per Save)**：
    - 每个独立存档位在开局缔约创角时只需选择一次职业 (`hasChosenClass: true`)。
    - 游戏内彻底移除任何重新选择/切换职业的入口与弹窗，刷新或载入存档时严禁再次弹出创角选职弹窗。

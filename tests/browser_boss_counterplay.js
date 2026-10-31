@@ -7,14 +7,16 @@ async (page) => {
     try {
       await game.goto('http://127.0.0.1:8088');
       await game.locator('[data-class-id="warrior"]').click(); await game.locator('#btn-confirm-character').click();
+      await dismiss();
       // Prepared level/gear/pet fixture; actual boss parameters, battles and settlement adapters.
       await game.evaluate(async ({floor,petId,stamina}) => {
         const { PET_CONFIGS } = await import('/js/config/pets.js'); const state = window.gameState;
         state.data.level = floor; state.data.currentQuestId = 'completed';
+        for (let chapter = 1; chapter <= 26; chapter++) state.data.questProgress['quest_' + chapter] = { current: 1, completed: true, claimed: true };
         state.data.equipped = { weapon: { id:'test_sword',uid:'test_sword',name:'Test sword',slot:'weapon',quality:'blue',gems:[],sockets:0,durability:100,maxDurability:100,stats:{atk:floor===50?100000:1500,hp:1000000} } };
         state.data.pets = [{id:petId,level:1,exp:0,tier:PET_CONFIGS[petId].defaultTier,apt:{...PET_CONFIGS[petId].defaultApt},stamina,skills:[]}];
         state.data.activePetId = petId;
-        Object.assign(state.data.castle,{floor,isExploring:true,finished:false,claimedBossRewards:[]}); state.notify(); Math.random=()=>.5;
+        Object.assign(state.data.castle,{floor,isExploring:true,expeditionId:"tower-fixture",finished:false,claimedBossRewards:[]}); state.notify(); Math.random=()=>.5;
       }, {floor,petId,stamina});
       await game.locator('#nav-tab-tower').click();
       await game.locator('#btn-challenge-castle-floor').click(); await game.locator('#btn-skip-battle').click();
@@ -32,7 +34,7 @@ async (page) => {
       await game.locator('#btn-confirm-battle').click(); await dismiss();
       const paid = await game.evaluate(()=>JSON.parse(JSON.stringify(window.gameState.data)));
       if (paid.castle.claimedBossRewards.filter(f=>f===floor).length!==1 || paid.bag.length!==before.bag+1) throw new Error('First clear not paid exactly once');
-      const rejected = await game.evaluate(floor=>window.gameState.settleCastleVictory(floor),floor);
+      const rejected = await game.evaluate(floor=>window.gameState.settleCastleVictory(floor, window.gameState.data.castle.expeditionId),floor);
       if (rejected.success) throw new Error('Duplicate victory paid');
       await game.reload(); const loaded = await game.evaluate(()=>JSON.parse(JSON.stringify(window.gameState.data)));
       if (loaded.crystal!==paid.crystal || loaded.bag.length!==paid.bag.length || loaded.castle.claimedBossRewards.filter(f=>f===floor).length!==1) throw new Error('Reload lost settlement');

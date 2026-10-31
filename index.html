@@ -6,195 +6,61 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>《魔塔世界：重制版》- 2010经典魔幻文字RPG单机版</title>
-  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <title>《魔塔世界》</title>
+  <link rel="icon" type="image/svg+xml" href="./images/heroes/avatar_warrior.svg">
+  <script src="./js/vendor/tailwindcss.min.js"></script>
   <link rel="stylesheet" href="./css/mota-theme.css">
   <link rel="stylesheet" href="./css/battle.css">
+  <!-- 原版《魔塔世界》色板覆盖层。不需要时删除本行即可完全恢复原样。 -->
+  <link rel="stylesheet" href="./css/original-ui.css">
+  <link rel="stylesheet" href="./css/classic-shell.css">
+  <link rel="stylesheet" href="./css/pet-classic.css">
+  <link rel="stylesheet" href="./css/classic-materials.css">
+  <link rel="stylesheet" href="./css/ui-refinements.css">
+  <link rel="stylesheet" href="./css/scene-layout.css">
 </head>
 <body class="bg-[#0b0806] text-[#e5ded3] h-screen overflow-hidden select-none p-1 sm:p-2 flex flex-col items-center justify-center">
 
-  <!-- 2010 经典页游独立客户端微端视口外框 (固定统一舞台尺寸，杜绝撑破工作台) -->
-  <div class="mota-client-shell w-full max-w-[1366px] h-[98vh] max-h-[920px] flex flex-col justify-between relative overflow-hidden">
-    
-    <!-- 动态微粒子氛围画布 (置于微端最底层) -->
-    <canvas id="atmosphere-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-0 opacity-85"></canvas>
-
-    <!-- ==========================================
-         2010 经典页游古典石雕金质主头部状态栏
-         ========================================== -->
-    <header class="mota-parchment-panel border-b-2 border-[#caa048] px-3.5 py-2 z-30 shadow-2xl backdrop-blur-md relative flex-shrink-0">
-      <div class="w-full flex items-center justify-between gap-3">
-        
-        <!-- 角色头像与身份牌 (经典暗金复古圆框，点击查看角色档案) -->
-        <div id="header-char-box" class="flex items-center gap-3 cursor-pointer hover:brightness-125 transition-all" title="点击查看角色档案">
-          <div class="relative w-12 h-12 rounded-xl bg-gradient-to-b from-[#3a2818] to-[#1a1109] border-2 border-[#d4a742] flex items-center justify-center p-1 shadow-lg shadow-black">
-            <div id="header-class-icon" class="w-full h-full flex items-center justify-center"></div>
-            <span class="absolute -bottom-1 -right-1 text-[9px] px-1 rounded-full bg-amber-900 border border-amber-400 text-amber-200 font-bold">亚诺</span>
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span id="header-player-name" class="font-bold text-sm text-[#f5c042] tracking-wide text-shadow">亚诺救世主</span>
-              <span id="header-player-level" class="text-[10px] px-1.5 py-0.2 rounded bg-red-950 border border-red-500 text-red-200 font-mono font-bold">Lv.1</span>
-            </div>
-            <div class="text-[11px] text-[#b3a18a] mt-0.5 flex items-center gap-1.5 font-medium">
-              <span id="header-nation-badge" class="px-1.5 py-0.2 rounded bg-slate-800 text-amber-300 font-bold border border-amber-600/50 text-[10px]">亚丁</span>
-              <span id="header-title-badge" class="px-1.5 py-0.2 rounded bg-purple-950 text-purple-200 font-bold border border-purple-500/50 text-[10px]">见习勇者</span>
-              <span id="header-player-class" class="text-amber-300">战士</span>
-              <span class="text-stone-600">|</span>
-              <span class="text-stone-400">经验: <span id="header-exp-sub" class="text-emerald-400 font-mono text-[10px]">0%</span></span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 经典红蓝绿生命、法力与经验槽 -->
-        <div class="flex items-center gap-3 flex-1 max-w-lg min-w-[280px]">
-          <!-- HP 条 -->
-          <div class="flex-1 space-y-1 relative">
-            <div class="flex justify-between text-[10px] font-bold">
-              <span class="text-red-400">生命 HP</span>
-              <span id="header-hp-text" class="text-red-300 font-mono">360 / 360</span>
-            </div>
-            <div class="w-full h-2.5 rounded-full mota-bar-frame overflow-hidden relative">
-              <div id="header-hp-bar" class="h-full mota-hp-fill rounded-full transition-all duration-300" style="width: 100%;"></div>
-            </div>
-          </div>
-
-          <!-- MP 条 -->
-          <div class="flex-1 space-y-1 relative">
-            <div class="flex justify-between text-[10px] font-bold">
-              <span class="text-blue-400">法力 MP</span>
-              <span id="header-mp-text" class="text-blue-300 font-mono">80 / 80</span>
-            </div>
-            <div class="w-full h-2.5 rounded-full mota-bar-frame overflow-hidden relative">
-              <div id="header-mp-bar" class="h-full mota-mp-fill rounded-full transition-all duration-300" style="width: 100%;"></div>
-            </div>
-          </div>
-
-          <!-- EXP 经验条 -->
-          <div class="flex-1 space-y-1 relative">
-            <div class="flex justify-between text-[10px] font-bold">
-              <span class="text-emerald-400">经验 EXP</span>
-              <span id="header-exp-text" class="text-emerald-300 font-mono text-[10px]">0 / 120</span>
-            </div>
-            <div class="w-full h-2.5 rounded-full mota-bar-frame overflow-hidden relative">
-              <div id="header-exp-bar" class="h-full mota-exp-fill rounded-full transition-all duration-300" style="width: 0%;"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 货币与资源铭牌 (高保真金属浮雕质感) -->
-        <div class="flex items-center gap-2 text-xs font-mono">
-          <div class="flex items-center gap-1.5 mota-metal-plaque px-2.5 py-1 rounded-lg">
-            <svg class="w-4 h-4 inline-block" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#eab308" stroke="#78350f" stroke-width="1.5"/><circle cx="12" cy="12" r="7" fill="none" stroke="#fef08a" stroke-width="0.8" stroke-dasharray="1 1"/><text x="12" y="15.5" text-anchor="middle" font-size="10" font-weight="bold" fill="#713f12">G</text></svg>
-            <span id="header-gold" class="font-bold text-amber-300">1,200</span>
-          </div>
-          <div class="flex items-center gap-1.5 mota-metal-plaque px-2.5 py-1 rounded-lg">
-            <svg class="w-4 h-4 inline-block" viewBox="0 0 24 24"><polygon points="12,2 20,8 16,21 8,21 4,8" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5"/><polygon points="12,2 16,10 8,10" fill="#bae6fd" opacity="0.6"/></svg>
-            <span id="header-crystal" class="font-bold text-cyan-300">120</span>
-          </div>
-          <div class="flex items-center gap-1.5 mota-metal-plaque px-2.5 py-1 rounded-lg">
-            <svg class="w-4 h-4 inline-block" viewBox="0 0 24 24"><polygon points="8,2 16,2 18,10 12,8 6,10" fill="#7e22ce"/><circle cx="12" cy="16" r="6" fill="#eab308" stroke="#713f12" stroke-width="1"/><circle cx="12" cy="16" r="2" fill="#dc2626"/></svg>
-            <span id="header-prestige" class="font-bold text-purple-300">150</span>
-          </div>
-        </div>
-
-        <!-- 存档与新开游戏控制 (圣堂档案馆 + 槽位标签) -->
-        <div class="flex items-center gap-2">
-          <div id="header-active-slot-badge" class="hidden sm:flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-black/60 border border-amber-500/50 text-amber-300">
-            <span id="header-active-slot-text">存档 1</span>
-          </div>
-          <button id="btn-open-archive" title="圣堂档案馆 · 5大独立槽位存档管理" class="mota-btn-gold px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 shadow">
-            <span>存档管理</span>
-          </button>
-          <button id="btn-new-game-entry" title="开启全新单人冒险旅程" class="mota-btn-dark px-2.5 py-1 rounded text-xs font-bold text-amber-200 hover:text-amber-100 flex items-center gap-1 border-amber-600/50">
-            <span>新开游戏</span>
-          </button>
-        </div>
-
-      </div>
+  <div class="mota-client-shell classic-client">
+    <canvas id="atmosphere-canvas" class="hidden" aria-hidden="true"></canvas>
+    <header class="classic-topbar">
+      <h1>魔塔世界</h1>
+      <div class="classic-currencies"><span>金币 <b id="header-gold">0</b></span><span>魔晶 <b id="header-crystal">0</b></span><span>声望 <b id="header-prestige">0</b></span></div>
+      <div class="classic-save-tools"><span id="header-active-slot-text">存档 1</span><button id="btn-open-archive" class="mota-btn-dark">存档管理</button><button id="btn-new-game-entry" class="mota-btn-dark">新开游戏</button></div>
     </header>
-
-    <!-- ==========================================
-         主界面展示区域 (纯正2011单屏无滚轮工作台)
-         ========================================== -->
-    <div class="w-full flex-1 min-h-0 relative z-10 p-2 sm:p-2.5 overflow-hidden flex flex-col">
-      
-      <!-- 中央主视窗舞台 (100% 满屏展示，内部零纵向滚动条，无任何浮标遮挡) -->
-      <main class="w-full flex-1 min-h-0 overflow-hidden relative flex flex-col">
-        <div id="tab-content-tower" class="w-full h-full block"></div>
-        <div id="tab-content-town" class="w-full h-full hidden"></div>
-        <div id="tab-content-estate" class="w-full h-full hidden"></div>
-        <div id="tab-content-wild" class="w-full h-full hidden"></div>
-        <div id="tab-content-hero" class="w-full h-full hidden"></div>
-        <div id="tab-content-equip" class="w-full h-full hidden"></div>
-        <div id="tab-content-bag" class="w-full h-full hidden"></div>
-        <div id="tab-content-pets" class="w-full h-full hidden"></div>
-      </main>
-
+    <nav class="classic-navigation" aria-label="游戏功能"><button id="nav-tab-hero" class="mota-btn-dark">人物</button><button id="nav-tab-equip" class="mota-btn-dark">装备</button><button id="nav-tab-bag" class="mota-btn-dark">行囊</button><button id="nav-tab-pets" class="mota-btn-dark">神兽</button><button id="nav-tab-tower" class="mota-btn-dark">魔塔</button><button id="nav-tab-town" class="mota-btn-dark">王都</button><button id="nav-tab-wild" class="mota-btn-dark">野外</button><button id="nav-tab-estate" class="mota-btn-dark">庄园</button></nav>
+    <div class="classic-workspace">
+      <aside class="classic-sidebar" aria-label="角色信息">
+        <h2 class="classic-panel-title">角色信息</h2>
+        <button id="header-char-box" class="classic-character" title="查看角色属性"><span id="header-class-icon"></span><strong id="header-player-name">亚诺勇者</strong><span id="header-player-level">Lv.1</span></button>
+        <p class="classic-character-title"><span id="header-nation-badge">亚丁</span> · <span id="header-player-class">战士</span></p>
+        <p id="header-title-badge" class="classic-rank">见习勇者</p>
+        <div class="classic-vitals">
+          <label>生命 <span id="header-hp-text">0 / 0</span><i><b id="header-hp-bar"></b></i></label>
+          <label>魔力 <span id="header-mp-text">0 / 0</span><i><b id="header-mp-bar"></b></i></label>
+          <label>经验 <span id="header-exp-sub">0%</span><i><b id="header-exp-bar"></b></i></label>
+          <p id="header-exp-text">0 / 0</p>
+        </div>
+        <h3 class="classic-section-title">战斗属性</h3><dl class="classic-character-stats"><div><dt>攻击</dt><dd id="classic-stat-atk">—</dd></div><div><dt>防御</dt><dd id="classic-stat-def">—</dd></div><div><dt>速度</dt><dd id="classic-stat-speed">—</dd></div><div><dt>暴击</dt><dd id="classic-stat-crit">—</dd></div><div><dt>命中</dt><dd id="classic-stat-hit">—</dd></div><div><dt>闪避</dt><dd id="classic-stat-dodge">—</dd></div><div><dt>反击</dt><dd id="classic-stat-counter">—</dd></div><div><dt>吸血</dt><dd id="classic-stat-lifesteal">—</dd></div><div><dt>魔抗</dt><dd id="classic-stat-magic-resist">—</dd></div><div><dt>减伤</dt><dd id="classic-stat-dmg-resist">—</dd></div></dl>
+        <p class="classic-interval">野外出手 <strong id="classic-stat-interval">0</strong> 秒</p>
+        <h3 class="classic-section-title">冒险手记</h3><p id="classic-adventure-note"></p>
+        <button data-classic-tab="hero" class="mota-btn-dark classic-sidebar-action">角色成长与加点</button>
+      </aside>
+      <div class="classic-stage">
+        <section id="journey-guide" class="journey-guide" aria-label="下一步行动"></section>
+        <main class="classic-main"><section id="battle-overlay" class="battle-page hidden" aria-label="战斗页面"></section><div id="tab-content-tower" class="w-full h-full block"></div><div id="tab-content-town" class="w-full h-full hidden"></div><div id="tab-content-estate" class="w-full h-full hidden"></div><div id="tab-content-wild" class="w-full h-full hidden"></div><div id="tab-content-hero" class="w-full h-full hidden"></div><div id="tab-content-equip" class="w-full h-full hidden"></div><div id="tab-content-bag" class="w-full h-full hidden"></div><div id="tab-content-pets" class="w-full h-full hidden"></div></main>
+      </div>
     </div>
-
-  <!-- ==========================================
-       底部功能按键大工具栏与常驻任务中枢
-       ========================================== -->
-  <footer class="z-30 h-48 min-h-0 bg-[#120d09] border-t-2 border-[#b48c36] shadow-2xl flex-shrink-0">
-    <div class="w-full h-full min-h-0 p-2 flex items-stretch gap-2">
-      
-      <!-- 1. 左分区：大世界冒险场景 (2x2 网格，全高均匀填补) -->
-      <div class="p-1 rounded-xl bg-black/40 border border-[#4a3520] flex-shrink-0 w-44">
-        <div class="grid grid-cols-2 gap-1.5 h-full">
-          <button id="nav-tab-tower" class="mota-btn-gold px-1.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center shadow">
-            <span>无尽魔塔</span>
-          </button>
-          <button id="nav-tab-town" class="mota-btn-dark px-1.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center">
-            <span>圣光王都</span>
-          </button>
-          <button id="nav-tab-wild" class="mota-btn-dark px-1.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center">
-            <span>野外征战</span>
-          </button>
-          <button id="nav-tab-estate" class="mota-btn-dark px-1.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center">
-            <span>领地庄园</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 2. 中分区：常用功能固定停靠栏 (人物 / 装备 / 背包 / 宠物) -->
-      <div class="p-1 rounded-xl bg-amber-950/30 border border-amber-500/50 shadow-[0_0_10px_rgba(245,192,66,0.15)] flex-shrink-0 w-28">
-        <div class="grid grid-rows-4 gap-1 h-full">
-          <button id="nav-tab-hero" class="mota-btn-dock px-1.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center">
-            <span>人物</span>
-          </button>
-          <button id="nav-tab-equip" class="mota-btn-dock px-1.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center">
-            <span>装备</span>
-          </button>
-          <button id="nav-tab-bag" class="mota-btn-dock px-1.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center">
-            <span>背包</span>
-          </button>
-          <button id="nav-tab-pets" class="mota-btn-dock px-1.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center">
-            <span>宠物</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 3. 右侧孪生双中枢：任务追踪 (~48%) + 系统提示 (~52%) -->
-      <div class="flex-1 min-w-0 flex items-stretch gap-2">
-        <!-- 3A. 主线任务追踪栏 (折半宽度，滚轮查看剧情与奖励) -->
-        <div id="quest-tracker-mount" class="w-[48%] min-w-0 h-full">
-          <!-- 由 questTracker.js 动态渲染为宽敞横向任务栏 -->
-        </div>
-
-        <!-- 3B. 系统提示与动态日志中枢 (折半宽度，滚轮实时查看获得、战报、任务、精铸) -->
-        <div id="system-log-mount" class="w-[52%] min-w-0 h-full">
-          <!-- 由 systemLogView.js 动态渲染 -->
-        </div>
-      </div>
-
-    </div>
-  </footer>
-  </div>
-
-  <!-- 动态战斗特写全屏浮层 (Modal) -->
-  <div id="battle-overlay" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden items-center justify-center p-4">
-    <!-- 内容由 battleView.js 动态渲染 -->
+    <footer class="classic-footer">
+      <div id="quest-tracker-mount"></div>
+      <section class="classic-command-dock" aria-label="角色状态与快捷操作">
+        <div class="classic-dock-links"><button data-classic-tab="hero" class="mota-btn-dark">人物</button><button data-classic-tab="equip" class="mota-btn-dark">装备</button><button data-classic-tab="pets" class="mota-btn-dark">神兽</button><button data-classic-tab="bag" class="mota-btn-dark">行囊</button></div>
+        <div class="classic-orb classic-health-orb" role="meter" aria-label="生命" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i class="classic-orb-liquid" aria-hidden="true"></i><span>生命</span><b id="classic-hp-orb-text"></b></div>
+        <button data-classic-tab="hero" class="classic-dock-portrait" title="查看人物"><span class="class-portrait" data-class-portrait role="img" aria-label="角色立绘"></span><span id="classic-dock-name">亚诺勇者</span></button>
+        <div class="classic-orb classic-mana-orb" role="meter" aria-label="魔力" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><i class="classic-orb-liquid" aria-hidden="true"></i><span>魔力</span><b id="classic-mp-orb-text"></b></div>
+      </section>
+      <div id="system-log-mount"></div>
+    </footer>
   </div>
 
   <!-- 角色创建与职业选择全屏弹窗 (Character Select Modal) -->
@@ -209,14 +75,14 @@
 
   <!-- 2011 经典页游纯内部拟真羊皮纸弹窗 (In-Game Modal Dialog) -->
   <div id="game-modal-overlay" class="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div id="game-modal-box" class="mota-parchment-panel rounded-2xl border-2 border-[#b48c36] shadow-[0_10px_45px_rgba(0,0,0,0.95)] max-w-md w-full overflow-hidden scale-95 transition-all duration-200 select-none">
+    <div id="game-modal-box" role="dialog" aria-modal="true" aria-labelledby="game-modal-title" aria-describedby="game-modal-message" tabindex="-1" class="mota-parchment-panel rounded-2xl border-2 border-[#b48c36] shadow-[0_10px_45px_rgba(0,0,0,0.95)] max-w-md w-full overflow-hidden scale-95 transition-all duration-200 select-none">
       <!-- 弹窗标题栏 (带红漆火印与关闭叉) -->
-      <div class="bg-gradient-to-r from-[#2a1c11] via-[#3d2a1a] to-[#2a1c11] p-3 border-b border-[#b48c36] flex items-center justify-between">
+      <div class="game-modal-heading bg-gradient-to-r from-[#2a1c11] via-[#3d2a1a] to-[#2a1c11] p-3 border-b border-[#b48c36] flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="w-3 h-3 rounded-full bg-amber-500 border border-amber-300 shadow inline-block"></span>
           <h3 id="game-modal-title" class="text-sm font-bold text-amber-300 tracking-wide">王国告示</h3>
         </div>
-        <button id="game-modal-close" class="text-slate-400 hover:text-amber-200 text-sm font-bold w-6 h-6 rounded flex items-center justify-center hover:bg-black/40">x</button>
+        <button id="game-modal-close" aria-label="关闭弹窗" class="text-slate-400 hover:text-amber-200 text-sm font-bold w-6 h-6 rounded flex items-center justify-center hover:bg-black/40">x</button>
       </div>
       <!-- 弹窗正文区 -->
       <div class="p-5 space-y-3 bg-[#17130f]/95 text-xs text-slate-200">
@@ -232,26 +98,61 @@
     </div>
   </div>
 
-  <!-- 运行时错误可视浮层 (调试保护) -->
-  <div id="runtime-error-display" style="display:none;position:fixed;bottom:12px;right:12px;background:#991b1b;color:#fef2f2;padding:12px 16px;border-radius:10px;font-family:monospace;font-size:12px;z-index:999999;box-shadow:0 10px 25px rgba(0,0,0,0.85);max-width:550px;max-height:240px;overflow:auto;border:1px solid #f87171;"></div>
+  <!-- 玩家异常提示；技术详情仅记录到控制台 -->
+  <div id="runtime-error-display" role="alert" class="mota-parchment-panel" style="display:none;position:fixed;bottom:12px;right:12px;padding:12px 16px;font-size:12px;z-index:999999;box-shadow:0 10px 25px rgba(0,0,0,0.85);max-width:min(550px,calc(100vw - 24px));max-height:240px;overflow:auto;border:1px solid #9c8257;"></div>
   <script>
-    window.addEventListener('error', function(e) {
-      console.error('Window error captured:', e);
+    var gameStartupFinished = false;
+    var gameStartupTimer = setTimeout(function() { showStartupNotice(); }, 8000);
+    function showStartupNotice() {
+      if (gameStartupFinished) return;
+      var el = document.getElementById('runtime-error-display');
+      if (!el || el.dataset.startup === 'true') return;
+      el.dataset.startup = 'true';
+      el.style.display = 'block';
+      el.textContent = '游戏尚未启动完成。可以继续等待，或重新载入页面后继续冒险。';
+      var retry = document.createElement('button');
+      retry.id = 'btn-retry-startup';
+      retry.className = 'mota-btn-gold';
+      retry.style.cssText = 'display:block;margin-top:10px;padding:6px 12px';
+      retry.textContent = '重新载入';
+      retry.onclick = function() { window.location.reload(); };
+      el.appendChild(retry);
+      retry.focus();
+    }
+    window.completeGameStartup = function() {
+      gameStartupFinished = true;
+      clearTimeout(gameStartupTimer);
+      var el = document.getElementById('runtime-error-display');
+      if (!el || el.dataset.startup !== 'true') return;
+      var restoreFocus = el.contains(document.activeElement);
+      el.style.display = 'none';
+      el.textContent = '';
+      delete el.dataset.startup;
+      if (restoreFocus) {
+        var target = document.querySelector('#char-select-overlay:not(.hidden) [data-class-id]') ||
+          document.getElementById('btn-next-journey');
+        if (target) target.focus();
+      }
+    };
+    function showGameErrorNotice() {
+      if (!gameStartupFinished) { showStartupNotice(); return; }
       var el = document.getElementById('runtime-error-display');
       if (el) {
         el.style.display = 'block';
-        el.innerHTML += '<div style="margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:4px;"><b>[JS Error]</b> ' + (e.message || e) + '<br><span style="font-size:10px;opacity:0.8;">' + (e.filename || '') + ':' + (e.lineno || '') + '</span></div>';
+        el.textContent = '游戏遇到异常，请刷新页面后重试。若问题持续，请反馈发生前的操作。';
       }
-    });
+    }
+    window.addEventListener('error', function(e) {
+      // Module dependency failures reach the entry script as a non-bubbling resource error.
+      if (!e.message && e.target.id !== 'game-module-entry') return;
+      console.error('Window error captured:', e);
+      showGameErrorNotice();
+    }, true);
     window.addEventListener('unhandledrejection', function(e) {
       console.error('Unhandled rejection:', e);
-      var el = document.getElementById('runtime-error-display');
-      if (el) {
-        el.style.display = 'block';
-        el.innerHTML += '<div style="margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:4px;"><b>[Promise Error]</b> ' + (e.reason ? (e.reason.message || e.reason) : e.reason) + '</div>';
-      }
+      showGameErrorNotice();
     });
   </script>
-  <script type="module" src="./js/main.js?v=20260905_2"></script>
+  <script id="game-module-entry" type="module" src="./js/main.js?v=20260905_2"></script>
 </body>
 </html>

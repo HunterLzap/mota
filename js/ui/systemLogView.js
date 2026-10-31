@@ -1,5 +1,6 @@
 // 2010 经典页游常驻底部系统提示与玩家动态日志中枢 (Skeuomorphic Retro System Log Stream)
 import { gameState } from '../core/state.js';
+import { renderGameIcon } from './iconHelper.js';
 
 export class SystemLogView {
   constructor(containerId) {
@@ -20,9 +21,7 @@ export class SystemLogView {
         <!-- 日志顶栏：标题 + 快捷分类筛选 -->
         <div class="flex items-center justify-between pb-1 border-b border-[#4a3520] flex-shrink-0">
           <div class="flex items-center gap-1.5">
-            <span class="w-4 h-4 rounded bg-amber-950 border border-amber-500/80 flex items-center justify-center text-[10px] text-amber-300 shadow font-bold">
-              讯
-            </span>
+            <span class="journal-emblem" aria-hidden="true">${renderGameIcon('ui_journal', { size: 'w-6 h-6' })}</span>
             <span class="text-xs font-bold text-amber-300 tracking-wide">
               系统提示
             </span>
@@ -66,23 +65,23 @@ export class SystemLogView {
 
   renderLogItem(log) {
     const badgeMap = {
-      obtain: { text: '拾取', bg: 'bg-emerald-950/80 text-emerald-300 border-emerald-600/50' },
-      battle: { text: '战报', bg: 'bg-rose-950/80 text-rose-300 border-rose-600/50' },
-      quest: { text: '任务', bg: 'bg-amber-950/80 text-amber-300 border-amber-600/50' },
-      forge: { text: '精铸', bg: 'bg-cyan-950/80 text-cyan-300 border-cyan-600/50' },
-      pet: { text: '神兽', bg: 'bg-purple-950/80 text-purple-300 border-purple-600/50' },
-      estate: { text: '庄园', bg: 'bg-lime-950/80 text-lime-300 border-lime-600/50' },
-      system: { text: '系统', bg: 'bg-slate-900/80 text-slate-300 border-slate-700/50' }
+      obtain: { text: '拾取' },
+      battle: { text: '战报' },
+      quest: { text: '任务' },
+      forge: { text: '精铸' },
+      pet: { text: '神兽' },
+      estate: { text: '庄园' },
+      system: { text: '系统' }
     };
     const badge = badgeMap[log.type] || badgeMap.system;
 
     return `
-      <div class="flex items-baseline gap-1.5 hover:bg-white/5 px-1 py-0.5 rounded transition-all">
-        <span class="text-slate-500 text-[10px] flex-shrink-0">[${log.time}]</span>
-        <span class="text-[9px] px-1 py-0.2 rounded border font-sans font-bold flex-shrink-0 ${badge.bg}">
+      <div class="system-log-row" data-log-type="${badgeMap[log.type] ? log.type : 'system'}">
+        <span class="system-log-time">[${log.time}]</span>
+        <span class="system-log-badge" data-log-kind="${badgeMap[log.type] ? log.type : 'system'}">
           ${badge.text}
         </span>
-        <span class="text-slate-200 break-all leading-normal flex-1">
+        <span class="system-log-text">
           ${log.text}
         </span>
       </div>
@@ -92,9 +91,11 @@ export class SystemLogView {
   bindEvents() {
     if (!this.container) return;
     this.container.querySelectorAll('.btn-log-filter').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.dataset.logFilter === this.filter));
       btn.addEventListener('click', (e) => {
         this.filter = e.currentTarget.dataset.logFilter;
         this.render();
+        this.container.querySelector(`[data-log-filter="${this.filter}"]`)?.focus({ preventScroll: true });
       });
     });
   }

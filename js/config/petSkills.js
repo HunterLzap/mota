@@ -3,7 +3,7 @@ export const PET_SKILL_BOOKS = {
   book_poison: {
     id: 'book_poison', name: '远古魔导书·【腐蚀毒刺】', skillId: 'high_poison', skillName: '腐蚀毒刺',
     icon: 'images/items/skill_book.svg', quality: 'darkgold',
-    desc: '命中后附加实际生命伤害15%的毒伤，持续2回合；再次命中刷新，不叠加。',
+    desc: '命中后附加实际生命伤害15%的毒伤，每10秒结算一次，共2次；再次命中刷新，不叠加。',
     effect: { poisonRate: 0.15, poisonDuration: 2 }
   },
   book_counter: {
@@ -83,7 +83,7 @@ export const PET_SKILL_BOOKS = {
     skillName: '高级神速',
     icon: 'skill_swift',
     quality: 'purple',
-    desc: '出手敏捷先手值提升 30 点，战斗中闪避率提升 14%！',
+    desc: '行动速度提升30点，缩短出手间隔；战斗中闪避率提升14%。',
     effect: { speedBonus: 30, dodgeBonus: 14 }
   }
 };

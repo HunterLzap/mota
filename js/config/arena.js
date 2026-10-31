@@ -10,6 +10,7 @@ export const ARENA_RANKS = [
 export const ARENA_OPPONENTS = [
   {
     id: 'opp_1',
+    classId: 'warrior',
     name: '近卫斥候·加文',
     title: '王城守备队新晋勇士',
     avatar: 'hero_warrior',
@@ -25,6 +26,7 @@ export const ARENA_OPPONENTS = [
   },
   {
     id: 'opp_2',
+    classId: 'warrior',
     name: '断罪重剑·艾登',
     title: '竞技场常胜宿将',
     avatar: 'hero_warrior',
@@ -40,6 +42,7 @@ export const ARENA_OPPONENTS = [
   },
   {
     id: 'opp_3',
+    classId: 'mage',
     name: '星痕魔导·塞西莉亚',
     title: '高阶奥术魔导名宿',
     avatar: 'hero_mage',
@@ -55,6 +58,7 @@ export const ARENA_OPPONENTS = [
   },
   {
     id: 'opp_4',
+    classId: 'hunter',
     name: '弑龙铁卫·莱因哈特',
     title: '王国皇家第一勇士',
     avatar: 'hero_warrior',
@@ -72,6 +76,16 @@ export const ARENA_OPPONENTS = [
 
 // 声望军需商行兑换池
 export const PRESTIGE_SHOP_ITEMS = [
+  {
+    id: 'pet_egg', name: '神兽契约蛋', icon: 'images/items/pet_egg.svg', quality: 'gold', costPrestige: 100,
+    desc: '孵化新的伙伴；完成古门调查后，可在神兽页付费选择符合等级的伙伴。主副宠不能重复占位。',
+    itemData: { id: 'pet_egg_random', name: '神兽契约蛋', type: 'egg', quality: 'gold', icon: 'images/items/pet_egg.svg', desc: '前往神兽页孵化或进行指定契约。' }
+  },
+  {
+    id: 'evolution_stone', name: '神兽进化石', icon: 'images/items/evolution_stone.svg', quality: 'darkgold', costPrestige: 300,
+    desc: '黄金伙伴达到30级后进阶暗金；进阶后从1级重新成长。野外讨伐和角斗可积累声望。',
+    itemData: { id: 'evolution_stone', name: '神兽进化石', type: 'material', quality: 'darkgold', icon: 'images/items/evolution_stone.svg', desc: '30级黄金伙伴进阶暗金所需材料' }
+  },
   {
     id: 'diamond_1',
     name: '金刚钻',

@@ -21,6 +21,8 @@ async (page) => {
       const { PET_CONFIGS } = await import('/js/config/pets.js');
       const state = window.gameState;
       state.data.level = 60; state.data.prestige = 0;
+      state.data.equipped.weapon ??= { id:'fixture_weapon',uid:'fixture_weapon',name:'Fixture weapon',slot:'weapon',quality:'blue',durability:100,maxDurability:100,stars:1,sockets:1,gems:[],stats:{atk:35} };
+      if (!state.data.pets.length) { state.data.pets = [{id:'golden_dragon',level:1,exp:0,tier:'gold',stamina:100,apt:{str:1500,int:1000,dex:1200,con:1400},skills:[]}]; state.data.activePetId='golden_dragon'; }
       state.data.equipped.weapon.stats = { atk: 10000, hp: 20000, def: 1000 };
       state.data.bag = [{ id: 'pet_food', type: 'material', name: '兽肉', count: 15, uid: 'fixture_food' }];
       state.data.pets = [{ id: 'nightmare', level: 1, exp: 0, tier: 'darkgold', apt: { ...PET_CONFIGS.nightmare.defaultApt }, stamina: 100, skills: [] }];

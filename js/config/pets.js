@@ -1,4 +1,4 @@
-// 经典宠物系统配置：100% 还原《魔塔世界》百度百科 22 种经典神兽与原著特性
+// 经典神兽目录；有据的特性逐项还原，成长和未核实参数采用单机配置。
 
 export const PET_TIERS = {
   gold: { id: 'gold', name: '黄金宠物', badge: '黄金级', maxApt: 3000, color: '#f5c042' },
@@ -47,7 +47,7 @@ export const PET_CONFIGS = {
     quality: 'gold',
     defaultTier: 'gold',
     traitName: '再生',
-    traitDesc: '每回合自动回复角色 2.5% 的最大生命值。',
+    traitDesc: '每10秒自动回复角色 2.5% 的最大生命值。',
     baseBonus: { con: 30, def: 25, maxHp: 180 },
     growth: { con: 4.8, def: 3.5, maxHp: 25 },
     defaultApt: { str: 1200, int: 1200, dex: 1100, con: 1700 },
@@ -79,7 +79,7 @@ export const PET_CONFIGS = {
     quality: 'gold',
     defaultTier: 'gold',
     traitName: '虚弱',
-    traitDesc: '攻击时有 35% 几率使目标陷入【虚弱】，其攻击力降低 20%，持续 3 回合。',
+    traitDesc: '攻击时有 35% 几率使目标陷入【虚弱】，其攻击力降低 20%，持续目标的3次行动。',
     baseBonus: { dex: 30, atk: 30, speed: 8 },
     growth: { dex: 4.5, atk: 4.5, speed: 1.2 },
     defaultApt: { str: 1300, int: 1100, dex: 1600, con: 1200 },
@@ -141,11 +141,11 @@ export const PET_CONFIGS = {
     quality: 'gold',
     defaultTier: 'gold',
     traitName: '反击',
-    traitDesc: '受到任何物理或法术攻击时，有 30% 几率发起强力反击。',
+    traitDesc: '受到攻击时，反击几率增加 10%；反击不触发附加效果。',
     baseBonus: { str: 32, con: 32, counter: 25 },
     growth: { str: 4.8, con: 4.8, counter: 0.6 },
     defaultApt: { str: 1650, int: 1000, dex: 1300, con: 1650 },
-    traitEffect: { counterBoost: 30 }
+    traitEffect: { counterBoost: 10 }
   },
   winter_wolf: {
     id: 'winter_wolf',
@@ -173,11 +173,11 @@ export const PET_CONFIGS = {
     quality: 'darkgold',
     defaultTier: 'darkgold',
     traitName: '复活',
-    traitDesc: '角色死亡时有 50% 几率浴火重生成立，复活后立即恢复 25% 生命值（每场战斗限 1 次）。',
+    traitDesc: '角色死亡时有 30% 几率复活，恢复 20% 最大生命值（每场战斗尝试 1 次）。',
     baseBonus: { con: 40, atk: 45, maxHp: 300 },
     growth: { con: 6.0, atk: 6.5, maxHp: 40 },
     defaultApt: { str: 1400, int: 1600, dex: 1300, con: 2000 },
-    traitEffect: { reviveChance: 50, reviveHpPct: 0.25 }
+    traitEffect: { reviveChance: 30, reviveHpPct: 0.2 }
   },
   naga: {
     id: 'naga',
@@ -203,11 +203,11 @@ export const PET_CONFIGS = {
     quality: 'darkgold',
     defaultTier: 'darkgold',
     traitName: '假死',
-    traitDesc: '当受到足以致死的致命一击时，有 35% 几率触发假死，使本次攻击伤害完全无效！',
+    traitDesc: '每次受到致命攻击（含反击）时，有 50% 几率使本次攻击无效；持续伤害无法通过假死避免。',
     baseBonus: { dex: 38, dodge: 10, speed: 14 },
     growth: { dex: 5.5, dodge: 0.6, speed: 1.8 },
     defaultApt: { str: 1100, int: 1500, dex: 1900, con: 1300 },
-    traitEffect: { feignDeathChance: 35 }
+    traitEffect: { feignDeathChance: 50 }
   },
 
   // === 50 <= LV ===
@@ -314,7 +314,7 @@ export const PET_CONFIGS = {
     quality: 'purplegold',
     defaultTier: 'darkgold',
     traitName: '毒刺',
-    traitDesc: '攻击时使目标剧毒深陷，每回合受到该次伤害 15% 的持续流血剧毒！',
+    traitDesc: '攻击时使目标中毒，每10秒受到该次伤害15%的毒伤，结算2次；再次命中刷新。',
     baseBonus: { dex: 50, atk: 60, speed: 20 },
     growth: { dex: 7.0, atk: 8.0, speed: 2.8 },
     defaultApt: { str: 1600, int: 1600, dex: 2250, con: 1800 },

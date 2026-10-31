@@ -153,7 +153,7 @@ export const ROYAL_TRIALS = [
   },
   {
     level: 80,
-    fameReq: 7000,
+    fameReq: 5000,
     title: '绝地',
     badge: '【绝地】之封号',
     icon: 'trial_jedi',

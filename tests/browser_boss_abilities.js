@@ -8,16 +8,19 @@ async (page) => {
     try {
       await game.goto('http://127.0.0.1:8088', { timeout: 60000 });
       await game.locator('[data-class-id="warrior"]').click(); await game.locator('#btn-confirm-character').click();
+      while (await game.evaluate(() => window.gameModal.isOpen)) await game.locator('#game-modal-btn-confirm').click();
       // Isolated boss/gear/pet fixture: integration and counterplay, not natural progression.
       await game.evaluate(async ({ floor, petId, purify }) => {
         const { PET_CONFIGS } = await import('/js/config/pets.js');
+        const { SPECIAL_ITEMS } = await import('/js/config/items.js');
         const state = window.gameState;
         state.data.level = floor; state.data.currentQuestId = 'completed';
+        for (let chapter = 1; chapter <= 26; chapter++) state.data.questProgress['quest_' + chapter] = { current: 1, completed: true, claimed: true };
         state.data.equipped = { weapon: { id: 'boss_fixture', name: 'Test sword', slot: 'weapon', durability: 100, maxDurability: 100, stats: { atk: floor === 100 ? 10000 : 0, hp: 1000000 }, sockets: 0, gems: [] } };
         state.data.pets = [{ id: petId, level: 1, exp: 0, tier: PET_CONFIGS[petId].defaultTier, apt: { ...PET_CONFIGS[petId].defaultApt }, stamina: 100, skills: [] }];
         state.data.activePetId = petId;
-        state.data.bag = state.data.bag.filter(item => item.id === 'pet_food');
-        Object.assign(state.data.castle, { floor, isExploring: true, finished: false });
+        state.data.bag = [{ ...SPECIAL_ITEMS.pet_food, uid: 'boss_food_fixture', count: 1 }];
+        Object.assign(state.data.castle, { floor, isExploring: true, expeditionId: "tower-fixture", finished: false });
         state.notify();
       }, { floor, petId, purify });
       if (purify) {

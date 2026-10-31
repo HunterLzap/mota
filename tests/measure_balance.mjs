@@ -8,6 +8,7 @@ const { CLASSES } = await import('../js/config/classes.js');
 const { ROYAL_TRIALS } = await import('../js/config/trials.js');
 const { runCombat } = await import('../js/core/combat.js');
 const { getTowerFloorData } = await import('../js/config/towerLevels.js');
+const { DRAGON_TRIALS } = await import('../js/config/dragonSlaying.js');
 let seed = 406;
 Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
 const rows = [];
@@ -40,7 +41,7 @@ for (const classId of Object.keys(CLASSES)) {
       rates.push({ enemy: enemy.name, winPct: wins * 2.5, meanTurns: +(turns / 40).toFixed(1) });
     }
     rows.push({ classId, level: state.data.level, elapsedHours: +(minutes / 60).toFixed(2),
-      gold: state.data.gold, crystal: state.data.crystal, petLevel: state.data.pets[0].level, rates });
+      gold: state.data.gold, crystal: state.data.crystal, petLevel: state.data.pets[0]?.level ?? null, rates });
   }
 }
 
@@ -61,6 +62,7 @@ for (const classId of Object.keys(CLASSES)) {
   let lastTrialLevel = 0;
   const checkpoints = [];
   const counterplaySamples = [];
+  const dragonSamples = [];
   const score = item => Object.entries(item?.stats || {}).reduce((sum, [key, value]) =>
     sum + value * ({ atk: 3, def: 2, hp: 0.1, maxHp: 0.1, speed: 1, crit: 3, [primary]: 5 }[key] || 0), 0);
   while (state.data.level < 100 && battles < 25000) {
@@ -75,7 +77,7 @@ for (const classId of Object.keys(CLASSES)) {
     if (Object.values(state.data.equipped).some(item => item && item.durability < 20)) {
       if (state.repairAllEquipment().success) repairs++;
     }
-    if (state.data.pets[0].stamina < 65 && state.feedPet(state.data.pets[0].id).success) foodUsed++;
+    if (state.data.pets[0] && state.data.pets[0].stamina < 65 && state.feedPet(state.data.pets[0].id).success) foodUsed++;
     let won = false;
     const maps = MAPS.filter(map => map.reqLevel <= state.data.level).reverse();
     for (const map of maps) {
@@ -117,6 +119,25 @@ for (const classId of Object.keys(CLASSES)) {
       else { losses++; promotionFailures.push({ stage: stage + 1, level: state.data.level }); }
       state.completeBattle();
     }
+    for (const dragon of DRAGON_TRIALS) {
+      if (state.data.level < dragon.minLevel || dragonSamples.some(sample => sample.dragonId === dragon.id)) continue;
+      const earnedStats = state.getEffectiveStats(); const earnedData = JSON.parse(JSON.stringify(state.data)); const resumeSeed = seed;
+      const variants = [];
+      for (const enabled of [false, true]) {
+        let wins = 0, totalTurns = 0, casts = 0;
+        const enemy = enabled ? dragon : { ...dragon, abilities: [] };
+        for (let sample = 0; sample < 200; sample++) {
+          seed = 406 + sample;
+          const result = runCombat(earnedStats, { ...enemy, speed: 20 }, { ...earnedData, isCastleExplore: false }, enemy);
+          wins += Number(result.victory); totalTurns += result.logs.at(-1).turn;
+          casts += result.logs.filter(log => log.message.includes('施展【' + dragon.abilities[0].name + '】')).length;
+        }
+        variants.push({ enabled, winPct: wins / 2, meanTurns: totalTurns / 200, meanCasts: casts / 200 });
+      }
+      seed = resumeSeed;
+      dragonSamples.push({ dragonId: dragon.id, characterLevel: state.data.level, promotionStage: state.data.royalTrials.completedStage,
+        variants, scenario: 'Frozen naturally earned character; 200 paired seeds without castle revival, sampled fights grant no rewards' });
+    }
     for (const floor of [50, 60]) {
       if (state.data.level < floor || counterplaySamples.some(sample => sample.floor === floor)) continue;
       const tower = getTowerFloorData(floor);
@@ -146,7 +167,7 @@ for (const classId of Object.keys(CLASSES)) {
         let towerWins = 0;
         for (let sample = 0; sample < 40; sample++) towerWins += Number(runCombat(state.getEffectiveStats(), tower, { ...state.data, isCastleExplore: true }, tower).victory);
         checkpoints.push({ level: milestone, battles, losses, turns, gold: state.data.gold, foodUsed, sameLevelTowerBossWinPct: towerWins * 2.5,
-          foodLeft: state.data.bag.find(item => item.id === 'pet_food')?.count || 0, petLevel: state.data.pets[0].level, repairs });
+          foodLeft: state.data.bag.find(item => item.id === 'pet_food')?.count || 0, petLevel: state.data.pets[0]?.level ?? null, repairs });
       }
     }
   }
@@ -206,7 +227,7 @@ for (const classId of Object.keys(CLASSES)) {
   const points = state.data.freeStatPoints;
   assert.equal(state.brewPotion('pot_dragonblood').success, true);
   assert.equal(state.data.freeStatPoints - points, 5);
-  hunts.push({ classId, checkpoints, counterplaySamples, promotionStage: state.data.royalTrials.completedStage, promotionFailures, bossSamples, economicSamples,
+  hunts.push({ classId, checkpoints, counterplaySamples, dragonSamples, promotionStage: state.data.royalTrials.completedStage, promotionFailures, bossSamples, economicSamples,
     resourceRoute, endgameDiagnostics, naturalStats, naturalData, earnedResourceActions: ['reforge', 'enhance', 'ragePotion', 'permanentPotentialPotion'] });
 }
 console.log(JSON.stringify({ passive: {

@@ -17,7 +17,18 @@ async (page) => {
       throw new Error('Modal did not settle');
     };
     const data = () => game.evaluate(() => JSON.parse(JSON.stringify(window.gameState.data)));
-    const nav = async () => { await dismiss(); await game.locator('#btn-auto-nav-quest').click(); };
+    const nav = async () => {
+      await dismiss();
+      while (true) {
+        const action = await game.evaluate(async () => (await import('/js/core/journey.js')).getJourneyGuidance(window.gameState.data)?.action);
+        if (!['allocate_stats', 'feed_pet'].includes(action)) break;
+        await game.locator('#btn-next-journey').click();
+        await game.locator(action === 'allocate_stats' ? '#btn-recommended-stats' : '#btn-feed-pet').click();
+        await dismiss();
+      }
+      await game.locator('#btn-next-journey').click(); await dismiss();
+    };
+    const claim = async () => { await game.locator('#btn-claim-quest-reward').click(); await dismiss(); };
     const settleBattle = async () => {
       await game.locator('#btn-skip-battle').click();
       const won = await game.evaluate(() => window.appInstance.battleView.currentCombat.victory);
@@ -30,77 +41,95 @@ async (page) => {
       await game.locator(`[data-class-id="${classId}"]`).click();
       await game.locator('#input-hero-name').fill(`Test ${classId}`);
       await game.locator('#btn-confirm-character').click();
+      const empty = await data();
+      if (empty.bag.length || empty.pets.length || Object.values(empty.equipped).some(Boolean) || empty.gold || empty.crystal || empty.prestige) throw new Error('New save preloaded possessions');
+      await dismiss();
       await game.reload();
       if ((await data()).classId !== classId || await game.locator('#btn-confirm-character').isVisible()) throw new Error('Class persistence failed');
-      await nav();
-      await game.locator('#btn-claim-salary').click();
-      await dismiss();
-      if ((await data()).currentQuestId !== 'quest_2') throw new Error('Salary quest failed');
-      await nav();
-      for (let attempt = 0; attempt < 8 && (await data()).currentQuestId === 'quest_2'; attempt++) {
-        await game.locator('#btn-do-enhance').click();
-        await dismiss();
+      if ((await data()).currentQuestId !== 'quest_2') throw new Error('Guard commission failed');
+      for (const id of ['novice_weapon', 'novice_armor']) {
+        const gear = (await data()).bag.find(item => item.id === id);
+        await game.locator('#nav-tab-bag').click();
+        await game.locator(`[data-bag-uid="${gear.uid}"]`).click();
+        await game.locator('#btn-bag-equip-item').click(); await dismiss();
       }
-      if ((await data()).currentQuestId !== 'quest_3') throw new Error('Enhancement quest failed');
       await nav();
+      await game.locator('.btn-fight-mob').first().click();
+      if (!await settleBattle()) throw new Error('First investigation lost');
+      await claim();
+      if ((await data()).currentQuestId !== 'quest_3') throw new Error('Investigation quest failed');
+      await nav();
+      await game.locator('#btn-do-enhance').click(); await dismiss(); await claim();
+      if ((await data()).currentQuestId !== 'quest_4') throw new Error('Enhancement quest failed');
+      await nav();
+      await game.locator('#btn-hatch-egg').click(); await dismiss();
       await game.locator('#btn-toggle-active-pet').click();
-      await dismiss();
-      await nav();
-      await game.locator('#btn-do-wash-apt').click();
-      await dismiss();
+      await dismiss(); await claim();
       await nav();
       await game.locator('.btn-learn-skill[data-book-id="book_crit"]').click();
-      await dismiss();
+      await dismiss(); await claim();
       if ((await data()).currentQuestId !== 'quest_6') throw new Error('Pet quest chain failed');
       await nav();
       await game.locator('#btn-start-redwood').click();
       await dismiss();
       await game.locator('#btn-challenge-castle-floor').click();
       if (!await settleBattle()) throw new Error('First floor lost');
+      await claim();
       if ((await data()).currentQuestId !== 'quest_7') throw new Error('Tower reward did not progress quest');
       await nav();
-      await game.locator('.btn-brew-potion').first().click();
-      await dismiss();
+      await game.locator('#btn-claim-castle-exit').click(); await dismiss();
       await nav();
-      await game.locator('.btn-hire-merc[data-merc-id="merc_cleric"]').click();
-      await dismiss();
+      await game.locator('.btn-brew-potion').first().click();
+      await dismiss(); await claim();
+      await nav();
+      const mercId = { warrior: 'merc_cleric', hunter: 'merc_bard', mage: 'merc_paladin' }[classId];
+      await game.locator(`.btn-hire-merc[data-merc-id="${mercId}"]`).click();
+      await dismiss(); await claim();
       if ((await data()).currentQuestId !== 'quest_9') throw new Error('Estate quest chain failed');
       await nav();
-      let floors = 1;
-      for (; floors < 10; floors++) {
+      await game.locator('#btn-start-redwood').click(); await dismiss();
+      for (let floor = 1; floor <= 10; floor++) {
         await game.locator('#btn-challenge-castle-floor').click();
-        if (!await settleBattle()) throw new Error(`Tower lost at ${floors + 1}`);
+        if (!await settleBattle()) throw new Error(`Tower lost at ${floor}`);
       }
+      await claim();
       const before = await data();
       if (before.castle.maxReachedFloor !== 10 || before.currentQuestId !== 'quest_10') throw new Error('Floor 10 progress wrong');
       await game.locator('#btn-claim-castle-exit').click();
       await dismiss();
+      const courage = (await data()).bag.find(item => item.id === 'courage_sword');
+      await game.locator('#nav-tab-bag').click();
+      await game.locator(`[data-bag-uid="${courage.uid}"]`).click();
+      await game.locator('#btn-bag-equip-item').click(); await dismiss();
       await nav();
+      await game.locator('#btn-punch-socket').click(); await dismiss();
       await game.locator('.btn-select-bag-gem').first().click();
       await game.locator('.btn-inlay-gem').first().click();
-      await dismiss();
+      await dismiss(); await claim();
       if ((await data()).currentQuestId !== 'quest_11') throw new Error('Gem quest failed');
-      // Normal reward progression: repeatedly defeat the accessible forest boss.
-      await game.locator('#nav-tab-wild').click();
+      // Earn levels through the finite investigations offered to a new character.
       let bossWins = 0;
       let mobWins = 0;
-      while ((await data()).level < 20 && bossWins + mobWins < 400) {
-        const isBoss = (await data()).level >= 15;
-        if (isBoss) await game.locator('#btn-fight-wild-boss').click();
-        else await game.locator('.btn-fight-mob').last().click();
-        if (!await settleBattle()) throw new Error(`Forest fight lost after ${bossWins} boss / ${mobWins} mob wins`);
-        if (isBoss) bossWins++; else mobWins++;
-        const current = await data();
-        if (current.pets.find(pet => pet.id === current.activePetId).stamina < 65) {
-          await game.locator('#nav-tab-pets').click();
-          await game.locator('#pet-subtab-overview').click();
-          await game.locator('#btn-feed-pet').click();
-          await dismiss();
-          await game.locator('#nav-tab-wild').click();
+      for (const [eventId, count, isBoss] of [['patrol_tracks', 4, false], ['patrol_wolf', 1, true]]) {
+        await nav();
+        for (let i = 0; i < count; i++) {
+          await game.locator(isBoss ? '#btn-fight-wild-boss' : '.btn-fight-mob').last().click();
+          if (!await settleBattle()) throw new Error('Earned investigation lost: ' + eventId);
+          if (isBoss) bossWins++; else mobWins++;
+          // Allocate newly earned potential between successive investigation fights.
+          if (i < count - 1) await nav();
         }
+        if (!(await data()).questProgress[eventId]?.completed) throw new Error('Investigation not completed: ' + eventId);
+        await game.locator('#btn-next-journey').click(); await dismiss();
+        if (!(await data()).questProgress[eventId]?.claimed) throw new Error('Investigation not delivered: ' + eventId);
       }
       if ((await data()).level < 20) throw new Error('Normal rewards did not reach level 20');
+      await game.locator('#nav-tab-hero').click();
+      if (await game.locator('#btn-recommended-stats').isEnabled()) await game.locator('#btn-recommended-stats').click();
       await game.locator('#nav-tab-town').click();
+      if (await game.locator('[data-goto="smithy"]').first().isVisible()) {
+        await game.locator('[data-goto="smithy"]').first().click();
+      }
       if (await game.locator('[data-goto="hub"]').first().isVisible()) {
         await game.locator('[data-goto="hub"]').first().click();
       }

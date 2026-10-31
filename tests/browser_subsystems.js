@@ -29,6 +29,7 @@ async (page) => {
     await game.evaluate(() => {
       const data = window.gameState.data;
       data.level = 80; data.gold = 1000000; data.crystal = 100000; data.prestige = 100000;
+      data.equipped.weapon ??= { id:'fixture_weapon',uid:'fixture_weapon',name:'Fixture weapon',slot:'weapon',quality:'blue',durability:100,maxDurability:100,stars:1,sockets:1,gems:[],stats:{atk:35} };
       data.equipped.weapon.stats = { atk: 100000, hp: 1000000, def: 10000 };
       window.gameState.notify();
     });

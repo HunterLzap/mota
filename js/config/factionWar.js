@@ -115,7 +115,7 @@ export const FACTION_REWARDS = [
     type: "box",
     quality: "darkgold",
     icon: "images/items/star_crystal.svg",
-    desc: "开启必定随机获得一枚珍稀远古神铸符文石！"
+    desc: "兑换时直接从全部8种远古符文中随机获得1枚，立即收入行囊。"
   },
   {
     id: "key_mithril",

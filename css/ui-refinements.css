@@ -1,0 +1,255 @@
+/* Scene artwork sits behind the live character controls and estate entrances. */
+.classic-client .classic-command-dock {
+  background: linear-gradient(#151a16a8, #11151044 48%, #11150ee6),
+    url('../images/scenes/royal-capital.png') 48% 60% / cover no-repeat;
+}
+.classic-client main #tab-content-estate .btn-estate-goto {
+  position: relative; isolation: isolate; overflow: hidden !important;
+  background: #1f211b !important; border-color: #857151 !important;
+  box-shadow: inset 0 0 0 1px #19170f, 0 3px 8px #0005 !important;
+}
+.classic-client #tab-content-estate [data-goto="resources"] { --facility-x: 100%; }
+.classic-client #tab-content-estate [data-goto="mercenaries"] { --facility-y: 100%; }
+.classic-client #tab-content-estate [data-goto="slaves"] { --facility-x: 100%; --facility-y: 100%; }
+.classic-client #tab-content-estate .estate-facility-art {
+  position: absolute; inset: 0; z-index: -2; pointer-events: none;
+  background: url('../images/scenes/estate-facilities.png') var(--facility-x,0%) var(--facility-y,0%) / 200% 200% no-repeat;
+}
+.classic-client #tab-content-estate .btn-estate-goto::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, #10130ee8, #11140fa6 48%, #10130e24),
+    linear-gradient(0deg, #0c100de8, transparent 46%, #10130e45);
+}
+.classic-client main #tab-content-estate .btn-estate-goto,
+.classic-client main #tab-content-estate .btn-estate-goto * {
+  color: #f0e3c5 !important; text-shadow: 0 1px 2px #0b0c09 !important;
+}
+.classic-client main #tab-content-estate .btn-estate-goto h3 { font-size: 16px; }
+.classic-client main #tab-content-estate .btn-estate-goto p { color: #d6c7a5 !important; font-size: 12px; }
+.classic-client main #tab-content-estate .btn-estate-goto [class*="bg-"] {
+  background-color: #11160dcc !important; border-color: #8c805c70 !important;
+}
+.classic-client main #tab-content-estate .btn-estate-goto.feature-locked .estate-facility-art {
+  filter: saturate(.5) brightness(.8);
+}
+.classic-client main #tab-content-estate .btn-estate-goto:hover { border-color: #d4b36e !important; }
+.classic-client main #tab-content-estate .btn-estate-goto .feature-lock-hint {
+  width: fit-content; padding: 2px 5px; background: #171a13e6; color: #e6d4a7 !important;
+}
+
+/* A short readiness cue leads; the full tactical reference stays collapsible. */
+#tab-content-pets .pet-party-strip > div { padding: 3px 7px; gap: 6px; }
+#tab-content-pets .pet-party-strip small { display: block; margin-top: 0; font-size: 10px; color: #655032; }
+#tab-content-pets .pet-party-strip .pet-party-vacant { color: #715d41; }
+#tab-content-pets .pet-party-next { margin: 0; color: #614322; line-height: 1.3; font-size: 11px; }
+#tab-content-pets .pet-synergy-summary { padding: 0; }
+#tab-content-pets .pet-synergy-summary[open] { max-height: 190px; }
+#tab-content-pets .pet-synergy-summary summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 3px 9px; list-style: none; font-weight: normal;
+}
+#tab-content-pets .pet-synergy-summary summary::-webkit-details-marker { display: none; }
+#tab-content-pets .pet-synergy-summary summary > span:first-child { font-weight: bold; }
+#tab-content-pets .pet-guide-toggle {
+  flex-shrink: 0; padding-right: 13px; position: relative; text-decoration: underline; text-underline-offset: 3px;
+}
+#tab-content-pets .pet-guide-toggle::after {
+  content: ''; position: absolute; right: 0; top: 3px;
+  width: 6px; height: 6px; border-right: 1px solid; border-bottom: 1px solid; transform: rotate(45deg);
+}
+#tab-content-pets .pet-synergy-summary[open] .pet-guide-toggle::after { top: 6px; transform: rotate(225deg); }
+#tab-content-pets .pet-synergy-guide { padding: 0 9px 8px; }
+#tab-content-pets .pet-synergy-guide p { margin: 0 0 7px; }
+#tab-content-pets .pet-guide-mercenary { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#tab-content-pets .pet-guide-mercenary button { min-height: 25px; padding: 3px 9px; }
+#tab-content-pets .pet-synergy-guide h4 { margin: 10px 0 5px; font-weight: bold; }
+#tab-content-pets .pet-formation-option {
+  display: grid; grid-template-columns: 34px minmax(0,1fr) 76px; gap: 7px;
+  align-items: center; border-top: 1px solid #aa8d60; padding: 6px 0;
+}
+#tab-content-pets .pet-formation-option > strong { color: #703d22; }
+#tab-content-pets .pet-formation-option button { text-decoration: underline; text-underline-offset: 2px; margin: 4px 10px 0 0; }
+#tab-content-pets .pet-formation-option > small { text-align: right; color: #665031; }
+#tab-content-pets .pet-formation-option[data-matched="true"] > small { color: #2e542f; font-weight: bold; }
+#tab-content-pets .pet-classic-slots { grid-auto-rows: 62px; gap: 6px; padding: 8px; }
+.classic-client #tab-content-pets .pet-slot-icon {
+  position: relative; width: 45px; height: 45px; padding: 0; overflow: hidden;
+  border: 2px solid #8c805f; box-shadow: 0 2px 4px #0005;
+}
+#tab-content-pets .pet-slot-icon .pet-portrait-art { inset: 0; aspect-ratio: 1; }
+#tab-content-pets .pet-slot-copy b { white-space: normal; font-size: 13px; }
+#tab-content-pets .pet-slot-copy small { white-space: normal; font-size: 11px; line-height: 1.4; }
+#tab-content-pets .pet-detail-portrait { overflow: hidden; }
+#tab-content-pets .pet-detail-identity { padding: 8px 10px; gap: 10px; }
+#tab-content-pets .pet-detail-portrait { height: 146px; }
+#tab-content-pets .pet-overview-actions { margin: 0 12px 8px; }
+#tab-content-pets .pet-classic-slots,
+#tab-content-pets .pet-classic-detail { overflow-anchor: none; scrollbar-gutter: stable; }
+
+/* Bigger vector artwork, a readable name, and a consistent quality edge. */
+.classic-client .bag-items { gap: 7px; padding: 9px; align-items: stretch; justify-items: stretch; }
+.classic-client #tab-content-bag :is(.bag-slot-cell,.bag-slot-empty) {
+  width: 100%; height: auto; max-height: 78px; max-width: 78px; min-width: 0;
+  aspect-ratio: 1; margin: auto; padding: 4px 3px 7px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+}
+.classic-client #tab-content-bag .bag-slot-art {
+  display: block; width: min(100%,44px); flex: 1; min-height: 0; max-height: 44px;
+}
+.classic-client #tab-content-bag .bag-slot-name {
+  display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  width: 100%; flex-shrink: 0; padding: 0 2px;
+  font-size: 11px; line-height: 14px; color: #e9dabb !important;
+}
+.classic-client #tab-content-bag .bag-slot-cell::after { bottom: 2px; left: 4px; right: 4px; }
+.classic-client #tab-content-bag .bag-slot-count { bottom: 23px; right: 3px; }
+.classic-client #tab-content-bag .bag-slot-stars { top: 3px; right: 3px; }
+.classic-client #tab-content-bag .bag-slot-cell[aria-pressed="true"] {
+  outline-color: #e1ba76; background: #48402b !important;
+}
+.classic-client #tab-content-bag .bag-slot-empty {
+  background: #252820 !important; box-shadow: inset 0 2px 8px #10150c80; opacity: .5;
+}
+.classic-client main .bag-item-icon { width: 64px; height: 64px; padding: 7px; flex-shrink: 0; }
+.classic-client main .bag-item-icon::after { content: ''; display: block; border-bottom: 2px solid var(--item-quality); }
+.classic-client .bag-item-title h3 { font-size: 16px; color: #603919; }
+.classic-client .bag-item-description { margin-top: 9px; line-height: 1.8; }
+.classic-client .bag-action-hint { margin: 0 0 6px; text-align: center; font-size: 12px; color: #634c2c; }
+.classic-client .bag-detail-tabs { display: flex; gap: 5px; }
+.classic-client .bag-tools select { min-height: 28px; }
+
+/* Equipment slots retain the familiar two wings and the hero in the center. */
+.classic-client .equip-equipment-columns {
+  grid-template-columns: minmax(0,1fr) minmax(0,1.45fr) minmax(0,1fr); gap: 8px;
+}
+.classic-client .equip-equipment-columns > div { grid-column: auto; min-width: 0; padding: 8px; }
+.classic-client .equip-slot-list { gap: 6px; }
+.classic-client .equip-slot-list [data-equip-slot] {
+  border-radius: 0; border-color: #9f8964; gap: 7px; padding: 6px;
+  background: #7154320f !important;
+}
+.classic-client .equip-workbench .equip-slot-list .equip-slot-icon {
+  width: 44px; height: 44px; padding: 4px; border-bottom-color: var(--item-quality);
+}
+.classic-client .equip-part-label { display: block; font-size: 10px; color: #79613f; margin-bottom: 3px; }
+.classic-client .equip-slot-name {
+  display: block; width: 100%; text-align: left; color: #57371e !important;
+  font-weight: bold; font-size: 12px; line-height: 1.5;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.classic-client .equip-slot-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.classic-client .equip-slot-copy .text-\[10px\] { flex-wrap: wrap; font-size: 10px; line-height: 1.5; }
+.classic-client [data-equipped="false"] .equip-slot-name { font-weight: normal; color: #715734 !important; }
+.classic-client .equip-slot-list .btn-unequip-gear { padding: 4px; font-size: 10px; flex-shrink: 0; }
+.classic-client .equip-character-sheet { grid-template-columns: minmax(0,1fr) 112px; gap: 8px; }
+.classic-client .equip-body-portrait { width: 112px; height: 224px; }
+.classic-client .equip-character-sheet .equip-effective-stats dd { font-size: 12px; }
+.classic-client .equip-character-sheet .equip-effective-stats dt { font-size: 11px; }
+.classic-client .equip-actions { flex-wrap: wrap; gap: 6px; }
+@media (max-height: 820px) {
+  #tab-content-pets .pet-party-strip > div { padding-top: 3px; padding-bottom: 3px; }
+  #tab-content-pets .pet-synergy-summary[open] { max-height: 140px; }
+  #tab-content-pets .pet-classic-slots { grid-auto-rows: 56px; }
+  .classic-client .equip-body-portrait { width: 90px; height: 180px; }
+  .classic-client .equip-character-sheet { grid-template-columns: minmax(0,1fr) 90px; }
+}
+@media (max-width: 1300px) {
+  #tab-content-pets .pet-classic-workspace { grid-template-columns: minmax(250px,36%) minmax(0,1fr); }
+  #tab-content-pets .pet-classic-slots { padding: 6px; gap: 5px; }
+  .classic-client #tab-content-pets .pet-slot-icon { width: 38px; height: 38px; }
+  .classic-client .equip-character-sheet { grid-template-columns: minmax(0,1fr); }
+  .classic-client .equip-body-portrait { display: none; }
+}
+@media (max-width: 700px) {
+  #tab-content-pets .pet-party-strip { grid-template-columns: minmax(0,1fr); gap: 3px; }
+  #tab-content-pets .pet-party-strip small { display: inline; margin-left: 6px; }
+  #tab-content-pets .pet-classic-workspace { grid-template-columns: minmax(120px,36%) minmax(0,1fr); }
+  #tab-content-pets .pet-classic-slots { grid-template-columns: minmax(0,1fr); }
+  #tab-content-pets .pet-classic-tabs { flex-wrap: wrap; }
+  #tab-content-pets .pet-classic-tabs button { padding: 3px 6px; }
+  #tab-content-pets .pet-detail-identity { grid-template-columns: minmax(0,1fr); }
+  #tab-content-pets .pet-detail-portrait { width: 110px; height: 130px; }
+  .classic-client .equip-equipment-columns { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .classic-client .equip-equipment-columns > div:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .classic-client .equip-equipment-columns > div:nth-child(3) { grid-column: 2; grid-row: 1; }
+}
+
+/* The six existing crafts share a workbench, an inventory and a pinned action row. */
+.classic-client main .smithy-workshop {
+  height: 100%; min-height: 0; padding: 6px 8px 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.classic-client .smithy-workshop-heading {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  padding: 5px 9px; border: 1px solid #796545; background: #292d24;
+}
+.classic-client main .smithy-workshop-heading h2 { color: #f1dfb9 !important; font-size: 15px; font-weight: bold; }
+.classic-client .smithy-home { text-align: left; }
+.classic-client .smithy-home:hover { text-decoration: underline; text-underline-offset: 3px; }
+.classic-client main .smithy-workshop-heading p { color: #d1c3a3 !important; font-size: 12px; }
+.classic-client .smithy-workshop-heading > button { margin-left: auto; padding: 4px 12px; flex-shrink: 0; }
+.classic-client .smithy-npc-portrait { width: 42px; height: 48px; flex-shrink: 0; border: 1px solid #94805c; background-color: #171d17; background-size: 900% auto; background-position: 12.5% -8px; }
+.classic-client .smithy-workshop-tabs { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 4px; flex-shrink: 0; }
+.classic-client .smithy-workshop-tabs button { padding: 4px 7px; font-size: 13px; }
+.classic-client .smithy-workshop-tabs [aria-pressed="true"] { outline: 2px solid #9e783a; outline-offset: -2px; }
+.classic-client .smithy-workshop-tabs .feature-lock-hint { font-size: 10px; white-space: normal; }
+.classic-client .smithy-workshop-body { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); gap: 8px; flex: 1; min-height: 0; }
+.classic-client .smithy-workshop-body > .smithy-detail { overflow: hidden; padding: 9px; }
+.classic-client .smithy-workshop-body > .smithy-detail > .smithy-scroll { overflow-y: auto; overflow-x: hidden; }
+.classic-client .smithy-workshop .smithy-action-bar { flex: 0 0 auto; margin-top: 6px; padding-top: 6px; }
+.classic-client .smithy-workshop .smithy-action-bar > button { padding-top: 7px; padding-bottom: 7px; }
+.classic-client .smithy-workshop .smithy-workshop-inventory { display: flex; flex-direction: column; gap: 7px; min-width: 0; min-height: 0; }
+.classic-client .smithy-workshop-inventory .smithy-slot-panel { flex: 0 1 46%; overflow: hidden; padding: 6px; }
+.classic-client .smithy-workshop-inventory .smithy-slot-grid { grid-template-rows: none; grid-auto-rows: minmax(46px,auto); margin: 5px 0; gap: 4px; }
+.classic-client .smithy-workshop-inventory .smithy-slot-note { font-size: 11px; }
+.classic-client .smithy-workshop-inventory .smithy-slot-button { padding: 3px; gap: 5px; }
+.classic-client .smithy-workshop-inventory .smithy-slot-item { font-size: 11px; }
+.classic-client .smithy-workshop-inventory .smithy-item-icon { width: 28px; height: 28px; }
+.classic-client .smithy-workshop .smithy-heading { padding: 5px 8px; font-size: 12px; }
+.classic-client .smithy-workshop-bag { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; padding: 6px; }
+.classic-client .smithy-workshop-bag > .smithy-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.classic-client .smithy-workshop-bag > .smithy-heading button { font-size: 11px; padding: 2px 7px; }
+.classic-client .smithy-bag-scroll { flex: 1; overflow-y: auto; min-height: 0; scrollbar-gutter: stable; padding: 5px 2px; }
+.classic-client .smithy-bag-note { padding-top: 3px; font-size: 11px; color: #635035; }
+.classic-client .smithy-bag-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); align-items: start; gap: 5px; }
+.classic-client .smithy-bag-item { min-width: 0; background: #c3a77744; border: 1px solid #a0885d; font-size: 11px; }
+.classic-client .smithy-bag-item summary { cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 4px 2px; list-style: none; text-align: center; overflow-wrap: anywhere; }
+.classic-client .smithy-bag-item summary::-webkit-details-marker { display: none; }
+.classic-client .smithy-bag-item summary .smithy-item-icon { width: 34px; height: 34px; }
+.classic-client .smithy-bag-item summary b { font-family: var(--font-game-numeric); font-variant-numeric: lining-nums tabular-nums; }
+.classic-client .smithy-bag-item p { padding: 4px; border-top: 1px solid #a0885d; overflow-wrap: anywhere; }
+.classic-client .smithy-workshop .smithy-material-panel { margin-bottom: 8px; padding: 5px; max-height: 150px; }
+.classic-client .smithy-workshop .smithy-rune-recipes { overflow-y: auto; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.classic-client .smithy-workshop .smithy-repair-grid { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: none; flex: 1; }
+.classic-client .smithy-workshop .smithy-repair-cell { min-height: 115px; }
+.classic-client .smithy-workshop button:focus-visible,
+.classic-client .smithy-workshop summary:focus-visible,
+.classic-client .smithy-bag-scroll:focus-visible { outline: 2px solid #984522; outline-offset: -2px; }
+
+/* Portrait and prose occupy separate columns; the action strip never scrolls. */
+#game-modal-overlay #game-modal-box.npc-dialogue { max-width: 720px !important; }
+#game-modal-box.npc-dialogue > div:nth-child(2) {
+  display: grid; grid-template-columns: 160px minmax(0,1fr); align-items: start; gap: 18px;
+  overflow: hidden !important; padding: 16px !important;
+}
+#game-modal-box .npc-dialogue-portrait {
+  width: 160px; height: 220px; padding: 10px;
+  border: 3px ridge #84704e; background-color: #151b16;
+}
+#game-modal-box.npc-dialogue #game-modal-message {
+  min-width: 0; min-height: 0; max-height: calc(100vh - 270px); overflow-y: auto;
+  padding: 0 8px 0 0 !important; margin: 0 !important; white-space: normal;
+  scrollbar-width: thin; scrollbar-color: #8a6a3a #cdbb95;
+}
+#game-modal-box.npc-dialogue .npc-dialogue-name { margin: 0 0 10px; font-size: 16px; font-weight: bold; color: #63351e !important; }
+#game-modal-box.npc-dialogue .npc-dialogue-text { white-space: pre-line; line-height: 1.9; overflow-wrap: anywhere; }
+#game-modal-box.npc-dialogue #game-modal-actions { justify-content: center; }
+
+/* Constrain the grid row so the key column cannot push the guard action below it. */
+.classic-client #tab-content-tower .castle-workspace { min-height: 0; grid-template-rows: minmax(0,1fr); }
+.classic-client #tab-content-tower .castle-keys { min-height: 0; overflow: hidden; }
+.classic-client #tab-content-tower .castle-key-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.classic-client #tab-content-tower .castle-keys > div:last-child { flex-shrink: 0; }
+.classic-client #tab-content-tower .castle-guard { overflow: hidden; }
+.classic-client #tab-content-tower .castle-guard > div:first-child { flex: 1; }
+.classic-client #tab-content-tower .castle-guard > div:last-child { margin-top: 8px; }

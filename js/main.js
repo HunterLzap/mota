@@ -1,5 +1,7 @@
 // 游戏总控制器与主事件总线 (2010经典页游深度纯单机版)
 import { gameState } from './core/state.js';
+import { getJourneyGuidance, getOptionalEquipmentGoal } from './core/journey.js';
+import { MAPS } from './config/maps.js';
 import { storage } from './core/storage.js';
 import { sound } from './core/sound.js';
 import { TownView } from './ui/townView.js';
@@ -18,6 +20,8 @@ import { HeroView, EquipView } from './ui/heroView.js';
 import { renderGameIcon } from './ui/iconHelper.js';
 import { atmosphere } from './effects/atmosphere.js';
 import { gameModal } from './ui/modal.js';
+import { getQuestList } from './config/quests.js';
+import { getPlayerActionInterval } from './core/combat.js';
 
 class GameApp {
   constructor() {
@@ -68,12 +72,20 @@ class GameApp {
     // 挂载常驻右侧系统提示与动态日志
     this.systemLogView = new SystemLogView('system-log-mount');
 
+    let hadChosenClass = gameState.data.hasChosenClass;
     gameState.subscribe(() => {
+      const becameChosen = !hadChosenClass && gameState.data.hasChosenClass;
+      hadChosenClass = gameState.data.hasChosenClass;
       this.updateTopBar();
+      this.renderJourneyGuide();
       if (this.questTracker) this.questTracker.render();
       if (this.systemLogView) this.systemLogView.render();
       const curView = this.views[this.currentTab];
       if (curView && curView.render) curView.render();
+      if (becameChosen) {
+        const quest = getQuestList(gameState.data).find(q => q.id === gameState.data.currentQuestId);
+        if (quest) this.handleQuestNavigation(quest.targetTab, quest.targetAction);
+      }
     });
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -83,6 +95,13 @@ class GameApp {
     }
 
     this.bindHeaderEvents();
+    for (const [tab, key, label] of [
+      ['hero','ui_rank','人物'],['equip','ui_equip','装备'],['bag','ui_bag','行囊'],['pets','ui_pet','神兽'],
+      ['tower','ui_town','魔塔'],['town','ui_compass','王都'],['wild','ui_wild','野外'],['estate','ui_estate','庄园']
+    ]) {
+      const button = document.getElementById(`nav-tab-${tab}`);
+      if (button) button.innerHTML = renderGameIcon(key, { size: 'w-5 h-5', className: 'nav-art' }) + `<span>${label}</span>`;
+    }
     this.switchTab(this.currentTab);
     this.updateTopBar();
     if (this.questTracker) this.questTracker.render();
@@ -90,10 +109,63 @@ class GameApp {
 
     this.pushSystemTicker('【系统】欢迎来到《魔塔世界》！请留意右侧【任务追踪】，跟随主线一步步打造至强神装与神兽！');
     this.charSelectModal.open();
+    this.renderJourneyGuide();
+    window.completeGameStartup?.();
+  }
+
+  renderJourneyGuide() {
+    const guide = document.getElementById('journey-guide');
+    if (!guide) return;
+    const quest = getQuestList(gameState.data).find(q => q.id === gameState.data.currentQuestId);
+    if (!gameState.data.hasChosenClass) { guide.innerHTML = ''; return; }
+    const step = getJourneyGuidance(gameState.data);
+    if (!step) { guide.innerHTML = ''; return; }
+    const ready = step.ready;
+    const optional = getOptionalEquipmentGoal(gameState.data);
+    guide.innerHTML = `<div><h2>${ready ? step.title : '下一步：' + step.title}</h2><p>${step.text}</p></div>${optional ? `<button id="btn-optional-equipment-goal" class="mota-btn-dark" title="${optional.title} · 可选装备支线，不阻断主线">${optional.status === 'ready' ? '支线可交付' : '可选' + optional.slotName + '目标'}</button>` : ''}<button id="btn-next-journey" class="mota-btn-gold">${step.regionalReady ? '交付调查，领取补给' : ready ? '交付委托' : step.action === 'meet_guard' ? '与罗兰交谈' : '前往目标'}</button>`;
+    document.getElementById('btn-optional-equipment-goal')?.addEventListener('click', () => {
+      this.views.town.currentView = 'tavern_commissions';
+      this.switchTab('town');
+      const card = document.querySelector(`[data-commission-card="${optional.id}"]`);
+      card?.scrollIntoView({ block: 'nearest' });
+      const control = card?.querySelector('input, [data-commission-go], .btn-commission:not(:disabled)') ||
+        document.getElementById('commission-heading');
+      control?.focus({ preventScroll: true });
+    });
+    document.getElementById('btn-next-journey').onclick = () => {
+      if (step.regionalReady) {
+        const result = gameState.claimRegionalStory(step.event.id);
+        if (result.success) gameModal.alert(`${step.event.speaker}：调查记录已经收好。补给和口粮交给你，继续追查下一条线索。\n\n${result.exp ? `经验 +${result.exp}，` : '调查经验已随战斗获得，'}声望 +${step.event.prestige}，伙伴口粮 x3。`, step.event.title);
+      } else if (ready) document.getElementById('btn-claim-quest-reward')?.click();
+      else this.handleQuestNavigation(step.tab, step.action);
+    };
   }
 
   // 任务一键自动寻路逻辑
   handleQuestNavigation(targetTab, targetAction) {
+    if (targetAction === 'meet_guard') {
+      this.switchTab('town');
+      const quest = getQuestList(gameState.data)[0];
+      document.getElementById('btn-next-journey')?.focus();
+      gameModal.dialogue(quest.desc + '\n\n接受委托后领取武器和护胸，再去行囊穿戴。', () => {
+        const result = gameState.meetCityGuard();
+        if (result.success) { gameState.claimQuestReward('quest_1'); gameModal.toast('罗兰交给你武器和护胸。先穿好，再出城。'); this.handleQuestNavigation('bag', 'equip_gear'); }
+      }, null, { name: '守备官罗兰', portrait: 'warrior' }, { confirmLabel: '接受委托', cancelLabel: '稍后' });
+      return;
+    }
+    if (targetAction === 'regional_story') {
+      const event = getJourneyGuidance(gameState.data)?.event;
+      if (!event) return;
+      if (event.action === 'dungeon') { this.views.tower.subTab = 'dungeons'; this.views.tower.selectedGateId = event.target; this.switchTab('tower'); }
+      else { this.views.wild.selectedMapId = event.target; this.switchTab('wild'); }
+      return;
+    }
+    if (targetAction === 'epilogue') {
+      this.switchTab('town');
+      gameModal.alert('罗兰：巡逻队的幸存者已经回家。城外的道路终于恢复了往来。\n\n米拉：最初只是一份寻人的委托，没想到我们能走到这里。谢谢你没有放弃。\n\n赛拉：你的伙伴也该休息一下了。古门里还有未知的故事，等你准备好，我们再出发。\n\n你可以继续探索未通关的古门、培养新的伙伴，或挑战角斗场。', '王都的归途');
+      return;
+    }
+    if (targetAction === 'enhance' && !Object.values(gameState.data.equipped).some(Boolean)) targetTab = 'bag';
     this.switchTab(targetTab);
 
     // 细分建筑或子页面智能精准聚焦
@@ -115,16 +187,30 @@ class GameApp {
         this.views.town.render();
       } else if (targetAction === 'arena_duel') {
         this.views.town.currentView = 'palace_arena';
+        this.views.town.arenaSubTab = 'duel';
+        this.views.town.render();
+      } else if (targetAction === 'arena_shop') {
+        this.views.town.currentView = 'palace_arena';
+        this.views.town.arenaSubTab = 'shop';
+        this.views.town.render();
+      } else if (targetAction === 'earn_prestige') {
+        this.views.town.currentView = 'tavern_bounty';
         this.views.town.render();
       } else if (targetAction === 'reforge_gear') {
         this.views.town.currentView = 'smithy_reforge';
+        this.views.town.render();
+      } else if (targetAction === 'inscribe_runes' || targetAction === 'fish') {
+        this.views.town.currentView = targetAction === 'fish' ? 'fishing' : 'smithy_runes';
         this.views.town.render();
       } else if (targetAction === 'capture_stronghold') {
         this.views.town.currentView = 'faction_war';
         this.views.town.render();
       }
     } else if (targetTab === 'wild') {
-      if (targetAction === 'slay_wild_boss') {
+      if (targetAction === 'grow_in_wild') {
+        this.views.wild.selectedMapId = MAPS.filter(map => map.reqLevel <= gameState.data.level).at(-1).id;
+        this.views.wild.render();
+      } else if (targetAction === 'slay_wild_boss') {
         this.views.wild.selectedMapId = 'forest';
         this.views.wild.render();
       } else if (targetAction === 'catch_thief') {
@@ -137,8 +223,9 @@ class GameApp {
       } else if (targetAction === 'learn_skill') {
         this.views.pets.currentSubTab = 'skills';
         this.views.pets.render();
-      } else if (targetAction === 'set_active_pet') {
+      } else if (targetAction === 'set_active_pet' || targetAction === 'feed_pet') {
         this.views.pets.currentSubTab = 'overview';
+        if (targetAction === 'feed_pet') this.views.pets.selectedPetId = getJourneyGuidance(gameState.data)?.petId || gameState.data.activePetId;
         this.views.pets.render();
       }
     } else if (targetTab === 'estate') {
@@ -150,7 +237,10 @@ class GameApp {
         this.views.estate.render();
       }
     } else if (targetTab === 'tower') {
-      if (targetAction === 'clear_tower_1') {
+      if (targetAction === 'use_castle_key') {
+        this.views.tower.subTab = 'castle';
+        this.views.tower.render();
+      } else if (targetAction === 'clear_tower_1') {
         this.views.tower.subTab = 'castle';
         this.views.tower.selectedFloor = 1;
         this.views.tower.render();
@@ -162,7 +252,11 @@ class GameApp {
         this.views.tower.subTab = 'castle';
         this.views.tower.selectedFloor = 20;
         this.views.tower.render();
-      } else if (targetAction === 'clear_tower_70' || targetAction === 'clear_tower_100') {
+      } else if (targetAction === 'retry_finale') {
+        this.views.tower.subTab = 'castle';
+        this.views.tower.render();
+        requestAnimationFrame(() => document.querySelector('#btn-retry-finale')?.focus());
+      } else if (targetAction === 'clear_tower_70' || targetAction === 'clear_tower_100' || targetAction === 'withdraw_castle') {
         this.views.tower.subTab = 'castle';
         this.views.tower.render();
       } else if (targetAction === 'clear_dungeon' || targetAction === 'clear_dragon_gate' || targetAction === 'clear_spacetime_gate') {
@@ -222,6 +316,26 @@ class GameApp {
 
     const elActiveSlot = document.getElementById('header-active-slot-text');
     if (elActiveSlot) elActiveSlot.innerText = `存档 ${storage.getActiveSlotId()}`;
+    const text = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
+    for (const key of ['atk', 'def', 'speed', 'crit', 'hit', 'dodge']) {
+      text(`classic-stat-${key}`, ['crit', 'hit', 'dodge'].includes(key) ? `${Math.round(stats[key])}%` : Math.round(stats[key]).toLocaleString());
+    }
+    text('classic-stat-interval', getPlayerActionInterval(stats, gameState.data).toFixed(2));
+    text('classic-stat-counter', `${stats.counter}%`);
+    text('classic-stat-lifesteal', `${stats.lifesteal}%`);
+    text('classic-stat-magic-resist', stats.magicResist);
+    text('classic-stat-dmg-resist', `${stats.dmgResist}%`);
+    text('classic-adventure-note', `魔塔最高 ${data.castle?.maxReachedFloor || 0} 层 · 潜能 ${data.freeStatPoints || 0} 点`);
+    text('classic-dock-name', data.name);
+    text('classic-hp-orb-text', stats.hp.toLocaleString());
+    text('classic-mp-orb-text', stats.mp.toLocaleString());
+    document.documentElement.style.setProperty('--class-portrait-position', {warrior:'0%',mage:'50%',hunter:'100%'}[data.classId] || '0%');
+    document.documentElement.style.setProperty('--class-face-position', {warrior:'12.5%',mage:'50%',hunter:'87.5%'}[data.classId] || '12.5%');
+    for (const [selector, percent] of [['.classic-health-orb', hpPercent], ['.classic-mana-orb', mpPercent]]) {
+      const orb = document.querySelector(selector);
+      orb?.style.setProperty('--orb-fill', `${percent}%`);
+      orb?.setAttribute('aria-valuenow', String(percent));
+    }
   }
 
   pushSystemTicker(msg) {
@@ -231,6 +345,7 @@ class GameApp {
   }
 
   switchTab(tabName) {
+    if (this.battleView?.currentCombat) return;
     gameState.resetDailyActivities();
     this.currentTab = tabName;
     sound.playSlash();
@@ -257,6 +372,7 @@ class GameApp {
       const btn = document.getElementById(`nav-tab-${t}`);
       const pane = document.getElementById(`tab-content-${t}`);
       const isActive = (t === tabName);
+      btn?.setAttribute('aria-current', isActive ? 'page' : 'false');
 
       if (isActive) {
         if (btn) {
@@ -265,9 +381,6 @@ class GameApp {
         if (pane) {
           pane.classList.remove('hidden');
           pane.classList.add('block');
-        }
-        if (this.views[t]) {
-          this.views[t].render();
         }
       } else {
         if (btn) {
@@ -283,6 +396,9 @@ class GameApp {
         }
       }
     });
+    // Hide the previous pane before measuring the next view's available space.
+    // Rendering mid-loop briefly gives the bag half the height when leaving pets.
+    if (this.views[tabName]) this.views[tabName].render();
   }
 
   addStatPoint(type) {
@@ -295,6 +411,7 @@ class GameApp {
   }
 
   bindHeaderEvents() {
+    document.querySelectorAll('[data-classic-tab]').forEach(button => button.addEventListener('click', () => this.switchTab(button.dataset.classicTab)));
     ['tower', 'town', 'wild', 'estate', 'hero', 'equip', 'bag', 'pets'].forEach(t => {
       const btn = document.getElementById(`nav-tab-${t}`);
       if (btn) {

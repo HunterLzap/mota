@@ -1,4 +1,4 @@
-// 职业与国家阵营配置文件 (100% 贴合《魔塔世界》百度百科原著)
+// 职业与阵营配置：职业节奏有历史攻略依据，精确成长与技能系数采用单机方案。
 
 export const NATIONS = {
   sagael: {
@@ -36,6 +36,7 @@ export const NATIONS = {
 export const CLASSES = {
   warrior: {
     id: 'warrior',
+    baseActionInterval: 14,
     name: '战士',
     title: '近身战的王者',
     description: '拥有强劲的力量和体格，擅长近战武器，是队伍的中坚力量。以力量为主属性，精通反击与强袭！',
@@ -142,6 +143,9 @@ export const CLASSES = {
 
   hunter: {
     id: 'hunter',
+    baseActionInterval: 10,
+    // Solo balance: dexterity improves four combat axes as well as the fastest base cadence.
+    dexterityScaling: { atk: 1.3, speed: 0.65, crit: 0.055, dodge: 0.04 },
     name: '猎人',
     title: '敏捷灵动的丛林王者',
     description: '穿梭于茂密的森林，手持弓箭，身手矫健，与动物为伴。以敏捷为主属性，精通箭弩与控制！',
@@ -165,9 +169,10 @@ export const CLASSES = {
     growth: {
       hp: 28,
       mp: 12,
-      atk: 7.5,
+      // Keep the fast cadence; earned dexterity should matter more than automatic levels.
+      atk: 4.5,
       def: 3.0,
-      speed: 2.5
+      speed: 1.25
     },
     skills: [
       {
@@ -247,6 +252,7 @@ export const CLASSES = {
 
   mage: {
     id: 'mage',
+    baseActionInterval: 12,
     name: '法师',
     title: '超自然力的掌控者',
     description: '运用古亚诺魔法武装自己，精通法术来弥补体格不足。以智力为主属性，兼具吸血与元素护盾！',
@@ -297,7 +303,7 @@ export const CLASSES = {
         name: '治疗之环',
         category: 'aura',
         effect: { teamRegenHp: 0.04 },
-        description: '光环：沐浴自然圣辉，每回合自动回复全队 4% 最大生命值。'
+        description: '光环：沐浴自然圣辉，每10秒自动回复全队 4% 最大生命值。'
       },
       {
         id: 'm_sk_4',
@@ -311,7 +317,7 @@ export const CLASSES = {
         name: '魔能之环',
         category: 'aura',
         effect: { teamRegenMp: 12 },
-        description: '光环：汲取虚空魔能，每回合自动恢复全队 12 点魔法值。'
+        description: '光环：汲取虚空魔能，每10秒自动恢复全队 12 点魔法值。'
       },
       {
         id: 'm_sk_6',
@@ -352,11 +358,27 @@ export const CLASSES = {
 };
 
 // 单机重制规则：套装每级提高技能倍率、被动和光环数值5%，不改变蓝耗与触发概率。
-export function getClassSkills(classId, bonusLevels = 0) {
-  const scale = 1 + Math.max(0, bonusLevels) * 0.05;
-  return (CLASSES[classId] || CLASSES.warrior).skills.map(skill => ({
+export function getSkillPointBudget(level) {
+  return 1 + Math.max(0, Math.min(100, Math.floor(level || 1)) - 10);
+}
+
+export function getSkillTraining(data) {
+  const ranks = data.skillTraining?.ranks || {};
+  const spent = Object.values(ranks).reduce((total, rank) => total + (Number.isInteger(rank) && rank >= 2 && rank <= 10 ? rank - 1 : 0), 0);
+  return { spent, available: Math.max(0, getSkillPointBudget(data.level) - spent) };
+}
+
+export function getClassSkills(classId, bonusLevels = 0, playerData = null) {
+  const stages = [1, 1, 10, 15, 25, 20, 30, 40, 50];
+  return (CLASSES[classId] || CLASSES.warrior).skills.map((skill, index) => {
+    const savedRank = playerData?.skillTraining?.ranks?.[skill.id];
+    const rank = Number.isInteger(savedRank) && savedRank >= 1 && savedRank <= 10 ? savedRank : 1;
+    const scale = 1 + (rank - 1) * 0.02 + Math.max(0, bonusLevels) * 0.05;
+    return ({
     ...skill,
+    rank,
+    unlockLevel: stages[index],
     ...(skill.category === 'attack' ? { multiplier: (skill.multiplier || 1) * scale } : {}),
     ...(skill.effect ? { effect: Object.fromEntries(Object.entries(skill.effect).map(([key, value]) => [key, typeof value === 'number' ? value * scale : value])) } : {})
-  }));
+  }); }).filter(skill => playerData?.onboardingVersion !== 2 || playerData.level >= skill.unlockLevel);
 }

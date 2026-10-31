@@ -1,7 +1,14 @@
-// 《魔塔世界》统一高保真矢量图形资产与图标渲染引擎 (Universal Icon & Asset Engine)
-// 100% 替换所有纯文本粗糙 Emoji，支持 10 大槽位、13 原著套装、全部道具材料宝石、22 种原著神兽、三大职业与阵营
+// Unified art renderer: painted item atlases, existing portraits and functional glyphs.
+import { renderItemArtwork } from './itemArtwork.js';
+import { renderPaintedIcon } from '../assets/paintedIcons.js';
 
 export const ICON_REGISTRY = {
+  monster_wolf: 'images/pets/pet_winter_wolf.svg',
+  boss_thief: 'images/bosses/boss_thief.svg',
+  light_spirit: 'images/pets/pet_light_wisp.svg',
+  merc_cleric: 'images/heroes/avatar_mage.svg',
+  merc_paladin: 'images/heroes/avatar_warrior.svg',
+  merc_bard: 'images/heroes/avatar_hunter.svg',
   // 1. 10 大装备部位及神兵
   weapon: 'images/items/wpn_sword.svg',
   wpn_sword: 'images/items/wpn_sword.svg',
@@ -203,6 +210,15 @@ export function renderGameIcon(itemOrKey, options = {}) {
   const extraClass = options.className || '';
   const fallback = options.fallback || '';
 
+  const painted = renderItemArtwork(itemOrKey, options, ICON_REGISTRY);
+  if (painted) return painted;
+  const illustration = renderPaintedIcon(itemOrKey, options);
+  if (illustration) return illustration;
+  // Some older battle callers supply already-rendered artwork through getVectorIcon().
+  if (typeof itemOrKey === 'string' && itemOrKey.startsWith('<span class="painted-icon ')) {
+    return `<span class="${size} ${extraClass} inline-flex items-center justify-center">${itemOrKey}</span>`;
+  }
+
   if (!itemOrKey) {
     return `<div class="${size} ${extraClass} flex items-center justify-center text-sm">${fallback}</div>`;
   }
@@ -210,6 +226,11 @@ export function renderGameIcon(itemOrKey, options = {}) {
   // 1. 如果传入的是已包含 SVG 代码的字符串
   if (typeof itemOrKey === 'string' && itemOrKey.includes('<svg')) {
     return `<div class="${size} ${extraClass} inline-flex items-center justify-center pointer-events-none">${itemOrKey}</div>`;
+  }
+
+  // 战斗与装备页也会直接传入本地 SVG 路径。
+  if (typeof itemOrKey === 'string' && itemOrKey.startsWith('images/') && itemOrKey.endsWith('.svg')) {
+    return `<img src="${itemOrKey}" class="${size} ${extraClass} object-contain pointer-events-none select-none drop-shadow" alt=""/>`;
   }
 
   // 2. 提取查找 Key
@@ -292,6 +313,8 @@ export function renderGameIcon(itemOrKey, options = {}) {
  * 专属空装备槽位水印 (Watermark)
  */
 export function renderSlotWatermark(slotKey, size = 'w-7 h-7') {
+  const painted = renderItemArtwork(slotKey, { size, className: 'opacity-30 grayscale' }, ICON_REGISTRY);
+  if (painted) return painted;
   const path = `images/ui/slot_${slotKey}.svg`;
   return `<img src="${path}" class="${size} object-contain pointer-events-none select-none opacity-40 filter grayscale hover:opacity-70 transition-opacity" alt="" onerror="this.style.display='none'"/>`;
 }

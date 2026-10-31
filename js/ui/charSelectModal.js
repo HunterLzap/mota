@@ -2,7 +2,6 @@
 import { gameState } from '../core/state.js';
 import { storage } from '../core/storage.js';
 import { CLASSES, NATIONS } from '../config/classes.js';
-import { ART_ASSETS } from '../assets/icons.js';
 import { renderGameIcon } from './iconHelper.js';
 import { sound } from '../core/sound.js';
 import { gameModal } from './modal.js';
@@ -41,159 +40,32 @@ export class CharSelectModal {
   }
 
   render() {
-    const cls = CLASSES[this.selectedClassId];
-    const nation = NATIONS[this.selectedNationId];
+    const nameValue = this.characterName.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
+    const summaries = { warrior: '近战承伤，稳住阵线并反击。', mage: '施展法术，管理魔力与护盾。', hunter: '远程先手，用速度与控制压制敌人。' };
     this.overlay.innerHTML = `
-      <div class="relative w-full max-w-4xl mota-parchment-panel rounded-2xl border-2 border-[#caa048] p-6 shadow-2xl flex flex-col justify-between max-h-[95vh] overflow-y-auto select-none">
-        
-        <!-- 顶部卷轴标头 -->
-        <div class="flex items-center justify-between border-b-2 border-[#caa048] pb-3">
-          <div class="flex items-center gap-3">
-            <span class="w-8 h-8 rounded-full bg-red-700 border border-amber-400 flex items-center justify-center text-xs font-bold text-amber-200 shadow">
-              契约
-            </span>
-            <div>
-              <h2 class="text-lg font-black text-[#f5c042] tracking-wider">亚诺古陆苏醒 · 国家与职业誓约</h2>
-              <p class="text-xs text-slate-300">沉睡千年的古代亚诺精英！请确立你的城邦阵营与天命尊号！</p>
-            </div>
-          </div>
-          <button id="btn-close-char-modal" class="mota-btn-dark px-2.5 py-1 rounded text-xs text-slate-300 hover:text-white">
-            关闭
-          </button>
+      <div class="w-full max-w-xl mota-parchment-panel rounded-xl border border-[#caa048] p-5 max-h-[95vh] overflow-y-auto">
+        <h2 class="text-lg text-amber-200 font-bold mb-4">创建冒险者</h2>
+        <label class="text-xs text-amber-300">英雄名称</label>
+        <div class="flex gap-2 mt-1 mb-4">
+          <input id="input-hero-name" type="text" maxlength="12" value="${nameValue}" class="min-w-0 flex-1 bg-black/50 border border-[#b48c36] rounded p-2 text-amber-100">
+          <button id="btn-random-name" class="mota-btn-dark px-3 rounded">随机</button>
         </div>
-
-        <!-- 阵营选择行 (三大古国) -->
-        <div class="mt-3 p-3 rounded-xl bg-black/40 border border-[#caa048]/40">
-          <div class="text-xs font-bold text-amber-300 mb-2 flex items-center justify-between">
-            <span>第一步：选择所属城邦国家 (享专属国民光环)</span>
-            <span class="text-[11px] text-amber-400/90 font-mono">${nation.buffDesc}</span>
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            ${Object.values(NATIONS).map(n => {
-              const isSel = this.selectedNationId === n.id;
-              return `
-                <div data-nation-id="${n.id}" class="nation-card p-2 rounded-lg border-2 cursor-pointer transition-all flex flex-col justify-between ${
-                  isSel ? 'bg-amber-950/80 border-[#f5c042] shadow-md' : 'bg-black/60 border-slate-700 hover:border-slate-500'
-                }">
-                  <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 flex-shrink-0 flex items-center justify-center">${renderGameIcon(n.id, { size: 'w-full h-full' })}</div>
-                    <span class="font-bold text-xs ${isSel ? 'text-amber-200' : 'text-slate-300'}">${n.name}</span>
-                  </div>
-                  <div class="text-[10px] text-slate-400 mt-1 line-clamp-1">${n.title}</div>
-                </div>
-              `;
-            }).join('')}
-          </div>
+        <p class="text-xs text-amber-300 mb-2">城邦</p>
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          ${Object.values(NATIONS).map(n => `<button data-nation-id="${n.id}" title="${n.buffDesc}" class="nation-card p-2 rounded border ${this.selectedNationId === n.id ? 'border-amber-400 bg-amber-950' : 'border-slate-700 bg-black/40'}">
+            <span class="block w-7 h-7 mx-auto mb-1">${renderGameIcon(n.id, { size: 'w-full h-full' })}</span><span class="text-xs text-amber-100">${n.name.split(' ')[0]}</span>
+          </button>`).join('')}
         </div>
-
-        <!-- 中间：左侧三职业卡牌 + 右侧立绘属性特写 -->
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 my-3">
-          
-          <!-- 左侧：三大职业选择卡 (5列) -->
-          <div class="md:col-span-5 space-y-2.5">
-            <div class="text-xs font-bold text-amber-300 mb-1">
-              <span>第二步：选择传承职业</span>
-            </div>
-
-            ${Object.values(CLASSES).map(c => {
-              const isSelected = this.selectedClassId === c.id;
-              return `
-                <div data-class-id="${c.id}" class="char-class-card p-3 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-between ${
-                  isSelected ? 'bg-amber-950/80 border-[#f5c042] shadow-lg shadow-amber-500/20' : 'bg-black/50 border-slate-700 hover:border-slate-500'
-                }">
-                  <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-xl bg-black/60 border border-[#b48c36] flex items-center justify-center p-1.5 shadow">
-                      ${renderGameIcon(c.id, { size: 'w-full h-full' })}
-                    </div>
-                    <div>
-                      <div class="font-bold text-sm text-amber-200">${c.name}</div>
-                      <div class="text-[11px] text-slate-400">${c.title}</div>
-                    </div>
-                  </div>
-                  <span class="text-xs px-2 py-0.5 rounded font-mono ${isSelected ? 'bg-amber-500 text-black font-bold' : 'bg-slate-800 text-slate-400'}">
-                    ${isSelected ? '已选择' : '选择'}
-                  </span>
-                </div>
-              `;
-            }).join('')}
-
-            <!-- 名字输入与骰子随机起名 -->
-            <div class="pt-2 border-t border-[#caa048]/40">
-              <label class="block text-xs font-bold text-amber-300 mb-1.5">第三步：英雄尊号</label>
-              <div class="flex gap-2">
-                <input type="text" id="input-hero-name" value="${this.characterName}" maxlength="12"
-                  class="flex-1 bg-black/60 border border-[#b48c36] rounded-lg px-3 py-1.5 text-xs text-amber-200 font-bold focus:outline-none focus:border-amber-400">
-                <button id="btn-random-name" class="mota-btn-dark px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
-                  <span>随机</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 右侧：当前选中职业的精美立绘与绝技面板 (7列) -->
-          <div class="md:col-span-7 mota-parchment-panel rounded-xl p-4 border border-[#caa048]/60 flex flex-col justify-between bg-black/40">
-            <div>
-              <div class="flex items-start justify-between border-b border-slate-700 pb-3">
-                <div class="flex items-center gap-3">
-                  <div class="w-12 h-16">
-                    ${this.selectedClassId === 'warrior' ? ART_ASSETS.hero_warrior :
-                      this.selectedClassId === 'mage' ? ART_ASSETS.hero_mage : ART_ASSETS.hero_hunter}
-                  </div>
-                  <div>
-                    <h3 class="font-bold text-base text-amber-300">${cls.name} · ${cls.title}</h3>
-                    <p class="text-xs text-slate-300 mt-0.5">${cls.description}</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 职业核心成长数值展示 -->
-              <div class="grid grid-cols-3 gap-2 my-2.5 text-xs">
-                <div class="p-2 bg-black/50 rounded border border-slate-800">
-                  <span class="text-slate-400">初始生命:</span>
-                  <div class="font-bold text-red-400 font-mono text-sm">${cls.baseStats.hp}</div>
-                </div>
-                <div class="p-2 bg-black/50 rounded border border-slate-800">
-                  <span class="text-slate-400">初始攻击:</span>
-                  <div class="font-bold text-amber-400 font-mono text-sm">${cls.baseStats.atk}</div>
-                </div>
-                <div class="p-2 bg-black/50 rounded border border-slate-800">
-                  <span class="text-slate-400">战斗专精:</span>
-                  <div class="font-bold text-cyan-400 text-xs mt-0.5">
-                    ${this.selectedClassId === 'warrior' ? '25%反击守御' :
-                      this.selectedClassId === 'mage' ? '12%技能吸血' : '20%暴击闪避'}
-                  </div>
-                </div>
-              </div>
-
-              <!-- 原著真实技能树展示 -->
-              <div class="space-y-1">
-                <div class="text-xs font-semibold text-amber-300">原著正版 9 大技能树选览：</div>
-                <div class="max-h-40 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                  ${cls.skills.slice(0, 5).map(sk => `
-                    <div class="p-1.5 rounded bg-black/30 border border-slate-800 text-[11px] flex items-center justify-between">
-                      <div>
-                        <span class="font-bold text-amber-200">【${sk.name}】</span>
-                        <span class="text-slate-400 ml-1">${sk.description}</span>
-                      </div>
-                      ${sk.mpCost ? `<span class="text-[10px] text-cyan-400 font-mono flex-shrink-0">耗蓝 ${sk.mpCost}</span>` : `<span class="text-[10px] text-amber-400 font-mono flex-shrink-0">被动/光环</span>`}
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            </div>
-
-            <!-- 底部确认按钮 -->
-            <div class="mt-3 pt-3 border-t border-slate-700">
-              <button id="btn-confirm-character" class="w-full mota-btn-gold py-3 rounded-xl text-sm font-black tracking-wider shadow-xl animate-pulse">
-                誓约确认 · 携【${nation.name}】荣耀踏入亚诺大陆 ->
-              </button>
-            </div>
-
-          </div>
-
+        <p class="text-xs text-amber-300 mb-2">职业</p>
+        <div class="space-y-2 mb-4">
+          ${Object.values(CLASSES).map(c => `<button data-class-id="${c.id}" class="char-class-card w-full flex items-center gap-3 p-3 rounded border text-left ${this.selectedClassId === c.id ? 'border-amber-400 bg-amber-950' : 'border-slate-700 bg-black/40'}">
+            <span class="w-8 h-8 flex-shrink-0">${renderGameIcon(c.id, { size: 'w-full h-full' })}</span>
+            <span><strong class="text-sm text-amber-100">${c.name}</strong><span class="block text-xs text-slate-300 mt-1">${summaries[c.id]}</span></span>
+          </button>`).join('')}
         </div>
-
+        <p class="text-xs text-slate-300 mb-3">职业一经确定，本存档无法更换。</p>
+        <button id="btn-confirm-character" class="w-full mota-btn-gold py-3 rounded font-bold">启程前往王都</button>
       </div>
     `;
 
@@ -253,6 +125,7 @@ export class CharSelectModal {
         gameState.data.nation = this.selectedNationId;
         gameState.data.classId = this.selectedClassId;
         gameState.data.hasChosenClass = true;
+        gameState.data.onboardingVersion = 2;
 
         // 立即关闭窗口并永久同步写入当前活跃存档槽位，绝不重复弹出
         this.close();

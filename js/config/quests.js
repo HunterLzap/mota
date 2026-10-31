@@ -8,7 +8,7 @@ export const QUEST_LIST = [
     chapter: '序章：破晓之誓',
     targetTab: 'town',
     targetAction: 'claim_salary',
-    desc: '你手持国王的征召令来到亚诺圣光王都。前往王宫拜谒亨利七世，领取王国为新晋骑士颁发的每日俸禄！',
+    desc: '你手持国王的征召令来到亚诺圣光王都。前往王宫拜谒亨利七世，领取俸禄，再交付使命领取属于你职业的第一套装备。',
     goalText: '前往【圣光王都】王宫领取今日俸禄',
     requiredCount: 1,
     rewards: {
@@ -16,7 +16,9 @@ export const QUEST_LIST = [
       gold: 1500,
       crystal: 20,
       items: [
-        { id: 'pill_reborn', name: '远古重铸灵药', count: 3, type: 'material', quality: 'darkgold', icon: 'pill_reborn', desc: '用于神兽四维天资重铸' }
+        { id: 'novice_weapon', name: '王国新兵·精钢长剑', slot: 'weapon', reqLevel: 1, quality: 'blue', stats: { atk: 35, hit: 5 }, sockets: 1, icon: 'images/items/wpn_sword.svg', desc: '王国授予的职业武器。放在行囊中，选择后点击立即穿戴。' },
+        { id: 'novice_armor', name: '王国新兵·骑士胸甲', slot: 'armor', reqLevel: 1, quality: 'blue', stats: { def: 18, hp: 120 }, icon: 'images/items/arm_chest.svg', desc: '王国授予的职业防具，穿戴后提升防御和生命。' },
+        { ...SPECIAL_ITEMS.star_crystal, count: 3, desc: '穿戴装备后前往铁匠铺升星，每次消耗升星水晶；升星会提高装备属性。' }
       ]
     }
   },
@@ -26,7 +28,7 @@ export const QUEST_LIST = [
     chapter: '序章：破晓之誓',
     targetTab: 'town',
     targetAction: 'enhance',
-    desc: '魔塔内妖魔鳞甲坚厚，凡铁兵刃难以匹敌。前往皇家铁匠铺，使用魔晶为你的武器或防具完成一次强化升星（+1）！',
+    desc: '魔塔内妖魔鳞甲坚厚，凡铁兵刃难以匹敌。前往皇家铁匠铺，先在行囊穿戴王国授予的武器，再前往皇家铁匠铺，使用升星水晶完成一次装备升星。',
     goalText: '前往【圣光王都】铁匠铺成功强化装备1次',
     requiredCount: 1,
     rewards: {
@@ -34,7 +36,8 @@ export const QUEST_LIST = [
       gold: 2000,
       crystal: 30,
       items: [
-        { id: 'w_knight_blade', name: '银白骑士重剑', slot: 'weapon', level: 10, quality: 'green', stats: { atk: 45, str: 8 }, price: 300 }
+        { id: 'pet_egg_random', name: '远古神兽契约蛋', count: 1, type: 'egg', quality: 'gold', icon: 'pet_egg', desc: '前往神兽圣境孵化，再将伙伴设为出战主宠。' },
+        { ...SPECIAL_ITEMS.pill_reborn, count: 3 }
       ]
     }
   },
@@ -44,7 +47,7 @@ export const QUEST_LIST = [
     chapter: '第一章：神兽与羁绊',
     targetTab: 'pets',
     targetAction: 'set_active_pet',
-    desc: '亚诺大陆的骑士必须拥有本命守护神兽。前往神兽圣境，将你的神兽伙伴设为【出战主宠】，建立100%属性共鸣！',
+    desc: '亚诺大陆的骑士必须拥有本命守护神兽。前往神兽圣境，孵化刚获得的契约蛋，再将伙伴设为【出战主宠】。出战伙伴会提供属性与特性。',
     goalText: '前往【神兽圣境】设置主宠出战',
     requiredCount: 1,
     rewards: {
@@ -89,7 +92,8 @@ export const QUEST_LIST = [
       crystal: 60,
       items: [
         { id: 'herb_dragonblood', name: '龙血草', count: 8, type: 'herb', quality: 'purple', icon: 'herb_dragonblood', desc: '炼制狂暴合剂的主料' },
-        { id: 'herb_starlight', name: '星光苔藓', count: 8, type: 'herb', quality: 'purple', icon: 'herb_starlight', desc: '炼金神水原料' }
+        { id: 'herb_starlight', name: '星光苔藓', count: 8, type: 'herb', quality: 'purple', icon: 'herb_starlight', desc: '炼金神水原料' },
+        { ...SPECIAL_ITEMS.key_redwood, count: 3, desc: '在无尽魔塔选择红木钥匙，从第1层入场；探索收益在撤离时结算。' }
       ]
     }
   },
@@ -99,7 +103,7 @@ export const QUEST_LIST = [
     chapter: '第二章：通天之塔',
     targetTab: 'tower',
     targetAction: 'clear_tower_1',
-    desc: '整装待发！远古魔塔第1层的邪恶哨兵正在叫嚣。前往【无尽魔塔】，拔剑斩杀第1层守卫，夺下首胜！',
+    desc: '整装待发！远古魔塔第1层的邪恶哨兵正在叫嚣。前往【无尽魔塔】，击败第1层守卫，夺下首胜！',
     goalText: '击破【无尽魔塔】第 1 层守卫',
     requiredCount: 1,
     rewards: {
@@ -107,7 +111,7 @@ export const QUEST_LIST = [
       gold: 5000,
       crystal: 80,
       items: [
-        { id: 'courage_gloves', name: '勇气精钢护手', slot: 'gloves', level: 25, quality: 'purple', set: 'courage', stats: { def: 95, hp: 450, counter: 8 }, price: 2000, icon: 'images/items/eq_gloves.svg' }
+        { id: 'courage_gloves', name: '勇气精钢护手', slot: 'gloves', level: 10, quality: 'gold', set: 'courage', stats: { def: 35, hp: 180, counter: 6 }, price: 1000, icon: 'images/items/eq_gloves.svg', desc: '10级可穿戴；与勇气武器搭配触发两件套共鸣。' }
       ]
     }
   },
@@ -161,7 +165,8 @@ export const QUEST_LIST = [
       gold: 25000,
       crystal: 300,
       items: [
-        { id: 'courage_sword', name: '勇气先驱重剑', slot: 'weapon', level: 25, quality: 'purple', set: 'courage', stats: { atk: 140, str: 24, crit: 6 }, price: 2200 }
+        { id: 'courage_sword', name: '勇气先驱重剑', slot: 'weapon', level: 15, quality: 'darkgold', set: 'courage', stats: { atk: 140, str: 24, crit: 6 }, price: 2200, desc: '15级可穿戴；与勇气护手搭配触发两件套共鸣。' },
+        { id: 'gem_atk', name: '金刚石', count: 1, stat: 'atk', val: 25, type: 'gem', quality: 'darkgold', icon: 'images/items/gem_atk.svg', desc: '镶入武器空孔，攻击力增加25。' }
       ]
     }
   },
@@ -207,7 +212,7 @@ export const QUEST_LIST = [
     chapter: '第五章：天梯之巅',
     targetTab: 'town',
     targetAction: 'royal_trials',
-    desc: '斥候带回通往地下城的线索，王宫只允许受封勇者深入调查。前往【圣王大殿】幻境试炼长廊完成一次晋升；若已获得封号，王宫会认可此前的试炼战绩。',
+    desc: '斥候带回通往地下城的线索，王宫只允许受封勇者深入调查。前往【圣王大殿】完成一次晋升，获得进化石。黄金伙伴达到30级后可用它进阶暗金，进阶后从1级重新成长；已有封号同样获得认可。',
     goalText: '在幻境试炼长廊成功晋升1次封号',
     requiredCount: 1,
     rewards: {
@@ -215,6 +220,7 @@ export const QUEST_LIST = [
       gold: 50000,
       crystal: 300,
       items: [
+        { ...SPECIAL_ITEMS.evolution_stone, count: 1 },
         { id: 'gem_atk', name: '金刚石', count: 1, stat: 'atk', val: 25, type: 'gem', quality: 'darkgold', icon: 'images/items/gem_atk.svg', desc: '攻击力+25' }
       ]
     }
@@ -380,7 +386,7 @@ export const QUEST_LIST = [
   {
     id: 'quest_23', title: '【主线23】堕落圣翼 · 七十层裁决', chapter: '第八章：裂隙远征',
     targetTab: 'tower', targetAction: 'clear_tower_70', milestone: { type: 'tower', floor: 70 },
-    desc: '裂隙坐标揭露了堕落炽天使的契约。用泰坦钥匙抵达魔塔70层，击败路西尔，切断他对黑翼龙皇的供能。钥匙抵达不等于胜利，必须留下本层首领的实际通关记录。',
+    desc: '裂隙坐标揭露了堕落炽天使的契约。用泰坦钥匙抵达70层，击败路西尔，切断对龙皇的供能。他蓄势后的圣裁会压低攻击；控制可打断，圣洁特性或声望商行的净化魔典可抵御。伙伴需保持至少60体力。',
     goalText: '击败无尽魔塔70层堕落炽天使', requiredCount: 1,
     rewards: { exp: 100000, gold: 120000, crystal: 500, items: [{ id: 'book_purify', bookId: 'book_purify', name: '远古魔导书·【神圣净化】', type: 'skill_book', quality: 'darkgold', count: 1, icon: 'images/items/skill_book.svg', desc: '在神兽研习魔典中学习，体力充足时免疫战斗异常状态。' }] }
   },
@@ -406,3 +412,46 @@ export const QUEST_LIST = [
     rewards: { exp: 150000, gold: 200000, crystal: 800, items: [{ ...RUNES.rune_ber, type: 'rune', count: 1 }] }
   }
 ];
+
+const earlyStory = [
+  ['抵达王都 · 接受委托', '守备官罗兰', '你是从漫长沉睡中苏醒的古代亚诺人。千年前，储存魔力的高塔失控，灾变撕裂大陆，帝国随之覆灭；如今魔塔再次重现，萨格尔、克斯特与亚丁三城都在追查它的秘密。先从眼前做起：城外一支巡逻队失去了联络，我需要有人去外围查看。接下委托，我会给你一套能防身的装备。', 'meet_guard', 'town'],
+  ['城外足迹 · 初次调查', '守备官罗兰', '穿好刚领取的武器和护胸，到微光森林击退一批魔物，寻找巡逻队的足迹。带回你发现的东西，铁匠会帮你判断。', 'investigate_patrol', 'wild'],
+  ['异常残片 · 铁匠的判断', '铁匠布兰', '这块残片带着魔塔的腐蚀痕迹。你带回的水晶能加固武器；完成一次升星，我们再看看营地里那枚仍有生命气息的契约蛋。', 'enhance', 'town'],
+  ['营地遗物 · 第一位伙伴', '驯兽师赛拉', '巡逻队一直保护着这枚契约蛋。把它孵化，让伙伴随你出发；它不是一件装备，而是今后与你共同成长的同伴。', 'set_active_pet', 'pets'],
+  ['同行之约 · 学习魔典', '驯兽师赛拉', '这本魔典也来自失联营地。让刚认识的伙伴学习它，再一起去查清魔塔入口的异动。以后遇到难题，你可以退还魔典换一种能力。', 'learn_skill', 'pets'],
+  ['魔塔入口 · 追查异动', '斥候米拉', '营地留下的印记与塔门上的符号相同。用红木钥匙入塔，击败第一层守卫。调查后记得撤离，带回本次积累的经验和金币。', 'clear_tower_1', 'tower'],
+  ['临时营地 · 远征补给', '圣光主教艾莲娜', '先借用王国营地的工坊，用上一份调查得到的草药调配泰坦魔药。它能撑过接下来三场战斗；等完成王都委托，你再逐步经营自己的领地。', 'brew_potion', 'estate'],
+  ['同行援手 · 招募护卫', '圣光主教艾莲娜', '我可以与你同行，救治伤员；高文擅长保护，罗杰擅长追踪与补给。选一位适合你的援手，再回到魔塔寻找巡逻队的记录。', 'hire_merc', 'estate'],
+  ['石门守卫 · 找回记录', '斥候米拉', '第10层石像守护着巡逻队最后留下的记录。击败它，撤离并带回记录；我们会为你的下一次远征准备武器。', 'clear_tower_10', 'tower'],
+  ['整装出发 · 铭刻宝石', '铁匠布兰', '把刚获得的武器穿好，再镶入上一份委托给你的金刚石。宝石可以免费摘除，以后更换装备时带走它；接下来追查记录中的龙焰与失窃秘宝。', 'socket_gem', 'town']
+];
+const item = (id, count) => ({ ...SPECIAL_ITEMS[id], count });
+export const STORY_QUEST_LIST = QUEST_LIST.map((quest, index) => {
+  const q = { ...quest, rewards: { ...quest.rewards, items: quest.rewards.items.map(value => ({ ...value })) } };
+  // Single-player campaign supplies replace the legacy online economy's
+  // exponential cash grants; tutorial expenses and earned items are retained.
+  if (index >= 8) {
+    q.rewards.gold = Math.round(q.rewards.gold * 0.2);
+    q.rewards.crystal = Math.max(30, Math.round(q.rewards.crystal * 0.35));
+  }
+  if (earlyStory[index]) {
+    const [title, speaker, desc, targetAction, targetTab] = earlyStory[index];
+    Object.assign(q, { title, speaker, desc, targetAction, targetTab, chapter: index < 6 ? '第一幕：失联的巡逻队' : '第二幕：塔门的线索', goalText: { meet_guard: '与守备官罗兰交谈，接受城外委托', investigate_patrol: '穿好装备，在微光森林赢得一次讨伐', enhance: '用调查得到的水晶，为武器升星一次', set_active_pet: '孵化契约蛋，让第一位伙伴随行', learn_skill: '让伙伴学习上一份委托给予的魔典' }[targetAction] || quest.goalText });
+  }
+  q.speaker ||= ['quest_17','quest_18','quest_19'].includes(q.id) ? '斥候米拉' : Number(q.id.split('_')[1]) >= 21 ? '学者艾琳' : '守备官罗兰';
+  q.chapter = ['第一幕：失联的巡逻队','第二幕：塔门的线索','第三幕：失窃的秘宝','第四幕：极地星图','第五幕：边境裂隙','第六幕：黑翼终战'][index < 6 ? 0 : index < 10 ? 1 : index < 15 ? 2 : index < 20 ? 3 : index < 23 ? 4 : 5];
+  if (index === 0) q.rewards.items = q.rewards.items.filter(value => value.slot);
+  if (index === 1) q.rewards.items = [item('star_crystal', 3)];
+  if (index === 2) q.rewards.items = [{ id: 'pet_egg_random', name: '巡逻队留下的契约蛋', type: 'egg', quality: 'gold', count: 1, icon: 'pet_egg' }, item('pet_food', 5)];
+  if (index === 3) q.rewards.items = [{ ...QUEST_LIST[3].rewards.items[0] }];
+  if (index === 5) q.rewards.items = [{ ...q.rewards.items[0], reqLevel: 7, level: 7 }];
+  if (index === 6) q.rewards.items = [item('pet_food', 3)];
+  if (index === 8) q.rewards.items[0] = { ...q.rewards.items[0], quality: 'gold', reqLevel: 10, level: 10, stats: { atk: 85, str: 15, crit: 4 }, desc: '10级可穿戴。与勇气护手组成两件套，宝石可免费摘除后转移。' };
+  if ([8,19,23].includes(index)) q.rewards.items.push({ id: 'royal_dungeon_permit', name: '王国调查通行令', type: 'material', quality: 'blue', count: 1, icon: SPECIAL_ITEMS.key_redwood.icon, desc: '古门每日次数耗尽时，额外支付一枚通行令可继续调查；每枚只使用一次。' });
+  if (index === 19) q.rewards.items[0] = { ...q.rewards.items[0], name: '远征守护长剑', level: 50, reqLevel: 50, quality: 'gold', stats: { atk: 180, str: 28, crit: 8 }, desc: '50级可用的远征武器，为边境调查做好准备。' };
+  if (index === 23) q.rewards.items.push({ id: 'expedition_armor', name: '裂隙远征胸甲', slot: 'armor', level: 80, reqLevel: 80, quality: 'darkgold', stats: { def: 320, hp: 1400 }, sockets: 1, icon: 'images/items/arm_chest.svg', desc: '80级远征防具。穿戴、修理并准备伙伴口粮后，再深入时空之门。' });
+  if (index === 24) q.rewards.items.push({ id: 'expedition_weapon', name: '破界远征长剑', slot: 'weapon', level: 80, reqLevel: 80, quality: 'darkgold', stats: { atk: 400, str: 65, crit: 10 }, sockets: 2, icon: 'images/items/wpn_sword.svg', desc: '80级远征武器。更换时可免费摘除旧武器的宝石，转移到新武器。' });
+  if ([21,24].includes(index)) q.rewards.items.push({ id: 'royal_castle_permit', name: '魔塔远征通行令', type: 'material', quality: 'blue', count: index === 24 ? 2 : 1, icon: SPECIAL_ITEMS.key_titan.icon, desc: '魔塔每日次数耗尽时，额外支付一枚通行令可继续远征；仍需支付入场钥匙。' });
+  return q;
+});
+export function getQuestList(data) { return data.onboardingVersion === 2 ? STORY_QUEST_LIST : QUEST_LIST; }
