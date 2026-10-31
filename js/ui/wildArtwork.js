@@ -16,6 +16,9 @@ const portraits = new Map(atlasGroups.flatMap(([file, columns, keys]) =>
   keys.map((key, index) => [key, { file, columns, x: index % columns, y: Math.floor(index / columns) }])
 ));
 
+// Reuse the existing painted black dragon without changing either enemy's data.
+portraits.set('boss_dragonking', portraits.get('boss_volcano'));
+
 // Boss IDs deliberately stay separate from ordinary enemies sharing an SVG icon.
 export function getWildPortraitStyle(key) {
   const portrait = portraits.get(key);

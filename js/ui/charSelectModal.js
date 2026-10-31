@@ -18,6 +18,21 @@ export class CharSelectModal {
     this.selectedClassId = gameState.data.classId || 'warrior';
     this.selectedNationId = gameState.data.nation || 'aden';
     this.characterName = gameState.data.name || '兰斯洛特·晨曦';
+    this.previousFocus = null;
+    this.background = document.querySelector('.classic-client');
+    window.addEventListener('keydown', event => {
+      if (this.overlay.classList.contains('hidden') || gameModal.isOpen || event.key !== 'Tab') return;
+      const controls = [...this.overlay.querySelectorAll('button:not(:disabled), input:not(:disabled)')]
+        .filter(control => control.getClientRects().length > 0);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !this.overlay.contains(document.activeElement))) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !this.overlay.contains(document.activeElement))) {
+        event.preventDefault();
+        first?.focus();
+      }
+    });
   }
 
   open(force = false) {
@@ -28,25 +43,37 @@ export class CharSelectModal {
     this.selectedClassId = gameState.data.classId || 'warrior';
     this.selectedNationId = gameState.data.nation || 'aden';
     this.characterName = gameState.data.name || (RANDOM_NAMES[Math.floor(Math.random() * RANDOM_NAMES.length)]);
+    this.previousFocus = document.activeElement;
+    this.backgroundWasInert = this.background?.inert || false;
+    if (this.background) this.background.inert = true;
     this.render();
     this.overlay.classList.remove('hidden');
     this.overlay.classList.add('flex');
+    this.overlay.querySelector('#input-hero-name')?.focus();
   }
 
   close() {
     if (!gameState.data.hasChosenClass) return;
     this.overlay.classList.add('hidden');
     this.overlay.classList.remove('flex');
+    if (this.background) this.background.inert = this.backgroundWasInert;
+    const target = this.previousFocus?.isConnected && this.previousFocus.getClientRects().length
+      ? this.previousFocus : document.getElementById('btn-next-journey') || document.getElementById('nav-tab-tower');
+    target?.focus({ preventScroll: true });
   }
 
   render() {
+    const active = this.overlay.contains(document.activeElement) ? document.activeElement : null;
+    const focusSelector = active?.id ? `#${active.id}`
+      : active?.dataset.classId ? `[data-class-id="${active.dataset.classId}"]`
+      : active?.dataset.nationId ? `[data-nation-id="${active.dataset.nationId}"]` : null;
     const nameValue = this.characterName.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
     const summaries = { warrior: '近战承伤，稳住阵线并反击。', mage: '施展法术，管理魔力与护盾。', hunter: '远程先手，用速度与控制压制敌人。' };
     this.overlay.innerHTML = `
-      <div class="w-full max-w-xl mota-parchment-panel rounded-xl border border-[#caa048] p-5 max-h-[95vh] overflow-y-auto">
-        <h2 class="text-lg text-amber-200 font-bold mb-4">创建冒险者</h2>
-        <label class="text-xs text-amber-300">英雄名称</label>
+      <div role="dialog" aria-modal="true" aria-labelledby="character-dialog-title" class="w-full max-w-xl mota-parchment-panel rounded-xl border border-[#caa048] p-5 max-h-[95vh] overflow-y-auto">
+        <h2 id="character-dialog-title" class="text-lg text-amber-200 font-bold mb-4">创建冒险者</h2>
+        <label for="input-hero-name" class="text-xs text-amber-300">英雄名称</label>
         <div class="flex gap-2 mt-1 mb-4">
           <input id="input-hero-name" type="text" maxlength="12" value="${nameValue}" class="min-w-0 flex-1 bg-black/50 border border-[#b48c36] rounded p-2 text-amber-100">
           <button id="btn-random-name" class="mota-btn-dark px-3 rounded">随机</button>
@@ -70,6 +97,7 @@ export class CharSelectModal {
     `;
 
     this.bindEvents();
+    if (focusSelector) this.overlay.querySelector(focusSelector)?.focus({ preventScroll: true });
   }
 
   bindEvents() {

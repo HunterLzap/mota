@@ -55,10 +55,10 @@ export class HeroView {
               <dl>${[['生命', stats.maxHp], ['魔力', stats.maxMp], ['攻击', stats.atk], ['防御', stats.def]].map(([label, value]) => `<div><dt>${label}</dt><dd>${value.toLocaleString()}</dd></div>`).join('')}</dl>
               <dl class="hero-derived-ledger">${ledger.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
             </section>
-            <section class="hero-potential-ledger" aria-label="核心潜能分配">
+            <section class="hero-potential-ledger" aria-label="核心潜能分配" tabindex="-1">
               <h3 class="dossier-section-heading">核心潜能 <span>剩余 <b>${data.freeStatPoints}</b> 点</span></h3>
               <div class="hero-potential-rows">${[['str', '力量'], ['dex', '敏捷'], ['int', '智力'], ['con', '体质']].map(([key, label]) => `<div><span>${label}</span><strong>${stats[key]}</strong><small>已分配 +${data.allocatedStats[key]}</small><button data-stat="${key}" aria-label="增加${label}" class="btn-add-stat mota-btn-gold" ${data.freeStatPoints > 0 ? '' : 'disabled'}>+</button></div>`).join('')}</div>
-              ${data.freeStatPoints > 0 ? '<button id="btn-recommended-stats" class="mota-btn-dark">按职业建议分配：主属性与体魄</button><p class="hero-allocation-hint">约七成主属性，三成体魄；也可逐项分配。</p>' : ''}
+              ${data.freeStatPoints > 0 ? '<button id="btn-recommended-stats" class="mota-btn-dark">按职业建议分配：主属性与体魄</button><p class="hero-allocation-hint">约七成主属性，三成体魄；也可逐项分配。</p>' : '<p class="hero-allocation-hint">当前潜能已分配，升级后可继续分配。</p>'}
             </section>
             <section class="hero-lore-ledger"><p><b>${esc(nation.name)}：</b>${esc(nation.buffDesc)}</p><p><b>${esc(cls.name)}奥义：</b>${esc(cls.description)}</p>
               ${data.onboardingVersion === 2 && nextSkill ? `<p>下一个成长目标：${nextSkill.unlockLevel}级掌握【${esc(nextSkill.name)}】。</p>` : ''}

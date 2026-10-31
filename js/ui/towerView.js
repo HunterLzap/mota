@@ -685,7 +685,7 @@ export class TowerView {
         gameState.data.isCastleExplore = true; // 激活每场1次免费复活
 
         this.onStartBattle({
-          enemyData: { name: floorInfo.name, icon: getVectorIcon(floorInfo.icon || 'bld_tower', 'w-full h-full'), level: floor, abilities: floorInfo.abilities, rebirth: floorInfo.rebirth, openingShield: floorInfo.openingShield },
+          enemyData: { name: floorInfo.name, portraitKey: floorInfo.portraitKey, icon: getVectorIcon(floorInfo.portraitKey ? 'bld_tower' : floorInfo.icon || 'bld_tower', 'w-full h-full'), level: floor, abilities: floorInfo.abilities, rebirth: floorInfo.rebirth, openingShield: floorInfo.openingShield },
           enemyStats: {
             hp: floorInfo.hp,
             maxHp: floorInfo.maxHp || floorInfo.hp,

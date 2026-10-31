@@ -1,13 +1,13 @@
 # Overnight status
 
 - Status: RUNNING
-- Stage / task: 0 - save baseline validated
-- Last meaningful progress (Asia/Shanghai): 2026-11-01 00:27:08 +08:00
-- Completed / actual progress: Real Chrome 156: both sizes passed duplicate writer, independent slots, refresh, inactive deletion, import/export and owner-close recovery; original fixes preserved.
-- Latest validation: stage0.json, stage0.log; static and runtime logs saved.
+- Stage / task: 1 - validated
+- Last meaningful progress (Asia/Shanghai): 2026-11-01 00:33:54 +08:00
+- Completed / actual progress: Potential guide focuses stats/recommendation; zero-points destination explained; creation focus trapped/restored; final boss uses existing painted dragon.
+- Latest validation: Real Chrome: three classes x two sizes passed, ordinary wolves unchanged, console/page/network errors and overflow zero; runtime/static passed.
 - Current errors / blockers: See ERRORS.md; no active blocker.
-- Next: Checkpoint verified second-round save fix; then reproduce and repair stage1 UX.
-- Latest stable Git commit: af22ef19c7a33445cacc06b62da941a7924375cc
+- Next: Commit stage1 then implement thief danger details and idle minute summaries.
+- Latest stable Git commit: 9e4b05310951cd6c854cfeaed4a2c818045b6596
 - Branch: codex/overnight-game-ux
 - Implementation worktree: E:/mota-overnight
 - Original workspace / DSH evidence: E:/mota/output/overnight

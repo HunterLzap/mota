@@ -203,6 +203,15 @@ class GameApp {
       return;
     }
     if (targetAction === 'enhance' && !Object.values(gameState.data.equipped).some(Boolean)) targetTab = 'bag';
+    if (targetTab === 'hero' && targetAction === 'allocate_stats') {
+      this.views.hero.currentPanel = 'stats';
+      this.switchTab('hero');
+      const target = document.getElementById('btn-recommended-stats') ||
+        document.querySelector('.hero-potential-ledger');
+      target?.scrollIntoView({ block: 'nearest' });
+      target?.focus({ preventScroll: true });
+      return;
+    }
     this.switchTab(targetTab);
 
     // 细分建筑或子页面智能精准聚焦
