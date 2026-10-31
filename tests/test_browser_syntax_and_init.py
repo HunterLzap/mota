@@ -44,6 +44,10 @@ def test_syntax_and_init():
       removeItem(k) { delete this._data[k]; }
     };
     window.requestAnimationFrame = function() {};
+    globalThis.MutationObserver = class {
+      observe() {}
+      disconnect() {}
+    };
     globalThis.document = {
       readyState: "complete",
       documentElement: { style: { setProperty(key, value) { this[key] = value; } } },
@@ -55,6 +59,8 @@ def test_syntax_and_init():
           addEventListener() {},
           querySelectorAll() { return []; },
           querySelector() { return null; },
+          contains() { return false; },
+          getClientRects() { return []; },
           innerHTML: "",
           innerText: "",
           setAttribute() {},
@@ -328,7 +334,8 @@ def test_class_advancement_and_sets_and_pets():
           querySelectorAll() { return []; }
         };
       },
-      querySelectorAll() { return []; }
+      querySelectorAll() { return []; },
+      querySelector() { return null; }
     };
     globalThis.localStorage = {
       _data: {},

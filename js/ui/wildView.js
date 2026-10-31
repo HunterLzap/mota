@@ -18,6 +18,8 @@ export class WildView {
     this.active = false;
     this.idleTimer = null;
     document.addEventListener('visibilitychange', () => this.updateIdleSummary());
+    this.battleVisibilityObserver = new MutationObserver(() => this.updateIdleSummary());
+    this.battleVisibilityObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
 
   setActive(active) {
@@ -28,7 +30,7 @@ export class WildView {
   updateIdleSummary() {
     clearTimeout(this.idleTimer);
     this.idleTimer = null;
-    if (!this.active || document.hidden) return;
+    if (!this.active || document.hidden || document.body.classList?.contains('in-battle')) return;
     const summary = this.container.querySelector('#wild-idle-summary');
     if (!summary) return;
     const now = Date.now();

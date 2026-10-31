@@ -10,12 +10,18 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
   fs.mkdirSync(output, { recursive: true });
   const browser = await chromium.launch({
     executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe',
-    headless: true
+    headless: !process.env.NATIVE_VISIBILITY,
+    ...(process.env.NATIVE_VISIBILITY ? {
+      args: ['--window-position=-32000,-32000'],
+      ignoreDefaultArgs: ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling']
+    } : {})
   });
   console.log(JSON.stringify({ started: new Date().toISOString(), chrome: browser.version(), script, phase }));
   try {
     const page = await browser.newPage();
-    const source = fs.readFileSync(script, 'utf8').replaceAll('http://127.0.0.1:8088', 'http://127.0.0.1:8089');
+    const source = fs.readFileSync(script, 'utf8')
+      .replaceAll('http://127.0.0.1:8088', 'http://127.0.0.1:8089')
+      .replaceAll('output/playwright/', output + '/');
     const run = vm.runInThisContext(`(${source})`, { filename: script });
     const result = await run(page, { phase, output });
     fs.writeFileSync(path.join(output, phase + '.json'), JSON.stringify(result, null, 2));
