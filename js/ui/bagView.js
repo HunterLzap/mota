@@ -284,15 +284,16 @@ export class BagView {
       btnEquip.addEventListener('click', () => {
         const item = gameState.data.bag.find(i => (i.uid || i.id) === btnEquip.getAttribute('data-item-uid'));
         if (item && item.slot) {
+          const previousSelection = this.selectedItemUid;
+          const next = gameState.data.bag.find(candidate => candidate !== item && candidate.slot &&
+            candidate.slot !== item.slot && !gameState.data.equipped[candidate.slot] &&
+            (candidate.reqLevel || candidate.level || 1) <= gameState.data.level &&
+            (!candidate.reqClass || candidate.reqClass === gameState.data.classId));
+          // The synchronous state publication renders once with the next selection.
+          this.selectedItemUid = next ? next.uid || next.id : null;
           const res = gameState.equipItem(item.uid || item.id);
           gameModal.toast(res.msg);
-          if (res.success) {
-            const next = gameState.data.bag.find(candidate => candidate.slot && !gameState.data.equipped[candidate.slot] &&
-              (candidate.reqLevel || candidate.level || 1) <= gameState.data.level &&
-              (!candidate.reqClass || candidate.reqClass === gameState.data.classId));
-            this.selectedItemUid = next ? next.uid || next.id : null;
-          }
-          this.render();
+          if (!res.success) this.selectedItemUid = previousSelection;
           if (res.success) {
             const selected = [...this.container.querySelectorAll('[data-bag-uid]')].find(cell => cell.dataset.bagUid === this.selectedItemUid);
             (selected || this.container.querySelector('#btn-bag-view-equipment')).focus({ preventScroll: true });

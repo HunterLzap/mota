@@ -428,7 +428,7 @@ export class EquipView {
         const slotKey = btn.getAttribute('data-unequip-slot');
         const res = gameState.unequipItem(slotKey);
         gameModal.toast(res.msg);
-        this.render();
+        this.container.querySelector(`[data-browse-slot="${slotKey}"]`)?.focus({ preventScroll: true });
       });
     });
   }

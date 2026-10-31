@@ -1687,7 +1687,7 @@ export class GameState {
     this.data.equipped[slotKey] = item;
 
     this.triggerQuestAction('equip_gear');
-    this.addSystemLog(`【换装】勇者披挂上阵，成功穿戴【${item.name}】！`, 'forge');
+    this.addSystemLog(`【换装】勇者披挂上阵，成功穿戴【${item.name}】！`, 'forge', false);
     this.notify();
     return { success: true, msg: `换装成功！已成功穿戴【${item.name}】！` };
   }

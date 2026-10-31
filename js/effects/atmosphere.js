@@ -1,5 +1,5 @@
 // 《魔塔世界》纯代码 HTML5 Canvas 动态微粒子氛围引擎 (Atmosphere Engine)
-// 超轻量原生 Canvas 2D 粒子系统，功耗 < 1%，自动适配高分屏与视口尺寸
+// 原生 Canvas 2D 粒子系统，仅在画布可见时排帧。
 
 class AtmosphereEngine {
   constructor() {
@@ -18,20 +18,28 @@ class AtmosphereEngine {
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
 
-    this.resize();
-    window.addEventListener('resize', () => this.resize());
-
-    // 页面不可见时自动暂停，节能省电
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        this.stop();
-      } else {
-        this.start();
-      }
+    window.addEventListener('resize', () => {
+      if (this.canAnimate()) this.resize();
+      this.syncVisibility();
     });
+    document.addEventListener('visibilitychange', () => this.syncVisibility());
+    this.visibilityObserver = new MutationObserver(() => this.syncVisibility());
+    for (let node = this.canvas; node; node = node.parentElement) {
+      this.visibilityObserver.observe(node, { attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+    }
 
     this.setPreset(this.currentPreset);
-    this.start();
+  }
+
+  canAnimate() {
+    return this.canvas && !document.hidden && this.currentPreset !== 'none' &&
+      this.canvas.getClientRects().length > 0 &&
+      !['hidden', 'collapse'].includes(getComputedStyle(this.canvas).visibility);
+  }
+
+  syncVisibility() {
+    if (this.canAnimate()) this.start();
+    else this.stop();
   }
 
   resize() {
@@ -48,8 +56,12 @@ class AtmosphereEngine {
   setPreset(preset) {
     this.currentPreset = preset;
     this.particles = [];
-    if (preset === 'none') return;
+    if (preset === 'none') this.ctx?.clearRect(0, 0, this.width, this.height);
+    this.syncVisibility();
+  }
 
+  createParticles() {
+    const preset = this.currentPreset;
     const count = preset === 'forge' ? 45 : preset === 'forest' ? 35 : preset === 'palace' ? 25 : 30;
     for (let i = 0; i < count; i++) {
       this.particles.push(this.createParticle(preset, true));
@@ -101,9 +113,15 @@ class AtmosphereEngine {
   }
 
   start() {
+    if (!this.canAnimate()) return;
+    if (!this.isRunning) this.resize();
+    if (!this.particles.length) {
+      this.createParticles();
+    }
     if (this.isRunning) return;
     this.isRunning = true;
     const loop = () => {
+      if (!this.isRunning) return;
       this.update();
       this.draw();
       if (this.isRunning) {
