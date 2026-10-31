@@ -8,11 +8,38 @@ import { getVectorIcon } from '../assets/vectorIcons.js';
 import { renderGameIcon } from './iconHelper.js';
 import { getWildPortraitStyle, getWildRegionStyle } from './wildArtwork.js';
 
+const THIEF_STATS = { hp: 8000, atk: 380, def: 180, speed: 30 };
+
 export class WildView {
   constructor(containerId, onStartBattle) {
     this.container = document.getElementById(containerId);
     this.onStartBattle = onStartBattle;
     this.selectedMapId = gameState.data.currentMapId || 'forest';
+    this.active = false;
+    this.idleTimer = null;
+    document.addEventListener('visibilitychange', () => this.updateIdleSummary());
+  }
+
+  setActive(active) {
+    this.active = active;
+    this.updateIdleSummary();
+  }
+
+  updateIdleSummary() {
+    clearTimeout(this.idleTimer);
+    this.idleTimer = null;
+    if (!this.active || document.hidden) return;
+    const summary = this.container.querySelector('#wild-idle-summary');
+    if (!summary) return;
+    const now = Date.now();
+    const reward = gameState.getIdleRewards(now);
+    const map = MAPS.find(map => map.id === gameState.data.currentMapId) || MAPS[0];
+    const text = `营地：${map.name} · ${reward.minutes}分 · +${reward.exp} EXP / +${reward.gold} 金 / +${reward.crystal} 晶`;
+    if (summary.textContent !== text) summary.textContent = text;
+    if (reward.minutes >= 600) return;
+    const since = Number.isFinite(gameState.data.lastIdleClaimTime) ? gameState.data.lastIdleClaimTime : now;
+    this.idleTimer = setTimeout(() => this.updateIdleSummary(),
+      Math.max(1, since + (reward.minutes + 1) * 60000 - now));
   }
 
   render() {
@@ -22,6 +49,7 @@ export class WildView {
     const patrolRates = gameState.getPatrolRates(selectedMap.id);
     const formatRate = value => Number(value.toFixed(2)).toLocaleString('zh-CN', { maximumFractionDigits: 2 });
     const thief = data.maskedThief;
+    const thiefStats = { ...THIEF_STATS, hp: thief?.hp || THIEF_STATS.hp };
 
     if (data.currentQuestId === 'quest_18' && (!thief || !thief.appeared)) {
       if (!data.maskedThief) data.maskedThief = {};
@@ -37,7 +65,7 @@ export class WildView {
     const pendingCrystal = pending.crystal;
 
     this.container.innerHTML = `<section class="wild-page wild-atlas">
-      <header class="mota-breadcrumb wild-atlas-heading"><h2>野外征战</h2><span>营地：${currentPatrolMap.name} · ${minutesAway}分 · +${pendingExp} EXP / +${pendingGold} 金 / +${pendingCrystal} 晶</span><button id="btn-claim-idle" class="mota-btn-gold">收获挂机收益</button></header>
+      <header class="mota-breadcrumb wild-atlas-heading"><h2>野外征战</h2><span id="wild-idle-summary" role="status">营地：${currentPatrolMap.name} · ${minutesAway}分 · +${pendingExp} EXP / +${pendingGold} 金 / +${pendingCrystal} 晶</span><button id="btn-claim-idle" class="mota-btn-gold">收获挂机收益</button></header>
       <div class="wild-grid">
         <nav class="wild-map-list mota-parchment-panel" aria-label="亚诺大陆据点"><div class="wild-map-nodes">
           ${MAPS.map(map => `<button type="button" data-map-id="${map.id}" aria-pressed="${selectedMap.id === map.id}" class="map-node-card"><span class="wild-map-copy"><span class="wild-region-art wild-map-thumbnail" style="${getWildRegionStyle(map.id)}" aria-hidden="true"></span><span class="wild-map-label"><strong>${map.name}</strong><small>Lv.${map.reqLevel}+${currentPatrolMap.id === map.id ? ' · 巡逻中' : data.level < map.reqLevel ? ' · 未解锁' : ''}</small></span></span></button>`).join('')}
@@ -50,7 +78,7 @@ export class WildView {
               </div>
             </div>
             <div class="wild-dossier-list">
-              ${thief && thief.appeared ? `<div class="wild-thief-card"><span class="wild-thief-icon">${renderGameIcon('boss_thief', { size: 'w-full h-full' })}</span><div><strong>黑羽蒙面女盗</strong><small>潜伏于【${thief.location}】 · 追索王国晶石</small></div><button id="btn-challenge-thief" class="mota-btn-gold">截击暗影女盗</button></div>` : ''}
+              ${thief && thief.appeared ? `<div class="wild-thief-card"><span class="wild-thief-icon">${renderGameIcon('boss_thief', { size: 'w-full h-full' })}</span><div><strong>黑羽蒙面女盗 · 高危支线</strong><small>生命 ${thiefStats.hp} · 攻击 ${thiefStats.atk} · 防御 ${thiefStats.def} · 速度 ${thiefStats.speed}</small><small>整备提醒：穿好武器与护胸，分配潜能；可先完成巡逻提升实力，再来挑战。</small></div><button id="btn-challenge-thief" class="mota-btn-gold">截击暗影女盗</button></div>` : ''}
               ${selectedMap.boss ? `<div class="wild-boss-card"><div class="wild-enemy-portrait" role="img" aria-label="${selectedMap.boss.name}肖像" style="${getWildPortraitStyle(selectedMap.boss.id)}"></div><div class="wild-boss-copy"><strong>${selectedMap.boss.name} · Lv.${selectedMap.boss.level}</strong><small>生命 ${selectedMap.boss.hp} · 攻击 ${selectedMap.boss.atk} · 防御 ${selectedMap.boss.def}</small><small>必掉：${selectedMap.boss.guaranteedDrop.name} ×${selectedMap.boss.guaranteedDrop.count}</small></div><button id="btn-fight-wild-boss" class="mota-btn-gold">讨伐领主</button></div>` : ''}
               <section class="wild-encounters"><h3 class="wild-monster-caption">盘踞魔物</h3><div class="wild-monster-grid">
                 ${selectedMap.monsters.map((mob, index) => `<article class="wild-monster-card"><div class="wild-monster-identity"><div class="wild-enemy-portrait" role="img" aria-label="${mob.name}肖像" style="${getWildPortraitStyle(mob.icon)}"></div><strong>${mob.name}</strong></div>
@@ -66,6 +94,7 @@ export class WildView {
     </section>`;
 
     this.bindEvents();
+    this.updateIdleSummary();
   }
 
   bindEvents() {
@@ -122,7 +151,7 @@ export class WildView {
 
         this.onStartBattle({
           enemyData: { name: '【盗贼团精锐】黑羽蒙面女盗', icon: 'boss_thief' },
-          enemyStats: { hp: thief.hp || 8000, atk: 380, def: 180, speed: 30 },
+          enemyStats: { ...THIEF_STATS, hp: thief.hp || THIEF_STATS.hp },
           onFinish: (victory) => {
             if (victory) {
               sound.playFanfare();

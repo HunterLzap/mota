@@ -445,6 +445,7 @@ class GameApp {
     // Hide the previous pane before measuring the next view's available space.
     // Rendering mid-loop briefly gives the bag half the height when leaving pets.
     if (this.views[tabName]) this.views[tabName].render();
+    this.views.wild.setActive(tabName === 'wild');
   }
 
   addStatPoint(type) {
