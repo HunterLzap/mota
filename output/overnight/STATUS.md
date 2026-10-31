@@ -1,13 +1,13 @@
 # Overnight status
 
-- Status: RUNNING
-- Stage / task: 4 - final validation complete; preparing report
-- Last meaningful progress (Asia/Shanghai): 2026-11-01 01:05:36 +08:00
-- Completed / actual progress: All scoped code changes validated. Restart/load, three classes, eight-page layouts, saves, thief, portraits, idle boundary, Canvas and equipment paths passed. Battle now stops hidden wild timer.
-- Latest validation: Five prescribed Python suites; runtime171/playability4/timing12/artwork; final Chrome evidence saved. Native OS hide/freeze coverage explicitly partial.
+- Status: COMPLETED
+- Stage / task: 4 - delivered
+- Last meaningful progress (Asia/Shanghai): 2026-11-01 01:09:03 +08:00
+- Completed / actual progress: All scoped implementations and executable regressions complete; stages0-4 committed. Final report includes native OS visibility/freeze coverage limitation and preserved failure evidence.
+- Latest validation: Chrome three classes/two sizes, eight-page layouts, save/restart/load, thief/portraits/idle/equipment/Canvas; five required Python suites and runtime171/playability4/timing12/artwork all passed. Native hide/freeze partial, explicitly not claimed.
 - Current errors / blockers: See ERRORS.md; no active blocker.
-- Next: Commit final validated fixes; write final report and completion checkpoint.
-- Latest stable Git commit: 39658a37890a5972185dfd028a4c8a2b592b155c
+- Next: No remaining authorized implementation work. Review report and local branch; no push/merge/deployment performed.
+- Latest stable Git commit: 36c10de376c2c7c138ebb358aa18104e23132b24
 - Branch: codex/overnight-game-ux
 - Implementation worktree: E:/mota-overnight
 - Original workspace / DSH evidence: E:/mota/output/overnight

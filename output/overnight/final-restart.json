@@ -1,0 +1,30 @@
+{
+  "reports": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "canceledRestartPreserved": true,
+      "newSlotCreated": true,
+      "oldHeroRetained": true,
+      "loadedAndRefreshed": true,
+      "errors": [],
+      "consoleErrors": [],
+      "failures": []
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "canceledRestartPreserved": true,
+      "newSlotCreated": true,
+      "oldHeroRetained": true,
+      "loadedAndRefreshed": true,
+      "errors": [],
+      "consoleErrors": [],
+      "failures": []
+    }
+  ]
+}

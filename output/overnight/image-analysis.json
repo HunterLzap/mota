@@ -1,0 +1,65 @@
+[
+  {
+    "file": "images/scenes/royal-capital.png",
+    "bytes": 3387955,
+    "historical_transfer": 3388255,
+    "dimensions": [
+      1832,
+      859
+    ]
+  },
+  {
+    "file": "images/ui/classic-parchment.png",
+    "bytes": 3068285,
+    "historical_transfer": 3068585,
+    "dimensions": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "file": "images/portraits/character-heads-v1.png",
+    "bytes": 2768679,
+    "historical_transfer": 2768979,
+    "dimensions": [
+      1536,
+      1024
+    ]
+  },
+  {
+    "file": "images/portraits/class-portraits.png",
+    "bytes": 2671193,
+    "historical_transfer": 2671493,
+    "dimensions": [
+      1536,
+      1024
+    ]
+  },
+  {
+    "file": "images/ui/interface-emblems-v1.png",
+    "bytes": 2384110,
+    "historical_transfer": 2384410,
+    "dimensions": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "file": "images/items/artwork/supplies-relics.png",
+    "bytes": 2200099,
+    "historical_transfer": 2200399,
+    "dimensions": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "file": "images/items/artwork/equipment-atlas-v1.png",
+    "bytes": 1810738,
+    "historical_transfer": 1811038,
+    "dimensions": [
+      1254,
+      1254
+    ]
+  }
+]

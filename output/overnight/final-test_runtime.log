@@ -1,0 +1,171 @@
+PASS constructing state must not overwrite a saved character
+PASS new and unfinished saves require character creation
+PASS loading an empty inventory is idempotent and gives no consumables
+PASS legacy saves keep their class and tolerate a missing inventory
+PASS five slots retain separate character progress
+PASS quest rewards cannot be claimed again or out of order
+PASS battle view plays production logs and settles a victory exactly once
+PASS battle view keeps defeat context until advice is recorded and consumes battle costs once
+PASS class passives affect real attributes and hunter agility affects damage
+PASS mage shields and PVE regeneration execute, while PVP disables auras
+PASS cold arrow slows a target once and does not compound every hit
+PASS hatching consumes one egg and cannot create duplicate pet identities
+PASS learning requires a book, consumes it, and rejects duplicates
+PASS idle rewards persist time and cannot be clicked repeatedly for free resources
+PASS milestone quests require their exact floor or actual gem inlay
+PASS active pets gain actual experience while exhausted pets do not
+PASS potions consume materials, obey three-fight expiry, and grant permanent points correctly
+PASS battle potion multipliers include equipment titles and companion stats until their last fight
+PASS final tower preparation uses available herbs without blocking absent or active potions
+PASS daily activity entries reset once across days and survive same-day reload
+PASS mercenary hiring charges the configured cost and rejects invalid or repeat purchases
+PASS estate harvest requires elapsed time, preserves partial growth and cannot be repeated
+PASS switching patrol maps settles the old rate and cannot upgrade prior elapsed time
+PASS all dragon cards render configured stats and rewards without undefined fields
+PASS class-specific synergy is not overridden by the common starting pet or mercenary
+PASS equipment attributes and rune crit damage and reduction affect production stats
+PASS Ber rune damage boost reaches production stats only while its socketed equipment is intact
+PASS equipment previews match actual swaps for all classes with stars, damage, gems, runic words and reforges
+PASS equipment previews account for activating and breaking set thresholds including damaged pieces
+PASS equipment previews are read-only and reject the same unavailable items as equip
+PASS repair refuses insufficient gold without changing durability
+PASS backup parsing accepts valid legacy data and rejects corrupt structures before mutation
+PASS quest gear normalizes level and set identity and unsupported slots cannot become invisible equipment
+PASS boss phases trigger once at actual health thresholds and counters respect the shield
+PASS bounties enforce eligibility and cannot reset completed rewards
+PASS servant production cannot be repeated instantly and cooldown survives reload
+PASS pet evolution consumes one stone and resets both level and experience
+PASS ordered armor runes consume inventory, activate a word and return safely on removal
+PASS rune engraving reports broken equipment honestly in both result and system log
+PASS rune plans check all occupied sockets without mutating data and allow exact gap repairs
+PASS faction victory, salary and exchange settle configured resources without repeat salary
+PASS faction rune exchange reaches all eight rune intervals and charges exactly 150 merit per result
+PASS faction rune exchange preserves capacity: existing stacks succeed and unavailable new stacks do not charge
+PASS faction rune exchange rejects zero or insufficient merit before drawing or mutating inventory
+PASS the royal mission hands off to the continuation without repeating its rewards
+PASS Hermes rune word grants the declared critical bonus only on the first personal action
+PASS full inventory preserves owned equipment moves and allows existing material stacks
+PASS legacy quest and dungeon gear migrate requirements, set identity and sockets without item duplication
+PASS approved shield replacement produces wearable ten-slot quest and dungeon gloves
+PASS legacy shields migrate once while preserving owned gloves and every item identity
+PASS promotion retains every previously earned stage bonus
+PASS equipment maxHp and maxMp aliases affect actual combat stats while broken gear does not
+PASS claiming wolf quest through any caller spawns the thief and persists story progression
+PASS ordinary wild rewards use map configuration and sustained victories replenish pet food across reloads
+PASS milestone reconciliation recognizes earned titles and evolved pets without granting duplicate rewards
+PASS new-save first-floor default is not a victory and legacy unfinished thief quests recover
+PASS royal trial settlement enforces current stage, eligibility and one reward per victory callback
+PASS final promotion damage bonus reaches the combat engine and increases direct attacks once
+PASS rune attributes preserve intellect mana, hunter dexterity damage and constitution defense
+PASS all-stat reforging grants all four attribute effects rather than only strength and health
+PASS mage intellect remains a viable primary attack stat across allocation, gear and runes
+PASS explicit zero enemy critical chance is not replaced with the default chance
+PASS wild supply counters accept valid backups, reject corrupt imports and migrate local legacy data safely
+PASS new characters hire their first companion with earned gold while existing contracts survive reload
+PASS wild boss settlement follows configured currencies and quality and only the forest advances the wolf quest
+PASS bard exploration rewards apply once to wild hunts and boss fights but leave salary and other currencies alone
+PASS dragon challenge spends and persists attempts once, rejects duplicates and survives refresh without refunds
+PASS three dragon victories grant configured currencies, wearable equipment and stackable loot exactly once
+PASS dragon optional drops obey probability boundary and gold dragon can grant every configured set
+PASS typed dragon eggs hatch only their promised tier and keep eggs when eligible pets are exhausted
+PASS dragon settlement advances only the matching story target and rejects corrupt backups
+PASS dragon historical victory completes only its later quest across reload without granting rewards
+PASS arena entries persist five daily attempts and old, duplicate and cross-opponent callbacks cannot settle
+PASS arena defeats retain the 1000 point floor and only valid wins advance the quest
+PASS three dragon first-victory stories appear once while repeat victories remain concise after reload
+PASS castle entry keeps six keys, three daily attempts and cannot overwrite an active bank
+PASS castle identity rejects old same-floor victory, defeat and withdrawal across reentry and reload
+PASS castle payout saves once, remains reentry-safe and preserves full withdrawal, half defeat and summit rules
+PASS legacy active castle bank gains stable identity without erasure and invalid imports cannot mint payouts
+PASS castle withdrawal with character and pet level-ups publishes the complete payout once
+PASS tower first clears grant every configured item and crystal once, replay rewards survive reload
+PASS tower normal floor and bard reward settle once and out-of-order callbacks cannot pay
+PASS legacy tower saves initialize a reward ledger without inventing prior clears and corrupt imports fail
+PASS reforging requires actual equipment and the explicitly selected valid crystal without fallback consumption
+PASS all thirteen set bonuses reach stats and four-piece effects cease when one piece breaks
+PASS skill levels scale attacks, passives and auras consistently without mutating base config or mana costs
+PASS set damage, armor penetration and low-health finish bonuses affect actual direct attacks at their boundaries
+PASS magic damage and skill level bonuses boost mage spells while magic bonus leaves ordinary attacks unchanged
+PASS set normal attack combo is separate from skills, respects boss shields and mana absorption uses actual health damage
+PASS enemy hit is finite and player dodge actually avoids enemy attacks while explicit zero hit stays zero
+PASS castle revival restores promised health and mana once before the next action
+PASS lifesteal and mage life drain heal from actual health damage rather than overkill or absorbed shield damage
+PASS pet wind speed changes initiative and exhausted pets cannot apply it
+PASS dragon spells warn, spend finite mana, apply finite statuses and respect active pet protection
+PASS control can interrupt each configured dragon spell after its warning without spending the pending cast
+PASS harpy weakness reduces attack without repeated stacking and manticore wounds amplify later hits
+PASS phoenix revival follows configured probability and cannot revive repeatedly
+PASS configured gold dragon combo, learned combo and silver regeneration use distinct declared values
+PASS calm control and enduring stun have real effects and expire instead of stacking endlessly
+PASS nightmare infection doubles actual skill lifesteal but cannot heal more than missing health
+PASS earned prestige buys corrosion book, learning consumes it once and poison respects boss shields
+PASS hatching respects displayed level gates and never consumes eggs when eligible species are already owned
+PASS prestige protection crystals reach the enhancement consumer and only failed protected attempts consume protection
+PASS legacy protection material keeps quantity and identity across repeated loads and can be consumed
+PASS a full bag allows prestige purchases into owned stacks while a new-item failure preserves prestige and inventory
+PASS gem removal into a full existing stack succeeds but cannot lose a socketed item when no bag slot exists
+PASS inlay rejects malformed socket indices before charging gold or consuming a gem
+PASS boss spells warn before casting, cost mana and cannot cast after mana exhaustion
+PASS purification blocks incoming poison and protection reduces it while exhausted pets lose the counterplay
+PASS bone dragon debuffs expire without stacking and holy pets counter them while magic resistance affects spell damage
+PASS control immunity counters dragon imprisonment and crowd control interrupts a prepared boss spell
+PASS damage reduction, mage mana shielding and mana absorption apply to actual incoming poison damage
+PASS selling idle gear removes exactly its identity, pays once and persists with no effect on worn gear
+PASS sale refuses socketed equipment, materials, worn gear and stale prices without mutating inventory
+PASS clearing overflow with an equipment sale restores shop capacity and old unidentified gear receives stable identities
+PASS bag expansion charges the quoted game resources once and respects insufficient funds and maximum capacity
+PASS expanded capacity persists per slot, legacy saves default safely and malformed imports are rejected
+PASS faction and prestige trades use expanded capacity and full existing stacks without charging failed new items
+PASS disassembly recovers matching materials once, merges full bags and preserves currency and other equipment
+PASS disassembly refuses gems, malformed gear and stale equipment identity without losing resources
+PASS disassembly preserves generated materials even when a full bag has no matching stack
+PASS old royal mission completion resumes the first unclaimed continuation without regranting old rewards
+PASS continuation recognizes actual existing milestones in order and all six rewards pay only once across reload
+PASS continuation rejects generic events, unrelated dungeons and skipped tower heights without actual boss proof
+PASS dungeon entry enforces configured level, active expedition and five paid daily attempts
+PASS production five-floor dungeon settles exact rewards once, preserves full-bag drops and records one clear
+PASS old callbacks cannot settle an out-of-order floor, other gate or new expedition on the same gate
+PASS legacy in-progress dungeon gains a persistent expedition identity and malformed imported identity is rejected
+PASS military promotions use lifetime merit while spending leaves earned rank and salary intact
+PASS legacy spent military ranks retain a conservative lifetime merit floor without refunding currency
+PASS Hydra rebirth happens once after lethal attacks and active naga blocks it while exhausted naga cannot
+PASS lethal counterattacks and poison damage share the single enemy rebirth guard
+PASS enemy siphon excludes mana shield absorption and caps actual health loss and missing enemy health
+PASS enemy rebirth does not recreate the phase shield or repeat enrage and sacrifice
+PASS void siphon warns then heals from actual damage and pegasus halves enemy recovery with fatigue restoring it
+PASS new saves begin without possessions and earn usable class equipment and tutorial materials exactly once
+PASS all equipment producers preserve level quality identity and set while matching class shapes and primary attributes
+PASS legacy mage keeps earned gear identity upgrades gems and inventory while universal equipment gains class appearance once
+PASS quest-earned herbs enter the alchemy stock before the lesson and are consumed by the actual recipe
+PASS real battle reward producers grant class equipment for wild dragons dungeons and tower first clears
+PASS foreign worn gear contributes no stats and reload returns it to inventory once without destroying it
+PASS pet activation and washing require real ownership and materials and advance only their actual chapter
+PASS new journeys unlock activities in sequence while legacy saves keep earned resources and access
+PASS journey guidance directs actual level, prestige, evolution and reforge prerequisites
+PASS all ten generated slots have usable attributes and class equipment changes combat stats
+PASS each ancient gate awards its advertised cultivation supplies once per valid clear including full bags
+PASS arena backups reject malformed quotas scores and challenge identity without mutating storage
+PASS midnight expires unfinished arena callbacks and renews exactly five attempts without rewards
+PASS defeat preparation follows actual broken gear fatigue and depleted mage mana
+PASS returning learned books frees a full slot exactly once and preserves finite inventory across relearning and reload
+PASS ancient gate clues are first-clear only and remain consumed after reload without losing repeat supplies
+PASS high tower holy thunder and flame attacks warn consume finite mana and respect protection and fatigue
+PASS repair quotes price broken equipment by its grade and exactly match spending with insufficient-gold protection
+PASS permanent potion growth has a finite earned ceiling without consuming capped resources or reducing legacy potential
+PASS story creation starts empty and guard gear requires acceptance, is class-specific and pays once
+PASS new first investigation needs a real forest victory before materials and the first forge lesson
+PASS finite investigations follow their exact region, reject fabricated progress and cannot pay twice after reload
+PASS story skills unlock in battle and stats by level while legacy characters retain all learned abilities
+PASS earned admission permits supplement only an exhausted quota and never bypass keys or a live expedition
+PASS three empty-save story routes complete all 26 chapters and the final tower with earned resources and explicit time accounting
+PASS completed investigations keep the delivery action ahead of allocation and fatigue, then guide actual feeding
+PASS story tower first-clear loot has one source and reduced currency while legacy rewards stay intact
+PASS story patrol is a timed experience supplement with shared finite currency quotes and legacy rates preserved
+PASS new reforge pays the shared grade quote without affecting stats until a one-time choice survives reload
+PASS reforge checks both currencies and imported candidates before spending while legacy pricing remains unchanged
+PASS upgrade inheritance conserves both items stars and embedded resources, charges its quote and rejects stale replay
+PASS inheritance refuses foreign and higher-level items, insufficient funds and changed equipment without mutation
+PASS bag gem extraction respects capacity and exact live gem identity, preserving ordered rune deactivation
+PASS paid companion training catches up through the shared experience curve without changing hero or other companions
+PASS companion training rejects exhausted partners and missing funds before consuming food
+PASS chosen contracts require actual eggs with correct tier and level, consume normal costs and reject repeat ownership

@@ -1,0 +1,65 @@
+{
+  "baseline": false,
+  "reports": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "thiefText": "黑羽蒙面女盗 · 高危支线\n生命 8000 · 攻击 380 · 防御 180 · 速度 30\n整备提醒：穿好武器与护胸，分配潜能；可先完成巡逻提升实力，再来挑战。\n截击暗影女盗",
+      "thiefStats": {
+        "text": "对手阵容\n【盗贼团精锐】黑羽蒙面女盗\n\n当前场景守卫\n\n生命8000 / 8000\n攻击\n380\n防御\n180\n速度\n30\n魔力\n100\n\n出手间隔\n8.77\n秒\n第 0 次行动\n\n对手技能与机制\n普通攻击\n速度越高，出手间隔越短；眩晕会跳过一次行动"
+      },
+      "idleBefore": "营地：亚诺微光森林 · 0分 · +0 EXP / +0 金 / +0 晶",
+      "idleAfter": "营地：亚诺微光森林 · 1分 · +120 EXP / +8 金 / +0 晶",
+      "idleActivity": {
+        "mutations": 1,
+        "renders": 0
+      },
+      "returnSummary": "营地：亚诺微光森林 · 2分 · +240 EXP / +16 金 / +0 晶",
+      "lifecycleAfterResume": {
+        "hidden": false,
+        "summary": "营地：亚诺微光森林 · 2分 · +240 EXP / +16 金 / +0 晶",
+        "timerActive": true
+      },
+      "reloadSummary": "营地：亚诺微光森林 · 0分 · +0 EXP / +0 金 / +0 晶",
+      "layout": {
+        "overflow": false,
+        "actionVisible": true
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "thiefText": "黑羽蒙面女盗 · 高危支线\n生命 8000 · 攻击 380 · 防御 180 · 速度 30\n整备提醒：穿好武器与护胸，分配潜能；可先完成巡逻提升实力，再来挑战。\n截击暗影女盗",
+      "thiefStats": {
+        "text": "对手阵容\n【盗贼团精锐】黑羽蒙面女盗\n\n当前场景守卫\n\n生命8000 / 8000\n攻击\n380\n防御\n180\n速度\n30\n魔力\n100\n\n出手间隔\n8.77\n秒\n第 0 次行动\n\n对手技能与机制\n普通攻击\n速度越高，出手间隔越短；眩晕会跳过一次行动"
+      },
+      "idleBefore": "营地：亚诺微光森林 · 0分 · +0 EXP / +0 金 / +0 晶",
+      "idleAfter": "营地：亚诺微光森林 · 1分 · +120 EXP / +8 金 / +0 晶",
+      "idleActivity": {
+        "mutations": 1,
+        "renders": 0
+      },
+      "returnSummary": "营地：亚诺微光森林 · 2分 · +240 EXP / +16 金 / +0 晶",
+      "lifecycleAfterResume": {
+        "hidden": false,
+        "summary": "营地：亚诺微光森林 · 2分 · +240 EXP / +16 金 / +0 晶",
+        "timerActive": true
+      },
+      "reloadSummary": "营地：亚诺微光森林 · 0分 · +0 EXP / +0 金 / +0 晶",
+      "layout": {
+        "overflow": false,
+        "actionVisible": true
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    }
+  ]
+}

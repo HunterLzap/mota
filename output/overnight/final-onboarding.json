@@ -1,0 +1,28 @@
+[
+  {
+    "width": 1280,
+    "baseline": false,
+    "stayedInBag": true,
+    "equipFocus": "quest_1793465886066_y2ji",
+    "lowerNav": "bag",
+    "lowerInBag": true,
+    "guide3": "下一步：用调查得到的水晶，为武器升星一次\n\n铁匠布兰：这块残片带着魔塔的腐蚀痕迹。你带回的水晶能加固武器；完成一次升星，我们再看看营地里那枚仍有生命气息的契约蛋。\n\n前往目标",
+    "battles": 1,
+    "refreshes": 1,
+    "pageErrors": [],
+    "protectedSlots": 4
+  },
+  {
+    "width": 1440,
+    "baseline": false,
+    "stayedInBag": true,
+    "equipFocus": "quest_1793465890806_aj4f",
+    "lowerNav": "bag",
+    "lowerInBag": true,
+    "guide3": "下一步：用调查得到的水晶，为武器升星一次\n\n铁匠布兰：这块残片带着魔塔的腐蚀痕迹。你带回的水晶能加固武器；完成一次升星，我们再看看营地里那枚仍有生命气息的契约蛋。\n\n前往目标",
+    "battles": 1,
+    "refreshes": 1,
+    "pageErrors": [],
+    "protectedSlots": 4
+  }
+]

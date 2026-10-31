@@ -1,0 +1,131 @@
+{
+  "baseline": false,
+  "reports": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "classId": "warrior",
+      "initialFocus": "input-hero-name",
+      "classFocus": "warrior",
+      "focusEscaped": false,
+      "panelAfterGuidance": "stats",
+      "recommendedVisible": true,
+      "ordinaryPortrait": "monster_wolf",
+      "dragonPortrait": "boss_dragonking",
+      "layout": {
+        "horizontalOverflow": false,
+        "brokenImages": []
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "classId": "mage",
+      "initialFocus": "input-hero-name",
+      "classFocus": "mage",
+      "focusEscaped": false,
+      "panelAfterGuidance": "stats",
+      "recommendedVisible": true,
+      "ordinaryPortrait": "monster_wolf",
+      "dragonPortrait": "boss_dragonking",
+      "layout": {
+        "horizontalOverflow": false,
+        "brokenImages": []
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "classId": "hunter",
+      "initialFocus": "input-hero-name",
+      "classFocus": "hunter",
+      "focusEscaped": false,
+      "panelAfterGuidance": "stats",
+      "recommendedVisible": true,
+      "ordinaryPortrait": "monster_wolf",
+      "dragonPortrait": "boss_dragonking",
+      "layout": {
+        "horizontalOverflow": false,
+        "brokenImages": []
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "classId": "warrior",
+      "initialFocus": "input-hero-name",
+      "classFocus": "warrior",
+      "focusEscaped": false,
+      "panelAfterGuidance": "stats",
+      "recommendedVisible": true,
+      "ordinaryPortrait": "monster_wolf",
+      "dragonPortrait": "boss_dragonking",
+      "layout": {
+        "horizontalOverflow": false,
+        "brokenImages": []
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "classId": "mage",
+      "initialFocus": "input-hero-name",
+      "classFocus": "mage",
+      "focusEscaped": false,
+      "panelAfterGuidance": "stats",
+      "recommendedVisible": true,
+      "ordinaryPortrait": "monster_wolf",
+      "dragonPortrait": "boss_dragonking",
+      "layout": {
+        "horizontalOverflow": false,
+        "brokenImages": []
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "classId": "hunter",
+      "initialFocus": "input-hero-name",
+      "classFocus": "hunter",
+      "focusEscaped": false,
+      "panelAfterGuidance": "stats",
+      "recommendedVisible": true,
+      "ordinaryPortrait": "monster_wolf",
+      "dragonPortrait": "boss_dragonking",
+      "layout": {
+        "horizontalOverflow": false,
+        "brokenImages": []
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    }
+  ]
+}

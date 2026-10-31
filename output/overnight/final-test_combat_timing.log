@@ -1,0 +1,12 @@
+PASS class base cadence and agility agree with production logs including NPC class and monster defaults
+PASS speed increases actual attack frequency against the same opponent
+PASS ties are deterministic and a lethal first action cancels the other queued action
+PASS slow preserves accumulated progress, lasts 20 seconds and restores the original cadence
+PASS stun consumes exactly one personal action instead of blocking the other combatant
+PASS reapplying slow refreshes its expiry without compounding the speed penalty
+PASS wound without a crit modifier preserves enemy critical hits throughout its lifetime
+PASS a fast boss still telegraphs one personal action before casting and spends finite mana
+PASS regeneration follows ten-second ticks independent of attack speed
+PASS hunter aura and active pet speed bonuses change frequency; NPC arena excludes auras
+PASS the first-strike rune only increases critical chance for the first personal action
+PASS invalid and extreme speeds remain bounded and never produce an endless simulation

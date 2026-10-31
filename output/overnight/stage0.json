@@ -1,0 +1,116 @@
+{
+  "results": [
+    {
+      "phase": "stage0",
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "sameSlotNotice": "存档 1 正在其他页面中使用。请关闭对应页面后重新载入，或选择其他存档。",
+      "earned": {
+        "name": "Save Warrior",
+        "classId": "warrior",
+        "level": 3,
+        "gold": 1587,
+        "equipped": 2,
+        "quest2": {
+          "current": 1,
+          "completed": true
+        }
+      },
+      "activeDeleteDisabled": true,
+      "busyDeleteNotice": "存档 1 正在其他页面中使用。请先关闭对应页面后再删除。",
+      "reload": {
+        "name": "Save Mage",
+        "classId": "mage",
+        "level": 2,
+        "gold": 1500,
+        "equipped": 2,
+        "quest2": {
+          "current": 0,
+          "completed": false
+        }
+      },
+      "imported": {
+        "name": "Save Mage",
+        "classId": "mage",
+        "level": 2,
+        "gold": 1500,
+        "equipped": 2,
+        "quest2": {
+          "current": 0,
+          "completed": false
+        }
+      },
+      "afterOwnerClosed": {
+        "name": "Save Mage",
+        "classId": "mage",
+        "level": 2,
+        "gold": 1500,
+        "equipped": 2,
+        "quest2": {
+          "current": 0,
+          "completed": false
+        }
+      },
+      "errors": [],
+      "requests": []
+    },
+    {
+      "phase": "stage0",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "sameSlotNotice": "存档 1 正在其他页面中使用。请关闭对应页面后重新载入，或选择其他存档。",
+      "earned": {
+        "name": "Save Warrior",
+        "classId": "warrior",
+        "level": 3,
+        "gold": 1587,
+        "equipped": 2,
+        "quest2": {
+          "current": 1,
+          "completed": true
+        }
+      },
+      "activeDeleteDisabled": true,
+      "busyDeleteNotice": "存档 1 正在其他页面中使用。请先关闭对应页面后再删除。",
+      "reload": {
+        "name": "Save Mage",
+        "classId": "mage",
+        "level": 2,
+        "gold": 1500,
+        "equipped": 2,
+        "quest2": {
+          "current": 0,
+          "completed": false
+        }
+      },
+      "imported": {
+        "name": "Save Mage",
+        "classId": "mage",
+        "level": 2,
+        "gold": 1500,
+        "equipped": 2,
+        "quest2": {
+          "current": 0,
+          "completed": false
+        }
+      },
+      "afterOwnerClosed": {
+        "name": "Save Mage",
+        "classId": "mage",
+        "level": 2,
+        "gold": 1500,
+        "equipped": 2,
+        "quest2": {
+          "current": 0,
+          "completed": false
+        }
+      },
+      "errors": [],
+      "requests": []
+    }
+  ]
+}

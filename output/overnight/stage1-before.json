@@ -1,0 +1,47 @@
+{
+  "baseline": true,
+  "reports": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 900
+      },
+      "classId": "warrior",
+      "initialFocus": "",
+      "classFocus": null,
+      "focusEscaped": true,
+      "panelAfterGuidance": "skills",
+      "recommendedVisible": false,
+      "ordinaryPortrait": "monster_wolf",
+      "dragonPortrait": null,
+      "layout": {
+        "horizontalOverflow": false,
+        "brokenImages": []
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "classId": "warrior",
+      "initialFocus": "",
+      "classFocus": null,
+      "focusEscaped": true,
+      "panelAfterGuidance": "skills",
+      "recommendedVisible": false,
+      "ordinaryPortrait": "monster_wolf",
+      "dragonPortrait": null,
+      "layout": {
+        "horizontalOverflow": false,
+        "brokenImages": []
+      },
+      "errors": [],
+      "failures": [],
+      "consoleErrors": []
+    }
+  ]
+}
