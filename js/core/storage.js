@@ -8,10 +8,115 @@ const LEGACY_SAVE_KEY = 'MOTA_WORLD_REBIRTH_SAVE';
 const ACTIVE_SLOT_KEY = 'MOTA_WORLD_ACTIVE_SLOT_ID';
 const SLOT_KEY_PREFIX = 'MOTA_WORLD_SAVE_SLOT_';
 export const TOTAL_SLOTS = 5;
+const slotLocks = new Map();
+const slotSnapshots = new Map();
+let protectedSession = false;
+let pageSlotId = null;
+
+function acquireSlotLock(slotId) {
+  if (slotLocks.has(slotId)) return Promise.resolve(true);
+  return new Promise((resolve, reject) => {
+    navigator.locks.request(`MOTA_WORLD_SLOT_${slotId}`, { ifAvailable: true }, lock => {
+      if (!lock) { resolve(false); return; }
+      return new Promise(release => {
+        slotLocks.set(slotId, release);
+        resolve(true);
+      });
+    }).catch(reject);
+  });
+}
+
+function releaseSlotLock(slotId) {
+  slotLocks.get(slotId)?.();
+  slotLocks.delete(slotId);
+  slotSnapshots.delete(slotId);
+}
 
 export const storage = {
+  lastError: '',
+  onConflict: null,
+
+  watchSlot() {
+    if (!protectedSession) return;
+    window.addEventListener('storage', event => {
+      const key = `${SLOT_KEY_PREFIX}${pageSlotId}`;
+      if (event.key === key && event.newValue !== slotSnapshots.get(pageSlotId)) this.onConflict?.();
+    });
+  },
+
+  getSlotSnapshot(slotId) {
+    return localStorage.getItem(`${SLOT_KEY_PREFIX}${slotId}`);
+  },
+
+  hasActiveSlot() {
+    return !protectedSession || (pageSlotId !== null && slotLocks.has(pageSlotId));
+  },
+
+  // Keep one writer per slot without changing synchronous game-state mutations.
+  async activateSlot(slotId, expectedSnapshot) {
+    const id = Math.max(1, Math.min(TOTAL_SLOTS, parseInt(slotId, 10) || 1));
+    protectedSession = true;
+    if (!globalThis.navigator?.locks?.request) {
+      this.lastError = '当前浏览器不支持安全的多页面存档，请使用支持 Web Locks 的浏览器打开游戏。';
+      return false;
+    }
+    if (pageSlotId === id && slotLocks.has(id)) return this.canWriteSlot(id);
+    try {
+      if (!await acquireSlotLock(id)) {
+        this.lastError = `存档 ${id} 正在其他页面中使用。请关闭对应页面后重新载入，或选择其他存档。`;
+        return false;
+      }
+      const snapshot = this.getSlotSnapshot(id);
+      if (expectedSnapshot !== undefined && snapshot !== expectedSnapshot) {
+        releaseSlotLock(id);
+        this.lastError = '该存档已在其他页面发生变化，请重新打开档案馆后再操作。';
+        return false;
+      }
+      const previous = pageSlotId;
+      slotSnapshots.set(id, snapshot);
+      localStorage.setItem(ACTIVE_SLOT_KEY, String(id));
+      pageSlotId = id;
+      if (previous !== null && previous !== id) releaseSlotLock(previous);
+      this.lastError = '';
+      return true;
+    } catch (error) {
+      releaseSlotLock(id);
+      this.lastError = '无法打开存档，请检查浏览器的本地存储权限后重新载入。';
+      return false;
+    }
+  },
+
+  canWriteSlot(slotId) {
+    if (!protectedSession) return true;
+    if (slotLocks.has(slotId) && slotSnapshots.get(slotId) === this.getSlotSnapshot(slotId)) return true;
+    this.lastError = '存档已发生变化，本页已停止保存。请重新载入最新进度，或选择其他存档。';
+    this.onConflict?.();
+    return false;
+  },
+
+  async deleteInactiveSlot(slotId) {
+    if (this.hasActiveSlot() && slotId === this.getActiveSlotId()) {
+      this.lastError = '当前游玩中的存档不能删除，请先切换到其他存档。';
+      return false;
+    }
+    try {
+      if (!await acquireSlotLock(slotId)) {
+        this.lastError = `存档 ${slotId} 正在其他页面中使用。请先关闭对应页面后再删除。`;
+        return false;
+      }
+      slotSnapshots.set(slotId, this.getSlotSnapshot(slotId));
+      return this.deleteSlot(slotId);
+    } catch (error) {
+      this.lastError = '删除存档失败，请检查浏览器的本地存储权限。';
+      return false;
+    } finally {
+      releaseSlotLock(slotId);
+    }
+  },
+
   // 获取当前正在游玩的槽位 ID (1 ~ 5，默认 1)
   getActiveSlotId() {
+    if (protectedSession && pageSlotId !== null) return pageSlotId;
     try {
       const id = localStorage.getItem(ACTIVE_SLOT_KEY);
       const num = parseInt(id, 10);
@@ -25,10 +130,13 @@ export const storage = {
   setActiveSlotId(slotId) {
     try {
       const num = Math.max(1, Math.min(TOTAL_SLOTS, parseInt(slotId, 10) || 1));
+      if (protectedSession && !slotLocks.has(num)) return false;
       localStorage.setItem(ACTIVE_SLOT_KEY, String(num));
+      if (protectedSession) pageSlotId = num;
       return num;
     } catch (e) {
-      return 1;
+      this.lastError = '切换存档失败，请检查浏览器的本地存储权限。';
+      return false;
     }
   },
 
@@ -44,8 +152,11 @@ export const storage = {
         if (legacyRaw) {
           const parsed = JSON.parse(legacyRaw);
           const data = parsed.data || parsed;
-          this.saveToSlot(1, data);
-          raw = localStorage.getItem(key);
+          raw = legacyRaw;
+          if (!protectedSession || slotLocks.has(1)) {
+            this.saveToSlot(1, data);
+            raw = localStorage.getItem(key) || legacyRaw;
+          }
         }
       }
 
@@ -98,7 +209,7 @@ export const storage = {
     const activeId = this.getActiveSlotId();
     for (let i = 1; i <= TOTAL_SLOTS; i++) {
       const info = this.getSlotInfo(i);
-      info.isActive = (i === activeId);
+      info.isActive = this.hasActiveSlot() && (i === activeId);
       slots.push(info);
     }
     return slots;
@@ -107,6 +218,7 @@ export const storage = {
   // 保存数据到指定槽位
   saveToSlot(slotId, data) {
     try {
+      if (!this.canWriteSlot(slotId)) return false;
       const now = new Date();
       const envelope = {
         version: '2.0.0',
@@ -125,7 +237,9 @@ export const storage = {
         },
         data
       };
-      localStorage.setItem(`${SLOT_KEY_PREFIX}${slotId}`, JSON.stringify(envelope));
+      const snapshot = JSON.stringify(envelope);
+      localStorage.setItem(`${SLOT_KEY_PREFIX}${slotId}`, snapshot);
+      if (protectedSession) slotSnapshots.set(slotId, snapshot);
       return true;
     } catch (e) {
       console.error(`Save to slot ${slotId} failed:`, e);
@@ -142,10 +256,13 @@ export const storage = {
   // 清空/删除指定槽位
   deleteSlot(slotId) {
     try {
+      if (protectedSession && slotId === this.getActiveSlotId()) return false;
+      if (!this.canWriteSlot(slotId)) return false;
       localStorage.removeItem(`${SLOT_KEY_PREFIX}${slotId}`);
       if (slotId === 1) {
         localStorage.removeItem(LEGACY_SAVE_KEY);
       }
+      if (protectedSession) slotSnapshots.set(slotId, null);
       return true;
     } catch (e) {
       console.error(`Delete slot ${slotId} failed:`, e);

@@ -140,7 +140,7 @@ export class ArchiveModal {
                           游玩中
                         </button>
                       `}
-                      <button data-action="delete-slot" data-slot="${s.slotId}" class="btn-slot-action mota-btn-dark px-2 py-1.5 rounded text-xs text-red-400 hover:text-red-300 hover:border-red-500" title="清空此槽位">
+                      <button data-action="delete-slot" data-slot="${s.slotId}" class="btn-slot-action mota-btn-dark px-2 py-1.5 rounded text-xs text-red-400 hover:text-red-300 hover:border-red-500 disabled:cursor-not-allowed disabled:opacity-45" title="${isActive ? '当前游玩中的存档不能删除，请先切换到其他存档' : '清空此槽位'}" ${isActive ? 'disabled' : ''}>
                         删除
                       </button>
                     `}
@@ -220,7 +220,7 @@ export class ArchiveModal {
             gameState.loadOrInit();
             gameState.notify();
             gameModal.alert(`成功将外部备份导入至【存档位 ${activeId}】！`, '导入成功', () => {
-              this.render();
+              this.close();
               if (this.onGameReload) this.onGameReload();
             });
           });
@@ -230,10 +230,11 @@ export class ArchiveModal {
   }
 
   // 槽位操作处理
-  handleSlotAction(action, slotId) {
+  async handleSlotAction(action, slotId) {
     if (action === 'save-to') {
       // 覆盖保存到该槽位
-      storage.setActiveSlotId(slotId);
+      const converted = await storage.activateSlot(slotId);
+      if (!converted) return this.archiveFailure();
       storage.saveToSlot(slotId, gameState.data);
       gameModal.toast(`已将当前进度保存至【存档位 ${slotId}】！`);
       this.render();
@@ -242,12 +243,12 @@ export class ArchiveModal {
       // 读取该槽位
       gameModal.confirm(
         `确定要读取【存档位 ${slotId}】的冒险记录吗？未保存的临时改动可能会被替换！`,
-        () => {
+        async () => {
           const loadedData = storage.loadFromSlot(slotId);
           if (!loadedData) {
             return gameModal.alert('读取存档失败：槽位数据损坏或不存在！');
           }
-          storage.setActiveSlotId(slotId);
+          if (!await storage.activateSlot(slotId)) return this.archiveFailure();
           gameState.loadOrInit();
           gameState.notify();
           gameModal.alert(`成功载入【存档位 ${slotId}】的英雄记录！祝你战无不胜！`, '读档成功', () => {
@@ -262,8 +263,8 @@ export class ArchiveModal {
       // 删除/清空槽位
       gameModal.confirm(
         `警告：确定要清空并删除【存档位 ${slotId}】的全部冒险数据吗？此操作无法撤销！`,
-        () => {
-          storage.deleteSlot(slotId);
+        async () => {
+          if (!await storage.deleteInactiveSlot(slotId)) return this.archiveFailure();
           gameModal.toast(`【存档位 ${slotId}】已清空！`);
           this.render();
         },
@@ -274,6 +275,10 @@ export class ArchiveModal {
       // 在指定空槽位新开游戏
       this.startNewGameInSlot(slotId);
     }
+  }
+
+  archiveFailure() {
+    gameModal.alert(storage.lastError || '存档操作未能完成，请重新载入后再试。', '存档保护');
   }
 
   // 开启全新游戏流程
@@ -293,17 +298,11 @@ export class ArchiveModal {
     );
   }
 
-  startNewGameInSlot(slotId) {
-    storage.setActiveSlotId(slotId);
-    gameState.resetToNewGame();
-    gameState.data.hasChosenClass = false;
-    storage.saveToSlot(slotId, gameState.data);
+  async startNewGameInSlot(slotId) {
+    if (!await storage.activateSlot(slotId)) return this.archiveFailure();
     this.close();
-
-    if (this.onStartNewGame) {
-      this.onStartNewGame();
-    } else {
-      if (this.onGameReload) this.onGameReload();
-    }
+    if (this.onStartNewGame) this.onStartNewGame();
+    else if (this.onGameReload) this.onGameReload();
   }
+
 }

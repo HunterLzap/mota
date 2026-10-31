@@ -32,11 +32,37 @@ class GameApp {
     this.systemLogView = null;
     this.charSelectModal = null;
     this.archiveModal = null;
+    this.initialized = false;
+    this.saveNoticeScheduled = false;
   }
 
-  init() {
+  async init() {
     window.appInstance = this;
-    gameModal.init();
+    if (!this.archiveModal) {
+      gameModal.init();
+      this.archiveModal = new ArchiveModal(
+        'game-archive-overlay',
+        () => this.initialized ? this.onReloadGame() : this.init(),
+        () => this.initialized ? this.onStartNewGame() : this.init()
+      );
+      storage.onConflict = () => {
+        if (this.saveNoticeScheduled) return;
+        this.saveNoticeScheduled = true;
+        queueMicrotask(() => {
+          this.saveNoticeScheduled = false;
+          if (gameModal.isOpen) {
+            gameModal.close();
+          }
+          this.showSaveNotice();
+        });
+      };
+    }
+    if (!await storage.activateSlot(storage.getActiveSlotId())) {
+      this.showSaveNotice();
+      window.completeGameStartup?.();
+      return;
+    }
+    storage.watchSlot();
     gameState.loadOrInit();
 
     // 启动 2010 纯代码 2D 粒子微光环境引擎
@@ -48,11 +74,6 @@ class GameApp {
 
     this.battleView = new BattleView('battle-overlay');
     this.charSelectModal = new CharSelectModal('char-select-overlay');
-    this.archiveModal = new ArchiveModal(
-      'game-archive-overlay', 
-      () => this.onReloadGame(), 
-      () => this.onStartNewGame()
-    );
 
     // 核心功能系统挂载 (4大冒险场景 + 4大勇者核心功能)
     this.views.tower = new TowerView('tab-content-tower', (params) => this.battleView.start(params));
@@ -108,9 +129,25 @@ class GameApp {
     if (this.systemLogView) this.systemLogView.render();
 
     this.pushSystemTicker('【系统】欢迎来到《魔塔世界》！请留意右侧【任务追踪】，跟随主线一步步打造至强神装与神兽！');
+    this.initialized = true;
     this.charSelectModal.open();
     this.renderJourneyGuide();
     window.completeGameStartup?.();
+  }
+
+  showSaveNotice() {
+    const shell = document.querySelector('.classic-client');
+    if (shell) shell.inert = true;
+    gameModal.confirm(
+      storage.lastError,
+      () => window.location.reload(),
+      () => {
+        if (shell) shell.inert = false;
+        this.archiveModal.open();
+      },
+      '存档保护',
+      { confirmLabel: '重新载入', cancelLabel: '选择其他存档' }
+    );
   }
 
   renderJourneyGuide() {
@@ -454,6 +491,9 @@ class GameApp {
 
   // 新开游戏：重置并开启创角誓约
   onStartNewGame() {
+    gameState.resetToNewGame();
+    gameState.data.hasChosenClass = false;
+    storage.save(gameState.data);
     this.updateTopBar();
     if (this.questTracker) this.questTracker.render();
     this.switchTab('tower');
