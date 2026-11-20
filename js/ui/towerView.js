@@ -13,6 +13,7 @@ import { HOLY_RELICS, getRelicsTotalStats } from '../config/relics.js';
 import { gameModal } from './modal.js';
 import { canRetryFinale } from '../core/journey.js';
 import { getBossTactics } from '../config/bossTactics.js';
+import { MERCENARIES } from '../config/estate.js';
 
 export class TowerView {
   constructor(containerId, onStartBattle) {
@@ -107,7 +108,7 @@ export class TowerView {
             </div>` : ''}
             ${!castle.isExploring ? `
               <!-- 6 把钥匙启程卡片 -->
-              <div class="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+              <div class="castle-key-list space-y-1 pr-1">
                 <!-- 红木钥匙 -->
                 <div class="p-2 rounded-xl bg-black/40 border border-slate-800 flex items-center justify-between hover:border-amber-500/50 transition-colors">
                   <div class="flex items-center gap-2 min-w-0">
@@ -227,7 +228,7 @@ export class TowerView {
                 </div>
 
                 <div class="text-[10px] text-slate-400">
-                  主动结束探险全额结算；若战败退出则折半结算。
+                  主动结束探险全额结算；若战败退出则经验按 50% 结算、累计金币全部损失（已入袋魔晶与首通奖励保留）。
                 </div>
 
                 <button id="btn-claim-castle-exit" class="w-full mota-btn-gold py-2 rounded-lg text-xs font-black shadow">
@@ -319,9 +320,15 @@ export class TowerView {
     const currentFloor = isExploringThis ? (dung.activeGateFloor || 1) : 1;
     const currentGuard = getDungeonFloorGuard(selectedGate.id, currentFloor);
     const clearedCount = dung.clearedGates?.[selectedGate.id] || 0;
+    const hasMerc = !!data.estate?.hiredMercId;
+    const activeMerc = hasMerc ? MERCENARIES.find(m => m.id === data.estate.hiredMercId) : null;
+    const mercName = activeMerc?.name || '已雇佣佣兵';
+    const hasSlave = (data.slaves?.list?.length || 0) > 0;
+    const slaveName = hasSlave ? (data.slaves.list[0]?.name || '侍从') : '无侍从';
+    if ((this.selectedCompanion === 'merc' && !hasMerc) || (this.selectedCompanion === 'slave' && !hasSlave)) this.selectedCompanion = 'none';
 
     return `
-      <div class="h-full grid grid-cols-1 md:grid-cols-12 gap-3">
+      <div class="dungeon-workspace h-full min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3">
         
         <!-- 左侧：七大门列表 (5列，紧凑舒适无滚条) -->
         <div class="md:col-span-5 mota-parchment-panel p-2.5 rounded-xl border-2 border-[#caa048] flex flex-col justify-between">
@@ -449,14 +456,17 @@ export class TowerView {
                     <input type="radio" name="companion" value="none" ${this.selectedCompanion === 'none' ? 'checked' : ''} class="accent-amber-500">
                     <span class="text-[11px] text-slate-200">单枪匹马</span>
                   </label>
-                  <label class="flex items-center gap-1.5 p-2 rounded-lg bg-black/50 border border-slate-800 cursor-pointer hover:border-amber-400 transition-colors">
-                    <input type="radio" name="companion" value="merc" ${this.selectedCompanion === 'merc' ? 'checked' : ''} class="accent-amber-500">
+                  <label class="flex items-center gap-1.5 p-2 rounded-lg bg-black/50 border ${hasMerc ? 'border-slate-800 cursor-pointer hover:border-blue-400' : 'border-slate-800 opacity-50 cursor-not-allowed'} transition-colors" title="${hasMerc ? mercName : '尚未雇佣佣兵，前往酒馆佣兵驻所招募'}">
+                    <input type="radio" name="companion" value="merc" ${this.selectedCompanion === 'merc' ? 'checked' : ''} ${hasMerc ? '' : 'disabled'} class="accent-amber-500">
                     <span class="text-[11px] text-blue-300">佣兵援护</span>
                   </label>
-                  <label class="flex items-center gap-1.5 p-2 rounded-lg bg-black/50 border border-slate-800 cursor-pointer hover:border-amber-400 transition-colors">
-                    <input type="radio" name="companion" value="slave" ${this.selectedCompanion === 'slave' ? 'checked' : ''} class="accent-amber-500">
+                  <label class="flex items-center gap-1.5 p-2 rounded-lg bg-black/50 border ${hasSlave ? 'border-slate-800 cursor-pointer hover:border-purple-400' : 'border-slate-800 opacity-50 cursor-not-allowed'} transition-colors" title="${hasSlave ? slaveName : '牢房尚无侍从，先在庄园收押'}">
+                    <input type="radio" name="companion" value="slave" ${this.selectedCompanion === 'slave' ? 'checked' : ''} ${hasSlave ? '' : 'disabled'} class="accent-amber-500">
                     <span class="text-[11px] text-purple-300">侍从出战</span>
                   </label>
+                </div>
+                <div class="text-[10px] text-slate-400 leading-relaxed">
+                  当前佣兵：<b class="${hasMerc ? 'text-blue-300' : 'text-slate-500'}">${hasMerc ? mercName : '未雇佣（酒馆佣兵驻所可招募）'}</b> · 当前侍从：<b class="${hasSlave ? 'text-purple-300' : 'text-slate-500'}">${hasSlave ? slaveName : '无（庄园牢房可收押）'}</b>
                 </div>
               </div>
 
@@ -520,9 +530,9 @@ export class TowerView {
     const totalStats = getRelicsTotalStats(data.relics?.unlocked || []);
 
     return `
-      <div class="h-full flex flex-col space-y-3 overflow-y-auto pr-1">
+      <div class="h-full flex flex-col space-y-2 min-h-0 overflow-hidden">
         <!-- 顶部总览光环面板 -->
-        <div class="mota-parchment-panel p-3.5 rounded-xl border-2 border-[#caa048] flex flex-col sm:flex-row items-center justify-between gap-3 flex-shrink-0">
+        <div class="mota-parchment-panel p-2.5 rounded-xl border-2 border-[#caa048] flex flex-col sm:flex-row items-center justify-between gap-2 flex-shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 rounded-xl bg-black/60 border border-amber-600/80 p-1.5 flex items-center justify-center flex-shrink-0">
               ${renderGameIcon('relic_holy', 'w-full h-full')}
@@ -550,19 +560,19 @@ export class TowerView {
         </div>
 
         <!-- 6大圣遗物卡片网格 -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pb-2">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 pb-1 flex-1 min-h-0">
           ${relics.map(r => {
             const isUnlocked = r.isUnlocked;
             return `
-              <div class="p-3 rounded-xl border transition-all ${
+              <div class="p-2 rounded-xl border transition-all ${
                 isUnlocked 
                   ? 'bg-amber-950/20 border-amber-500/70 shadow-lg' 
                   : 'bg-black/40 border-slate-800 opacity-60'
-              } flex flex-col justify-between space-y-2.5">
-                <div class="flex items-start gap-3">
-                  <div class="w-11 h-11 rounded-xl bg-black/60 border ${
+              } flex flex-col justify-between space-y-1.5">
+                <div class="flex items-start gap-2">
+                  <div class="w-9 h-9 rounded-xl bg-black/60 border ${
                     isUnlocked ? 'border-amber-500' : 'border-slate-700'
-                  } p-1.5 flex items-center justify-center flex-shrink-0">
+                  } p-1 flex items-center justify-center flex-shrink-0">
                     ${renderGameIcon(r.icon || 'relic_holy', 'w-full h-full')}
                   </div>
                   <div class="flex-1 min-w-0">
@@ -762,7 +772,7 @@ export class TowerView {
               const result = gameState.finishCastleExpedition(expeditionId, floor);
               if (!result.success) return;
               const halfExp = result.exp;
-              gameModal.alert(`挑战未果！被动退出探险，折半结算获得 ${halfExp} 点经验。`, '古堡历练结算');
+              gameModal.alert(`挑战未果！被动退出探险，经验按 50% 结算获得 ${halfExp} 点经验，累计金币全部损失（已入袋魔晶与首通奖励保留）。`, '古堡历练结算');
               this.render();
             }
           }
@@ -826,14 +836,18 @@ export class TowerView {
         const expeditionId = dung.expeditionId;
         const guard = getDungeonFloorGuard(gate.id, floor);
 
-        // 设置侍从助战
-        if (this.selectedCompanion === 'slave') {
-          gameState.data.assistingSlave = gameState.data.slaves?.list?.[0] || null;
-        } else {
-          gameState.data.assistingSlave = null;
+        // 副本三模式：单枪 / 佣兵援护 / 侍从助战，必须与实际拥有情况一致。
+        const companionMode = this.selectedCompanion || 'none';
+        if (companionMode === 'merc' && !gameState.data.estate?.hiredMercId) {
+          return gameModal.alert('尚未雇佣佣兵，无法选择【佣兵援护】。请先招募佣兵，或选择单枪匹马。', '出征准备');
         }
+        if (companionMode === 'slave' && !(gameState.data.slaves?.list?.length > 0)) {
+          return gameModal.alert('牢房中尚无侍从，无法选择【侍从出战】。请先获得侍从，或选择单枪匹马。', '出征准备');
+        }
+        gameState.data.assistingSlave = companionMode === 'slave' ? gameState.data.slaves.list[0] : null;
 
         this.onStartBattle({
+          companionMode,
           enemyData: {
             name: guard.name,
             icon: guard.icon,

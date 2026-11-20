@@ -39,6 +39,7 @@ async (page) => {
       await restore(25);const trainingBefore=await data(),pet=trainingBefore.pets[0];
       await game.evaluate(petId=>{window.appInstance.views.pets.currentSubTab='overview';window.appInstance.views.pets.selectedPetId=petId;window.switchMainTab('pets');},pet.id);
       const trainingQuote=await game.evaluate(petId=>window.gameState.getCompanionTrainingQuote(petId),pet.id);if(!trainingQuote.success)throw new Error(trainingQuote.msg);
+      await game.evaluate(()=>{window.appInstance.views.pets.detailSub='more';window.appInstance.views.pets.render();});
       await game.locator('#btn-train-companion').click();await dismiss();const trained=await data();
       if(trained.pets[0].level!==trainingQuote.targetLevel||trained.level!==trainingBefore.level||trained.gold!==trainingBefore.gold-trainingQuote.gold||JSON.stringify(trained.pets[0].skills)!==JSON.stringify(pet.skills))throw new Error('Training changed wrong progression');
       await game.reload();await ready();if((await data()).pets[0].level!==trainingQuote.targetLevel)throw new Error('Refresh lost trained level');
@@ -46,16 +47,19 @@ async (page) => {
       const contractBefore=await data(),choices=await game.evaluate(()=>window.gameState.getContractChoices()),choice=choices.find(choice=>choice.id==='light_spirit');if(!choice)throw new Error('Earned gold egg missing for a mana counter');
       await game.locator('#select-companion-contract').selectOption('light_spirit');await game.locator('#btn-chosen-contract').click();await dismiss();
       const contracted=await data();if(!contracted.pets.some(pet=>pet.id==='light_spirit'&&pet.level===1&&pet.tier==='gold')||contracted.gold!==contractBefore.gold-choice.gold||contracted.crystal!==contractBefore.crystal-choice.crystal)throw new Error('Chosen contract bypassed costs or tier');
+      await game.evaluate(()=>{window.appInstance.views.pets.detailSub='more';window.appInstance.views.pets.render();});
       while(await game.evaluate(()=>window.gameState.getCompanionTrainingQuote('light_spirit').success)) {
         await game.locator('#btn-train-companion').click();await dismiss();
       }
       const counterTrained=await data();
       const counterTrainingCost={gold:contracted.gold-counterTrained.gold,crystal:contracted.crystal-counterTrained.crystal,food:contracted.bag.find(item=>item.id==='pet_food').count-counterTrained.bag.find(item=>item.id==='pet_food').count};
       await game.evaluate(petId=>{window.appInstance.views.pets.selectedPetId=petId;window.appInstance.views.pets.render();},pet.id);
+      await game.evaluate(()=>{window.appInstance.views.pets.detailSub='more';window.appInstance.views.pets.render();});
       while(await game.evaluate(petId=>window.gameState.getCompanionTrainingQuote(petId).success,pet.id)) {
         await game.locator('#btn-train-companion').click();await dismiss();
       }
       await game.evaluate(()=>{window.appInstance.views.pets.selectedPetId='light_spirit';window.appInstance.views.pets.render();});
+      await game.evaluate(()=>{window.appInstance.views.pets.detailSub='main';window.appInstance.views.pets.render();});
       await game.locator('#btn-toggle-active-pet').click();await dismiss();
       const comparison=await game.evaluate(async originalId=>{
         const {runCombat}=await import('/js/core/combat.js'),{getTowerFloorData}=await import('/js/config/towerLevels.js');const state=window.gameState,originalRandom=Math.random,active=state.data.activePetId;

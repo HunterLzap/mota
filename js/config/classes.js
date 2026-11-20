@@ -53,7 +53,7 @@ export const CLASSES = {
       crit: 8,
       dodge: 5,
       hit: 95,
-      counter: 25,   // 原著战士核心反击
+      counter: 25,   // 参考原著的战士反击定位
       lifesteal: 0,
       magicResist: 10
     },
@@ -64,7 +64,7 @@ export const CLASSES = {
       def: 5.0,
       speed: 1.2
     },
-    // 原著 9 大正宗技能
+    // 参考原著的 9 项职业技能
     skills: [
       {
         id: 'w_sk_1',

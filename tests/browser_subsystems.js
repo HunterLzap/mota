@@ -26,6 +26,7 @@ async (page) => {
     await game.goto('http://127.0.0.1:8088', { timeout: 60000 });
     await game.locator('[data-class-id="mage"]').click();
     await game.locator('#btn-confirm-character').click();
+    for (let i = 0; i < 6 && await game.evaluate(() => window.gameModal && window.gameModal.isOpen); i++) await game.locator('#game-modal-btn-confirm').click();
     await game.evaluate(() => {
       const data = window.gameState.data;
       data.level = 80; data.gold = 1000000; data.crystal = 100000; data.prestige = 100000;
@@ -34,8 +35,8 @@ async (page) => {
       window.gameState.notify();
     });
     const townViews = ['hub', 'smithy', 'smithy_enhance', 'smithy_socket', 'smithy_repair',
-      'smithy_smelt', 'smithy_reforge', 'smithy_runes', 'palace', 'palace_salary', 'palace_trials',
-      'palace_arena', 'dragons', 'fishing', 'tavern', 'tavern_bounty', 'tavern_mercenary', 'tavern_drinks', 'faction_war'];
+      'smithy_smelt', 'smithy_smelt_set', 'smithy_reforge', 'smithy_runes', 'palace', 'palace_salary', 'palace_trials',
+      'palace_arena', 'dragons', 'fishing', 'stable', 'tavern', 'tavern_bounty', 'tavern_mercenary', 'tavern_drinks', 'faction_war'];
     const routes = [];
     for (const view of townViews) {
       await game.evaluate(view => { window.appInstance.views.town.currentView = view; window.switchMainTab('town'); }, view);

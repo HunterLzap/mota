@@ -30,7 +30,7 @@ async (page) => {
         window.appInstance.views.town.currentView = 'smithy_smelt';
         window.switchMainTab('town');
       });
-      check(await game.locator('.smithy-slot-button').count() === 10, 'Disassembly does not expose all equipment slots');
+      check(await game.locator('.smithy-slot-button').count() === 12, 'Disassembly does not expose all equipment slots');
       check(await game.locator('#btn-disassemble-gear').isDisabled(), 'Empty weapon slot should not offer disassembly');
       const armorChoice = game.locator('button[data-smithy-slot="armor"]');
       await armorChoice.focus(); await game.keyboard.press('Enter');

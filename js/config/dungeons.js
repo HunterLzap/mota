@@ -5,7 +5,7 @@ export const DUNGEON_CLEAR_SUPPLIES = {
   trial_gate: [{ ...SPECIAL_ITEMS.key_redwood, count: 1 }, { ...SPECIAL_ITEMS.star_crystal, count: 3 }],
   courage_gate: [{ ...SPECIAL_ITEMS.key_bronze, count: 1 }, { ...SPECIAL_ITEMS.pill_reborn, count: 2 }],
   mirage_gate: [{ ...SPECIAL_ITEMS.pill_reborn, count: 2 }],
-  death_gate: [{ ...SPECIAL_ITEMS.pet_egg, id: 'pet_egg_darkgold', name: '暗金神兽契约蛋', quality: 'darkgold', type: 'egg', count: 1 }],
+  death_gate: [{ ...SPECIAL_ITEMS.pet_egg, id: 'pet_egg_darkgold', name: '暗金宠物蛋', quality: 'darkgold', type: 'egg', count: 1 }],
   storm_gate: [{ ...SPECIAL_ITEMS.evolution_stone, count: 1 }],
   dragon_gate: [{ ...SPECIAL_ITEMS.destiny_stone, count: 1 }],
   spacetime_gate: [{ ...SPECIAL_ITEMS.key_platinum, count: 1 }, { ...SPECIAL_ITEMS.crystal_purplegold, count: 2 }]
@@ -152,7 +152,7 @@ export const DUNGEON_GATES = [
     totalFloors: 10,
     icon: 'gate_death',
     description: '弥漫幽冥死气的魔窟，出产高阶审判者重甲与萨格尔古冠。',
-    dropsDesc: '审判者护胸或萨格尔头盔、暗金神兽蛋；另获暗金晶石',
+    dropsDesc: '审判者护胸或萨格尔头盔、暗金宠物蛋；另获暗金晶石',
     setDrops: ['judge', 'sagael_set'],
     boss: {
       name: '冥府死神侍者',
@@ -305,31 +305,42 @@ export function generateDungeonDrop(gateId) {
   const pool = {
     trial_gate: [
       { id: 'courage_sword', name: '勇气先驱重剑', slot: 'weapon', quality: 'gold', setId: 'courage', setName: '【勇气套装】', stats: { atk: 95, str: 18, crit: 5 }, holes: 2, desc: '试炼之门缴获的远古利刃，铭刻勇气誓约。' },
+      { id: 'guardian_sword', name: '守护骑士重剑', slot: 'weapon', quality: 'gold', setId: 'guardian_knight', setName: '【守护骑士套装】', stats: { atk: 100, def: 60, hp: 300 }, holes: 2, desc: '勇者试炼中授予的守护骑士制式重剑。', icon: 'images/items/wpn_sword.svg' },
+      { id: 'aden_heir_blade', name: '亚诺后裔之刃', slot: 'weapon', quality: 'gold', setId: 'aden_heir', setName: '【亚诺后裔套装】', stats: { atk: 110, str: 16, hp: 300 }, holes: 2, desc: '王室封赏、亚诺遗脉相传的制式长剑。', icon: 'images/items/wpn_sword.svg' },
       { id: 'courage_gloves', name: '勇气精钢护手', slot: 'gloves', quality: 'gold', setId: 'courage', setName: '【勇气套装】', stats: { def: 75, hp: 350, counter: 6 }, holes: 2, desc: '试炼之门的精钢护手。', icon: 'images/items/eq_gloves.svg' }
     ],
     courage_gate: [
       { id: 'courage_armor', name: '勇气先驱重铠', slot: 'armor', quality: 'gold', setId: 'courage', setName: '【勇气套装】', stats: { def: 110, hp: 600, dmgResist: 4 }, holes: 2, desc: '勇气之门镇守重铠。' },
-      { id: 'courage_pants', name: '勇气先驱战胫', slot: 'pants', quality: 'gold', setId: 'courage', setName: '【勇气套装】', stats: { def: 85, hp: 450, speed: 12 }, holes: 2, desc: '勇气之门精钢护胫。' }
+      { id: 'courage_pants', name: '勇气先驱战胫', slot: 'pants', quality: 'gold', setId: 'courage', setName: '【勇气套装】', stats: { def: 85, hp: 450, speed: 12 }, holes: 2, desc: '勇气之门精钢护胫。' },
+      { id: 'guardian_helmet', name: '守护骑士战盔', slot: 'helmet', quality: 'gold', setId: 'guardian_knight', setName: '【守护骑士套装】', stats: { def: 90, hp: 400, hit: 8 }, holes: 2, desc: '守护骑士制式战盔，护佑勇者无惧强敌。', icon: 'images/items/eq_helmet.svg' },
+      { id: 'aden_heir_armor', name: '亚诺后裔胸甲', slot: 'armor', quality: 'gold', setId: 'aden_heir', setName: '【亚诺后裔套装】', stats: { def: 80, hp: 450 }, holes: 2, desc: '亚诺遗脉传承的制式胸甲。', icon: 'images/items/arm_chest.svg' }
     ],
     mirage_gate: [
       { id: 'judge_pants', name: '审判者秘法战胫', slot: 'pants', quality: 'darkgold', setId: 'judge', setName: '【审判者套装】', stats: { def: 140, hp: 800, speed: 18 }, holes: 2, desc: '变幻之门破除结界缴获的审判者神装。' },
-      { id: 'sagael_gloves', name: '萨格尔幽冥护手', slot: 'gloves', quality: 'darkgold', setId: 'sagael_set', setName: '【萨格尔套装】', stats: { def: 120, mp: 400, crit: 8 }, holes: 2, desc: '变幻之门缴获的帝国护手。' }
+      { id: 'sagael_gloves', name: '萨格尔幽冥护手', slot: 'gloves', quality: 'darkgold', setId: 'sagael_set', setName: '【萨格尔套装】', stats: { def: 120, mp: 400, crit: 8 }, holes: 2, desc: '变幻之门缴获的帝国护手。' },
+      { id: 'sagael_pants', name: '萨格尔幽冥战胫', slot: 'pants', quality: 'darkgold', setId: 'sagael_set', setName: '【萨格尔套装】', stats: { def: 130, hp: 700, speed: 14 }, holes: 2, desc: '变幻之门结界深处缴获的幽冥战胫。', icon: 'images/items/eq_pants.svg' }
     ],
     death_gate: [
       { id: 'judge_armor', name: '审判者神圣法袍', slot: 'armor', quality: 'darkgold', setId: 'judge', setName: '【审判者套装】', stats: { def: 200, hp: 1200, lifesteal: 10 }, holes: 2, desc: '死亡之门冥府死神守卫的圣袍。' },
-      { id: 'sagael_helmet', name: '萨格尔帝国战盔', slot: 'helmet', quality: 'darkgold', setId: 'sagael_set', setName: '【萨格尔套装】', stats: { def: 160, hp: 900, counter: 12 }, holes: 2, desc: '死亡之门远古战盔。' }
+      { id: 'sagael_helmet', name: '萨格尔帝国战盔', slot: 'helmet', quality: 'darkgold', setId: 'sagael_set', setName: '【萨格尔套装】', stats: { def: 160, hp: 900, counter: 12 }, holes: 2, desc: '死亡之门远古战盔。' },
+      { id: 'aden_pants', name: '亚丁战胫', slot: 'pants', quality: 'darkgold', setId: 'aden_set', setName: '【亚丁套装】', stats: { def: 150, hp: 850, counter: 8 }, holes: 2, desc: '死亡之门守卫的亚丁制式战胫。', icon: 'images/items/eq_pants.svg' }
     ],
     storm_gate: [
       { id: 'punisher_cloak', name: '制裁者狂雷披风', slot: 'cloak', quality: 'darkgold', setId: 'punisher', setName: '【制裁者套装】', stats: { def: 180, atk: 110, critDmg: 25 }, holes: 2, desc: '风暴之门雷霆织就的战神披风。' },
-      { id: 'kester_bow', name: '克斯特幻影长弓', slot: 'weapon', quality: 'darkgold', setId: 'kester_set', setName: '【克斯特套装】', stats: { atk: 280, speed: 28, crit: 15 }, holes: 2, desc: '风暴之门缴获的精灵古弓。' }
+      { id: 'kester_bow', name: '克斯特幻影长弓', slot: 'weapon', quality: 'darkgold', setId: 'kester_set', setName: '【克斯特套装】', stats: { atk: 280, speed: 28, crit: 15 }, holes: 2, desc: '风暴之门缴获的精灵古弓。' },
+      { id: 'tower_hero_armor', name: '魔塔英雄胸甲', slot: 'armor', quality: 'darkgold', setId: 'tower_hero', setName: '【魔塔英雄套装】', stats: { def: 240, hp: 1500, dmgResist: 6 }, holes: 2, desc: '魔塔英灵遗留的暗金胸甲。', icon: 'images/items/arm_chest.svg' }
     ],
     dragon_gate: [
       { id: 'punisher_armor', name: '制裁者天罚重甲', slot: 'armor', quality: 'darkgold', setId: 'punisher', setName: '【制裁者套装】', stats: { def: 280, hp: 1800, dmgResist: 8 }, holes: 2, desc: '巨龙之门黑焰熔铸的天罚重装。' },
-      { id: 'kester_helmet', name: '克斯特密林神冠', slot: 'helmet', quality: 'darkgold', setId: 'kester_set', setName: '【克斯特套装】', stats: { def: 210, speed: 20, dodge: 10 }, holes: 2, desc: '巨龙之门神圣古冠。' }
+      { id: 'kester_helmet', name: '克斯特密林神冠', slot: 'helmet', quality: 'darkgold', setId: 'kester_set', setName: '【克斯特套装】', stats: { def: 210, speed: 20, dodge: 10 }, holes: 2, desc: '巨龙之门神圣古冠。' },
+      { id: 'tower_hero_helmet', name: '魔塔英雄战盔', slot: 'helmet', quality: 'darkgold', setId: 'tower_hero', setName: '【魔塔英雄套装】', stats: { def: 170, hp: 600 }, holes: 2, desc: '巨龙之门深处寻回的魔塔英雄战盔。', icon: 'images/items/eq_helmet.svg' }
     ],
     spacetime_gate: [
       { id: 'conqueror_sword', name: '征服者诸神圣剑', slot: 'weapon', quality: 'purplegold', setId: 'conqueror', setName: '【征服者套装】', stats: { atk: 480, str: 75, crit: 18, critDmg: 35 }, holes: 3, desc: '时空之门掌控者配剑，至高荣耀。' },
-      { id: 'karlis_robe', name: '卡尔里斯时空法袍', slot: 'armor', quality: 'purplegold', setId: 'karlis_set', setName: '【卡尔里斯传奇套装】', stats: { def: 380, hp: 2800, mp: 1200, dmgResist: 12 }, holes: 3, desc: '时空之门无上神装法袍。' }
+      { id: 'karlis_robe', name: '卡尔里斯时空法袍', slot: 'armor', quality: 'purplegold', setId: 'karlis_set', setName: '【卡尔里斯传奇套装】', stats: { def: 380, hp: 2800, mp: 1200, dmgResist: 12 }, holes: 3, desc: '时空之门无上神装法袍。' },
+      { id: 'aden_sword', name: '亚丁圣剑', slot: 'weapon', quality: 'darkgold', setId: 'aden_set', setName: '【亚丁套装】', stats: { atk: 360, hp: 800, counter: 10 }, holes: 3, desc: '时空之门封印的亚丁制式圣剑。', icon: 'images/items/wpn_sword.svg' },
+      { id: 'dark_demon_robe', name: '黑暗魔神法袍', slot: 'armor', quality: 'purplegold', setId: 'dark_demon', setName: '【黑暗魔神套装】', stats: { def: 360, hp: 2400, magicDmg: 20 }, holes: 3, desc: '深渊时空门深处现世的魔神法袍。', icon: 'images/items/arm_robe.svg' },
+      { id: 'dark_demon_helm', name: '黑暗魔神战盔', slot: 'helmet', quality: 'purplegold', setId: 'dark_demon', setName: '【黑暗魔神套装】', stats: { def: 280, hp: 1000 }, holes: 3, desc: '黑暗魔神遗落的紫金战盔。', icon: 'images/items/eq_helmet.svg' }
     ]
   };
 

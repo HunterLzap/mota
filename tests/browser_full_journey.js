@@ -33,7 +33,7 @@ async (page) => {
       if(state.currentQuestId!=='quest_2' || weapon.reqClass!==classId || initial.onboardingVersion!==2) throw new Error('Incorrect opening commission');
       for(const id of ['novice_weapon','novice_armor']) {
         state=await data(); const gear=state.bag.find(i=>i.id===id);
-        await game.locator('#nav-tab-bag').click(); await game.locator(`[data-bag-uid="${gear.uid}"]`).click(); await game.locator('#btn-bag-equip-item').click(); await dismiss();
+        await game.locator('#nav-tab-bag').click(); await game.locator(`[data-bag-uid="${gear.uid}"]`).click(); await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); await dismiss();
       }
       const fight = async () => {
         await game.locator('#btn-skip-battle').click();

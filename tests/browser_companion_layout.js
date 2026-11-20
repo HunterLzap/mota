@@ -12,6 +12,7 @@ async (page) => {
       });
       await game.reload();await game.waitForFunction(()=>Boolean(window.appInstance?.views?.pets));
       await game.evaluate(()=>{window.appInstance.views.pets.selectedPetId=window.gameState.data.pets[0].id;window.switchMainTab('pets');});
+      await game.evaluate(()=>{window.appInstance.views.pets.detailSub='more';window.appInstance.views.pets.render();});
       for(const selector of ['#select-companion-contract','#btn-chosen-contract','#btn-train-companion']) {
         await game.locator(selector).scrollIntoViewIfNeeded();
         const box=await game.locator(selector).boundingBox();

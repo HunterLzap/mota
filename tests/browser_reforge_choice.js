@@ -96,7 +96,7 @@ async (page) => {
           return { crystals, slots };
         });
         check(initialLayout.crystals.length === 2 && initialLayout.crystals.every(button => button.visible), `Crystal choices are not fully reachable on the initial screen: ${JSON.stringify(initialLayout.crystals)}`);
-        check(initialLayout.slots.length === 10 && initialLayout.slots.some(slot => slot.hasStars) && initialLayout.slots.every(slot => slot.visible && slot.textFits && slot.starsFit), `Equipment slot text is clipped: ${JSON.stringify(initialLayout.slots.filter(slot => !slot.visible || !slot.textFits || !slot.starsFit))}`);
+        check(initialLayout.slots.length === 12 && initialLayout.slots.some(slot => slot.hasStars) && initialLayout.slots.every(slot => slot.visible && slot.textFits && slot.starsFit), `Equipment slot text is clipped: ${JSON.stringify(initialLayout.slots.filter(slot => !slot.visible || !slot.textFits || !slot.starsFit))}`);
         const beforeSelection = await data();
         for (const slot of ['armor', 'weapon']) {
           const button = game.locator(`button[data-reforge-slot="${slot}"], button[data-smithy-slot="${slot}"]`).first();

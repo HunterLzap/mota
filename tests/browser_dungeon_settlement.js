@@ -19,6 +19,7 @@ async (page) => {
   try {
     await game.goto('http://127.0.0.1:8088');
     await game.locator('[data-class-id="warrior"]').click(); await game.locator('#btn-confirm-character').click();
+    await dismiss();
     // Isolated level/equipment prerequisite only; all entries, retreat and six battles are actual UI paths.
     await game.evaluate(() => {
       const state = window.gameState; state.data.level = 20; state.data.currentQuestId = 'quest_13';

@@ -1,0 +1,122 @@
+/* =========================================================================
+ * 行囊格子布局 · 唯一权威（最后加载，覆盖其余文件的历史冲突）
+ * 目标：所有槽（物品格 .bag-slot-cell 与空格 .bag-slot-empty）统一正方固定尺寸，
+ * 完全一样大；行不随容器高度拉伸；40 格装不下由 bagView 分页（保持一屏零滚动）。
+ * 只影响 #tab-content-bag 内的行囊格子，不改其它页面/物品数据/逻辑/存档。
+ * ========================================================================= */
+
+.classic-client #tab-content-bag .bag-items {
+  --bag-cell: 64px;
+  display: grid !important;
+  /* 覆盖 bagView.js 内联的 repeat(12,1fr) / repeat(rows,1fr)，改固定正方auto-fill */
+  grid-template-columns: repeat(auto-fill, var(--bag-cell)) !important;
+  grid-template-rows: none !important;
+  grid-auto-rows: var(--bag-cell) !important;
+  grid-auto-flow: row !important;
+  align-content: start !important;   /* 行按格高排列，不撑满容器 */
+  justify-content: start !important;
+  align-items: start !important;
+  justify-items: start !important;
+  gap: 6px !important;
+  padding: 8px !important;
+  margin: 6px 0 !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  background: #171d15 !important;
+  border: 1px solid #756d4e !important;
+  box-shadow: inset 0 2px 8px #12180e80 !important;
+}
+
+/* 物品格与空格：同一固定正方尺寸 */
+.classic-client #tab-content-bag :is(.bag-slot-cell, .bag-slot-empty) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+  width: var(--bag-cell, 64px) !important;
+  height: var(--bag-cell, 64px) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: var(--bag-cell, 64px) !important;
+  max-height: var(--bag-cell, 64px) !important;
+  aspect-ratio: 1 !important;
+  margin: 0 !important;
+  padding: 3px 2px 5px !important;
+  border: 1px solid #676349 !important;
+  border-radius: 2px !important;
+  border-top-color: #11190e !important;
+  border-left-color: #11190e !important;
+  background: #22271e !important;
+  color: #f4dfb7 !important;
+  box-shadow: inset 0 1px 0 #3d4433 !important;
+  overflow: hidden !important;
+}
+
+.classic-client #tab-content-bag .bag-slot-empty {
+  background: #2c3026 !important;
+  box-shadow: inset 0 2px 6px #10150c80 !important;
+  opacity: .55 !important;
+}
+
+/* 格内图像与名称按格子缩放，保证不撑破正方形 */
+.classic-client #tab-content-bag .bag-slot-art {
+  display: block !important;
+  width: min(100%, 40px) !important;
+  height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+}
+/* 名字与数量/星级同一行（图标下方），名字按需省略、角标固定右侧，二者均不压图标 */
+.classic-client #tab-content-bag .bag-slot-meta {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  line-height: 13px !important;
+}
+.classic-client #tab-content-bag .bag-slot-name {
+  display: block !important;
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  padding: 0 !important;
+  font-size: 11px !important;
+  line-height: 13px !important;
+  text-align: center !important;
+  color: #f0e2c4 !important;
+}
+.classic-client #tab-content-bag .bag-slot-cell::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: 2px !important;
+  left: 4px !important;
+  right: 4px !important;
+  border-bottom: 2px solid var(--item-quality) !important;
+  pointer-events: none !important;
+}
+/* 数量/星级改为名字行内静态元素（不再绝对定位压图标），紧凑小角标 */
+.classic-client #tab-content-bag :is(.bag-slot-count, .bag-slot-stars) {
+  position: static !important;
+  flex: 0 0 auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  padding: 0 1px !important;
+  line-height: 12px !important;
+  font: bold 10px var(--font-game-numeric, Georgia, serif) !important;
+  border-radius: 2px !important;
+  z-index: 1 !important;
+}

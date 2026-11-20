@@ -1,0 +1,132 @@
+/* =========================================================================
+ * 哑光描金按钮/页签 · 纯 CSS（风格参照原作，不裁图/不贴原图像素）
+ * 只接入现有元素：顶部 8 导航、商店 4 品类、王都 8 热区、商店购买与确认。
+ * 质感目标：暗炭底 + 描金浮雕双线 + 金渐变(选中亮金/未选暗炭金字) + 哑光有结构，
+ * 不亮油、不平涂。移除 index.html 本样式 link 即可回退。不动玩法/数值/存档。
+ * ========================================================================= */
+
+/* ---------- A 页签基础（导航 + 商店品类）：暗炭底 · 描金浮雕双线 · 哑光 ---------- */
+.classic-client .classic-navigation button,
+.classic-client .shop-cat-tabs [data-shop-cat] {
+  background:
+    linear-gradient(180deg, rgba(210,194,150,.14) 0%, rgba(0,0,0,0) 26%),
+    linear-gradient(180deg, #45433a 0%, #2b2921 48%, #15130e 100%) !important;
+  border: 1px solid #7c6535 !important;          /* 外亮金细线 */
+  border-radius: 2px 2px 0 0 !important;
+  color: #d9ba79 !important;                      /* 暗金字 */
+  text-shadow: 0 1px 0 #0a0805, 0 0 1px #0a0805 !important;
+  box-shadow:
+    inset 0 0 0 1px #241705,                      /* 内暗棕阴刻线 -> 双线 */
+    inset 0 1px 0 #c8ab6f,                        /* 顶部哑光高光（非白） */
+    inset 0 -7px 9px -7px #000000,                /* 底部内凹阴影 */
+    0 1px 2px #000 !important;
+  transition: filter .12s, box-shadow .12s, background .12s;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.classic-client .classic-navigation button:hover,
+.classic-client .shop-cat-tabs [data-shop-cat]:hover {
+  background:
+    linear-gradient(180deg, rgba(220,205,160,.18) 0%, rgba(0,0,0,0) 28%),
+    linear-gradient(180deg, #514e42 0%, #34312a 48%, #1a1812 100%) !important;
+  border-color: #96793f !important;
+}
+/* 选中 / 当前：哑光金渐变（上有层次下有收边），深棕字 + 轻微外发光（不是高光油亮） */
+.classic-client .classic-navigation button[aria-current="page"],
+.classic-client .shop-cat-tabs [data-shop-cat].is-current {
+  background:
+    linear-gradient(180deg, #d3b169 0%, #b98f3c 50%, #96701f 100%) !important;
+  border-color: #e2c47f !important;
+  color: #2c1c08 !important;
+  text-shadow: 0 1px 0 #efd79c !important;        /* 阴刻感：字下透亮 */
+  box-shadow:
+    inset 0 0 0 1px #6d4d16,
+    inset 0 1px 0 #f0d69a,
+    inset 0 -4px 6px -3px #4a3210,
+    0 0 7px rgba(180,132,52,.45),
+    0 1px 2px #000 !important;
+  font-weight: 900 !important;
+}
+.classic-client .classic-navigation button:active,
+.classic-client .shop-cat-tabs [data-shop-cat]:active {
+  box-shadow:
+    inset 0 0 0 1px #241705,
+    inset 0 3px 7px #000000aa !important;
+}
+
+/* ---------- B 描金金属牌（王都 8 热区 / 商店购买）：哑光金底板 + 浮雕双线 ---------- */
+.classic-client main .classic-town-location,
+.classic-client main .classic-town-location:is(:hover,:active,:focus-visible),
+.classic-client .town-shop-town [data-buy-shop-goods],
+.classic-client .town-shop-town [data-buy-shop-goods]:is(:hover,:active,:disabled) {
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,.018) 0 2px, rgba(0,0,0,.022) 2px 4px),
+    linear-gradient(180deg, rgba(255,244,210,.10) 0%, rgba(255,244,210,0) 18%),
+    radial-gradient(120% 90% at 50% 6%, #ddc389 0%, #c9aa6c 44%, #b08f58 80%, #9a7945 100%) !important;
+  border: 1px solid #7a5a2a !important;
+  border-radius: 2px !important;
+  color: #34240f !important;
+  text-shadow: 0 1px 0 #f4e6c0 !important;
+  box-shadow:
+    inset 0 0 0 1px #6a4a1c,                     /* 内暗金阴刻线 -> 双线 */
+    inset 0 1px 0 #f7e8c1,                       /* 凸起外框的顶光 */
+    inset 0 4px 6px -3px #00000055,              /* 内凹底板的顶阴影 */
+    inset 0 -2px 3px -2px #6a4a1c,
+    0 2px 4px #00000070 !important;
+  transition: filter .12s, box-shadow .12s, border-color .12s;
+}
+.classic-client main .classic-town-location span { color: #34240f !important; text-shadow: 0 1px 0 #f4e6c0 !important; }
+.classic-client main .classic-town-location small { color: #5c4523 !important; }
+.classic-client main .classic-town-location .feature-lock-hint { color: #5c4523 !important; text-shadow: none !important; }
+.classic-client main .classic-town-location:hover,
+.classic-client .town-shop-town [data-buy-shop-goods]:hover:not(:disabled) {
+  border-color: #c9a24a !important;
+  filter: brightness(1.05) !important;
+}
+.classic-client main .classic-town-location:active,
+.classic-client .town-shop-town [data-buy-shop-goods]:active:not(:disabled) {
+  box-shadow:
+    inset 0 0 0 1px #6a4a1c,
+    inset 0 3px 7px #00000066 !important;
+}
+/* 锁定 / 不可用：压暗去饱和，仍可点看原因，保持 aria-disabled 语义 */
+.classic-client main .classic-town-location.feature-locked,
+.classic-client main .classic-town-location.feature-locked:is(:hover,:active,:focus-visible) {
+  background: linear-gradient(180deg, #b9ad92 0%, #8f846b 100%) !important;
+  border-color: #6b5f45 !important;
+  color: #4a4030 !important;
+  box-shadow: inset 0 0 0 1px #5a4f38, inset 0 1px 0 #cfc4aa66, 0 1px 2px #00000060 !important;
+}
+.classic-client main .classic-town-location.feature-locked span { color: #4a4030 !important; text-shadow: 0 1px 0 #cfc4aa55 !important; }
+.classic-client .town-shop-town [data-buy-shop-goods]:disabled {
+  background: linear-gradient(180deg, #b9ad92 0%, #8f846b 100%) !important;
+  border-color: #6b5f45 !important;
+  color: #4a4030 !important;
+  opacity: .8 !important;
+  filter: none !important;
+}
+
+/* ---------- C 强调/危险（仅城市商店可见时的双按钮确认框）：哑光暗红金边 ---------- */
+body:has(#tab-content-town:not(.hidden) [data-buy-shop-goods]) #game-modal-overlay:has(#game-modal-btn-cancel:not(.hidden)) #game-modal-btn-confirm {
+  background: linear-gradient(180deg, #9d412b 0%, #7a2c1c 55%, #5a1d12 100%) !important;
+  border: 1px solid #c9a24a !important;
+  border-radius: 2px !important;
+  color: #ffe6b8 !important;
+  text-shadow: 0 1px 1px #2a0803, 0 0 1px #2a0803 !important;
+  box-shadow:
+    inset 0 0 0 1px #3a1108,
+    inset 0 1px 0 #d98a5a,
+    inset 0 -3px 6px -2px #2a0803,
+    0 2px 4px #00000080 !important;
+}
+body:has(#tab-content-town:not(.hidden) [data-buy-shop-goods]) #game-modal-overlay:has(#game-modal-btn-cancel:not(.hidden)) #game-modal-btn-confirm:hover { filter: brightness(1.08) !important; }
+body:has(#tab-content-town:not(.hidden) [data-buy-shop-goods]) #game-modal-overlay:has(#game-modal-btn-cancel:not(.hidden)) #game-modal-btn-confirm:active { box-shadow: inset 0 3px 7px #00000090 !important; }
+
+/* 键盘可见焦点（保留可访问性，不新增可见装饰） */
+.classic-client .classic-navigation button:focus-visible,
+.classic-client .shop-cat-tabs [data-shop-cat]:focus-visible,
+.classic-client main .classic-town-location:focus-visible,
+.classic-client .town-shop-town [data-buy-shop-goods]:focus-visible {
+  outline: 2px solid #e2c47f !important;
+  outline-offset: 1px;
+}

@@ -135,7 +135,7 @@ test('battle view plays production logs and settles a victory exactly once', () 
       });
       return elements.get(id);
     },
-    createElement() { return { style: {}, classList: { add() {}, remove() {} } }; }
+    createElement() { return { style: {}, classList: { add() {}, remove() {} }, handlers: {}, addEventListener(event, fn) { this.handlers[event] = fn; }, appendChild() {}, removeChild() {}, setAttribute() {}, getAttribute() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; }, remove() {}, click() {} }; }
   };
   gameState.data = gameState.createDefaultData();
   gameState.data.hasChosenClass = true;
@@ -169,7 +169,7 @@ test('battle view keeps defeat context until advice is recorded and consumes bat
       });
       return elements.get(id);
     },
-    createElement() { return { style: {}, classList: { add() {}, remove() {} } }; }
+    createElement() { return { style: {}, classList: { add() {}, remove() {} }, handlers: {}, addEventListener(event, fn) { this.handlers[event] = fn; }, appendChild() {}, removeChild() {}, setAttribute() {}, getAttribute() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; }, remove() {}, click() {} }; }
   };
   try {
     for (const classId of ['mage', 'warrior']) {
@@ -194,7 +194,7 @@ test('battle view keeps defeat context until advice is recorded and consumes bat
       confirm();
       assert.equal(settlements, 1);
       assert.equal(view.currentCombat, null);
-      assert.equal(gameState.data.pets[0].stamina, stamina - 3);
+      assert.equal(gameState.data.pets[0].stamina, stamina - 5);
       assert.equal(gameState.data.equipped.weapon.durability, durability - 1);
       assert.ok(gameState.systemLogs.some(log => log.text.includes('对决受挫') && log.text.endsWith(advice)));
     }
@@ -299,7 +299,43 @@ test('idle rewards persist time and cannot be clicked repeatedly for free resour
   state.loadOrInit();
   assert.equal(state.data.lastIdleClaimTime, 1_060_000);
   assert.equal(state.getIdleRewards(1_000_000).minutes, 0);
-  assert.equal(state.getIdleRewards(100_000_000).minutes, 600);
+  assert.equal(state.getIdleRewards(100_000_000).minutes, 9);
+});
+
+test('action clock advances one day per 30 action points and resets daily quotas', () => {
+  const state = establishedState();
+  state.data.castle.entriesLeft = 0;
+  state.data.dailyResetDay = 1;
+  state.data.dailyResetDate = 'action-day-1';
+  assert.equal(state.addActionPoints(29).advanced, false);
+  assert.equal(state.getActionDay(), 1);
+  assert.equal(state.data.castle.entriesLeft, 0);
+  assert.equal(state.addActionPoints(1).advanced, true);
+  assert.equal(state.getActionDay(), 2);
+  assert.equal(state.data.actionClock.points, 0);
+  assert.equal(state.data.castle.entriesLeft, 3);
+  assert.equal(state.data.dailyResetDay, 2);
+  assert.equal(state.claimSalary().success, true);
+  assert.equal(state.claimSalary().success, false);
+  state.addActionPoints(30);
+  assert.equal(state.claimSalary().success, true);
+});
+
+test('pet stamina follows 80/60/40 bands and equipment hit contributes to effective hit', () => {
+  const state = establishedState();
+  const pet = state.data.pets[0];
+  pet.stamina = 100;
+  const full = state.getEffectiveStats();
+  pet.stamina = 70;
+  const half = state.getEffectiveStats();
+  pet.stamina = 30;
+  const zero = state.getEffectiveStats();
+  assert.ok(half.atk < full.atk, '60-79 体力应减半');
+  assert.ok(zero.atk < half.atk, '40 以下体力应无宠物属性');
+  pet.stamina = 100;
+  state.data.equipped.weapon.stats.hit = (state.data.equipped.weapon.stats.hit || 0) + 10;
+  const withHit = state.getEffectiveStats();
+  assert.equal(withHit.hit, full.hit + 10, '装备命中应进入有效命中');
 });
 
 test('milestone quests require their exact floor or actual gem inlay', () => {
@@ -315,15 +351,16 @@ test('milestone quests require their exact floor or actual gem inlay', () => {
   assert.equal(state.triggerQuestAction('socket_gem').completed, true);
 });
 
-test('active pets gain actual experience while exhausted pets do not', () => {
+test('all party pets gain experience regardless of stamina; feeding still restores stamina', () => {
   const state = establishedState();
   const pet = state.data.pets[0];
   state.addExp(180);
   assert.equal(pet.level, 2);
   assert.equal(pet.exp, 0);
   pet.stamina = 0;
+  const beforeLevel = pet.level, beforeExp = pet.exp;
   state.addExp(180);
-  assert.equal(pet.exp, 0);
+  assert.ok(pet.level > beforeLevel || pet.exp > beforeExp, '体力不应阻止宠物获得经验');
   assert.equal(state.feedPet(pet.id).success, true);
   assert.equal(pet.stamina, 35);
 });
@@ -406,7 +443,7 @@ test('daily activity entries reset once across days and survive same-day reload'
   assert.equal(state.resetDailyActivities(), true);
   assert.equal(state.data.castle.entriesLeft, 3);
   assert.equal(state.data.dungeon.entriesLeft, 5);
-  assert.equal(state.data.dragon.trialsLeft, 3);
+  assert.equal(state.data.dragon.trialsLeft, 4);
   state.data.castle.entriesLeft--;
   assert.equal(state.resetDailyActivities(), false);
   storage.save(state.data);
@@ -425,17 +462,19 @@ test('mercenary hiring charges the configured cost and rejects invalid or repeat
   assert.equal(state.data.estate.hiredMercId, 'merc_cleric');
 });
 
-test('estate harvest requires elapsed time, preserves partial growth and cannot be repeated', () => {
+test('estate harvest matures by action points, caps at two batches and cannot be repeated', () => {
   const state = establishedState();
-  const start = state.data.estate.lastHarvestTime;
   const before = state.data.crystal;
-  assert.equal(state.harvestEstate(start).success, false);
-  assert.equal(state.harvestEstate(start + 31 * 60000).success, true);
+  state.addActionPoints(9);
+  assert.equal(state.harvestEstate().success, false);
+  state.addActionPoints(1);
+  assert.equal(state.harvestEstate().success, true);
   assert.equal(state.data.crystal, before + 25);
-  assert.equal(state.data.estate.lastHarvestTime, start + 30 * 60000);
-  assert.equal(state.harvestEstate(start + 31 * 60000).success, false);
-  assert.equal(state.harvestEstate(start + 600 * 60000).success, true);
-  assert.equal(state.data.crystal, before + 500);
+  assert.equal(state.harvestEstate().success, false);
+  state.addActionPoints(10);
+  assert.equal(state.harvestEstate().success, true);
+  assert.equal(state.data.crystal, before + 50);
+  assert.equal(state.harvestEstate().success, false);
 });
 
 test('switching patrol maps settles the old rate and cannot upgrade prior elapsed time', () => {
@@ -718,6 +757,7 @@ test('servant production cannot be repeated instantly and cooldown survives relo
   assert.equal(state.data.gold, gold);
   state.loadOrInit();
   assert.equal(state.assignSlaveMine('worker', now + 1).success, false);
+  state.addActionPoints(state.data.actionClock.pointsPerDay);
   assert.equal(state.assignSlaveMine('worker', now + 30 * 60000).success, true);
 });
 
@@ -1298,24 +1338,25 @@ test('bard exploration rewards apply once to wild hunts and boss fights but leav
 test('dragon challenge spends and persists attempts once, rejects duplicates and survives refresh without refunds', () => {
   values.clear(); const state = establishedState(); state.data.level = 100;
   const first = state.startDragonChallenge('slay_red_dragon'); assert.equal(first.success, true);
-  assert.equal(storage.load().dragon.trialsLeft, 2); const before = JSON.stringify(state.data);
+  assert.equal(storage.load().dragon.trialsLeft, 3); const before = JSON.stringify(state.data);
   assert.equal(state.startDragonChallenge('slay_red_dragon').success, false); assert.equal(JSON.stringify(state.data), before);
   assert.equal(state.settleDragonChallenge('slay_silver_dragon', first.challengeId, true).success, false);
-  state.loadOrInit(); assert.equal(state.data.dragon.activeChallenge, null); assert.equal(state.data.dragon.trialsLeft, 2);
+  state.loadOrInit(); assert.equal(state.data.dragon.activeChallenge, null); assert.equal(state.data.dragon.trialsLeft, 3);
   const next = state.startDragonChallenge('slay_red_dragon'); assert.notEqual(next.challengeId, first.challengeId);
   assert.equal(state.settleDragonChallenge('slay_red_dragon', first.challengeId, true).success, false);
   const beforeLoss = JSON.stringify({ gold: state.data.gold, exp: state.data.exp, bag: state.data.bag });
   assert.equal(state.settleDragonChallenge('slay_red_dragon', next.challengeId, false).success, true);
   assert.equal(JSON.stringify({ gold: state.data.gold, exp: state.data.exp, bag: state.data.bag }), beforeLoss);
-  assert.equal(storage.load().dragon.trialsLeft, 1);
+  assert.equal(storage.load().dragon.trialsLeft, 2);
   const last = state.startDragonChallenge('slay_silver_dragon'); state.settleDragonChallenge('slay_silver_dragon', last.challengeId, false);
+  const extra = state.startDragonChallenge('slay_red_dragon'); assert.equal(extra.success, true); state.settleDragonChallenge('slay_red_dragon', extra.challengeId, false);
   assert.equal(state.startDragonChallenge('slay_red_dragon').success, false);
   const fresh = establishedState(); fresh.resetDailyActivities(); const untouched = JSON.stringify(fresh.data);
   assert.equal(fresh.startDragonChallenge('slay_red_dragon').success, false); assert.equal(fresh.startDragonChallenge('missing').success, false);
   assert.equal(JSON.stringify(fresh.data), untouched);
 });
 
-test('three dragon victories grant configured currencies, wearable equipment and stackable loot exactly once', () => {
+test('all dragon victories grant configured currencies, wearable equipment and stackable loot exactly once', () => {
   const originalRandom = Math.random;
   try {
     for (const dragon of DRAGON_TRIALS) {
@@ -1325,8 +1366,8 @@ test('three dragon victories grant configured currencies, wearable equipment and
       Math.random = () => 0;
       const entered = state.startDragonChallenge(dragon.id); const before = { gold: state.data.gold, exp: state.data.exp, crystal: state.data.crystal, prestige: state.data.prestige };
       const result = state.settleDragonChallenge(dragon.id, entered.challengeId, true); assert.equal(result.success, true);
-      assert.equal(state.data.gold - before.gold, 5000); assert.equal(state.data.exp - before.exp, dragon.minLevel * 250);
-      assert.equal(state.data.crystal - before.crystal, 100); assert.equal(state.data.prestige - before.prestige, 100);
+      assert.equal(state.data.gold - before.gold, dragon.rewards.gold); assert.equal(state.data.exp - before.exp, dragon.minLevel * 250);
+      assert.equal(state.data.crystal - before.crystal, dragon.rewards.crystal); assert.equal(state.data.prestige - before.prestige, dragon.rewards.prestige);
       const gear = result.drops.find(item => item.slot); assert.equal(gear.quality, dragon.rewards.equipmentQuality);
       assert.ok(ITEM_SLOTS.some(slot => slot.id === gear.slot)); assert.ok(Object.keys(gear.stats).length); assert.ok(gear.reqLevel <= dragon.minLevel);
       assert.equal(gear.setId, dragon.rewards.equipmentSets[0]);
@@ -1334,7 +1375,7 @@ test('three dragon victories grant configured currencies, wearable equipment and
       if (dragon.rewards.egg) assert.ok(state.data.bag.some(item => item.id === dragon.rewards.egg && item.type === 'egg'));
       if (dragon.rewards.extraMaterial) assert.ok(state.data.bag.some(item => item.id === dragon.rewards.extraMaterial));
       const settled = JSON.stringify(state.data); assert.equal(state.settleDragonChallenge(dragon.id, entered.challengeId, true).success, false); assert.equal(JSON.stringify(state.data), settled);
-      state.loadOrInit(); assert.equal(state.data.dragon.cleared[dragon.id], 1); assert.equal(state.data.dragon.trialsLeft, 2);
+      state.loadOrInit(); assert.equal(state.data.dragon.cleared[dragon.id], 1); assert.equal(state.data.dragon.trialsLeft, 3);
     }
   } finally { Math.random = originalRandom; }
 });
@@ -1385,7 +1426,7 @@ test('dragon settlement advances only the matching story target and rejects corr
     assert.equal(state.claimQuestReward(quest.id), true); assert.equal(state.claimQuestReward(quest.id), false);
   }
   const state = establishedState(); state.data.classId = 'warrior';
-  for (const invalid of [{ trialsLeft: 4 }, { cleared: { slay_red_dragon: -1 } }, { activeChallenge: { dragonId: 'slay_red_dragon', challengeId: 42 } }]) {
+  for (const invalid of [{ trialsLeft: 5 }, { cleared: { slay_red_dragon: -1 } }, { activeChallenge: { dragonId: 'slay_red_dragon', challengeId: 42 } }]) {
     const bad = JSON.parse(JSON.stringify(state.data)); Object.assign(bad.dragon, invalid);
     assert.throws(() => storage.parseBackupText(JSON.stringify({ saveData: bad })), /屠龙/);
   }
@@ -1564,7 +1605,8 @@ test('tower first clears grant every configured item and crystal once, replay re
     if (reward.item.slot) {
       assert.ok(ITEM_SLOTS.some(slot => slot.id === reward.item.slot));
       assert.ok(Object.keys(reward.item.stats).length > 0);
-      assert.ok(reward.item.reqLevel >= 1 && reward.item.durability === 100);
+      const jewelry = reward.item.slot === 'necklace' || reward.item.slot === 'ring' || reward.item.slot === 'bracelet';
+      assert.ok(reward.item.reqLevel >= 1 && (jewelry ? reward.item.durability === undefined : reward.item.durability === 100));
     }
     assert.equal(state.settleCastleVictory(floor, state.data.castle.expeditionId).success, false);
   }
@@ -2305,13 +2347,19 @@ test('legacy in-progress dungeon gains a persistent expedition identity and malf
 
 test('military promotions use lifetime merit while spending leaves earned rank and salary intact', () => {
   values.clear(); const state = establishedState(); state.data.level = 20;
-  for (let n = 0; n < 4; n++) state.completeStrongholdVictory('silverwing');
+  for (let n = 0; n < 4; n++) {
+    state.data.factionWar.strongholds.silverwing.captured = false;
+    state.completeStrongholdVictory('silverwing');
+    if (n < 3) state.addActionPoints(state.data.actionClock.pointsPerDay);
+  }
   assert.equal(state.data.factionWar.merit, 480); assert.equal(state.data.factionWar.totalMerit, 480);
   assert.equal(state.data.factionWar.militaryRank, 'scout');
   const stats = state.getEffectiveStats();
   for (let n = 0; n < 4; n++) assert.equal(state.exchangeFactionReward('key_mithril').success, true);
   assert.equal(state.data.factionWar.merit, 80); assert.equal(state.data.factionWar.totalMerit, 480);
   assert.equal(state.getEffectiveStats().atk, stats.atk); assert.equal(state.getEffectiveStats().speed, stats.speed);
+  state.addActionPoints(state.data.actionClock.pointsPerDay);
+  state.data.factionWar.strongholds.silverwing.captured = false;
   state.completeStrongholdVictory('silverwing');
   assert.equal(state.data.factionWar.merit, 200); assert.equal(state.data.factionWar.totalMerit, 600);
   assert.equal(state.data.factionWar.militaryRank, 'centurion');
@@ -2430,7 +2478,7 @@ test('all equipment producers preserve level quality identity and set while matc
     const item=specializeEquipment({id:'reward',uid:'stable',name:'勇气先驱重剑',slot:'weapon',reqLevel:25,quality:'gold',setId:'courage',stats:{atk:100,str:20},gems:[{id:'gem'}]},classId);
     assert.equal(item.reqClass,classId); assert.equal(item.uid,'stable'); assert.equal(item.reqLevel,25); assert.equal(item.stats[classId==='mage'?'int':classId==='hunter'?'dex':'str'],20);
     assert.equal(item.setId,'courage'); assert.equal(item.stats.atk,100); assert.deepEqual(item.gems,[{id:'gem'}]);
-    for(const slot of ITEM_SLOTS) { const generated=generateEquipment(slot.id,40,'gold','courage',classId); if(!['necklace','ring'].includes(slot.id)) assert.equal(generated.reqClass,classId); }
+    for(const slot of ITEM_SLOTS) { const generated=generateEquipment(slot.id,40,'gold','courage',classId); if(!['necklace','ring','bracelet'].includes(slot.id)) assert.equal(generated.reqClass,classId); }
     const foreign={...item,reqClass:classId==='mage'?'warrior':'mage'}; state.data.bag=[foreign]; const before=JSON.stringify(state.data);
     assert.equal(state.equipItem('stable').success,false); assert.equal(JSON.stringify(state.data),before);
     const boss=state.createTowerFirstClearItem(50); if(boss?.slot==='weapon') assert.equal(boss.reqClass,classId);
@@ -2568,22 +2616,18 @@ test('arena backups reject malformed quotas scores and challenge identity withou
   const legacy = {...state.data}; delete legacy.arena; assert.equal(storage.parseBackupText(JSON.stringify({saveData:legacy})).classId,state.data.classId);
 });
 
-test('midnight expires unfinished arena callbacks and renews exactly five attempts without rewards', () => {
-  const RealDate = Date; let now = new Date('2026-10-05T23:59:00+08:00').getTime();
-  globalThis.Date = class extends RealDate {constructor(...args){super(...(args.length?args:[now]));} static now(){return now;}};
-  try {
-    values.clear(); const state = establishedState(); const entry=state.startArenaChallenge('opp_1');
-    const gold=state.data.gold,prestige=state.data.prestige,points=state.data.arena.points;
-    now += 120000;
-    assert.equal(state.settleArenaChallenge('opp_1',entry.challengeId,true).success,false);
-    assert.equal(state.data.gold,gold); assert.equal(state.data.prestige,prestige); assert.equal(state.data.arena.points,points);
-    assert.equal(state.data.arena.challengesLeft,5);
-    assert.equal(state.resetDailyActivities(),false);
-    const next=state.startArenaChallenge('opp_1'); assert.equal(next.success,true); assert.equal(state.data.arena.challengesLeft,4);
-    assert.equal(state.settleArenaChallenge('opp_1',entry.challengeId,false).success,false);
-    assert.equal(state.settleArenaChallenge('opp_1',next.challengeId,false).success,true);
-    state.loadOrInit(); assert.equal(state.data.arena.challengesLeft,4);
-  } finally {globalThis.Date=RealDate;}
+test('action-day advance expires unfinished arena callbacks and renews exactly five attempts without rewards', () => {
+  values.clear(); const state = establishedState(); const entry=state.startArenaChallenge('opp_1');
+  const gold=state.data.gold,prestige=state.data.prestige,points=state.data.arena.points;
+  state.addActionPoints(state.data.actionClock.pointsPerDay);
+  assert.equal(state.settleArenaChallenge('opp_1',entry.challengeId,true).success,false);
+  assert.equal(state.data.gold,gold); assert.equal(state.data.prestige,prestige); assert.equal(state.data.arena.points,points);
+  assert.equal(state.data.arena.challengesLeft,5);
+  assert.equal(state.resetDailyActivities(),false);
+  const next=state.startArenaChallenge('opp_1'); assert.equal(next.success,true); assert.equal(state.data.arena.challengesLeft,4);
+  assert.equal(state.settleArenaChallenge('opp_1',entry.challengeId,false).success,false);
+  assert.equal(state.settleArenaChallenge('opp_1',next.challengeId,false).success,true);
+  state.loadOrInit(); assert.equal(state.data.arena.challengesLeft,4);
 });
 
 test('defeat preparation follows actual broken gear fatigue and depleted mage mana', () => {
@@ -2758,11 +2802,11 @@ test('story patrol is a timed experience supplement with shared finite currency 
   const state=new GameState();state.notify=()=>{};state.data.onboardingVersion=2;state.data.level=80;state.data.currentMapId='volcano';
   const now=Date.now();state.data.lastIdleClaimTime=now-10*60*60*1000;
   const rates=state.getPatrolRates('volcano'),quote=state.getIdleRewards(now);
-  assert.equal(quote.minutes,600);assert.equal(quote.gold,288000);assert.equal(quote.crystal,1050);
-  assert.equal(quote.exp,600*rates.expPerMin);assert.equal(quote.gold,600*rates.goldPerMin);assert.equal(quote.crystal,600*rates.crystalPerMin);
+  assert.equal(quote.minutes,10);assert.equal(quote.gold,4800);assert.equal(quote.crystal,17);
+  assert.equal(quote.exp,Math.floor(10*rates.expPerMin));assert.equal(quote.gold,Math.floor(10*rates.goldPerMin));assert.equal(quote.crystal,Math.floor(10*rates.crystalPerMin));
   assert.equal(state.claimIdleRewards(now).success,true);const earned=JSON.stringify(state.data);assert.equal(state.claimIdleRewards(now).success,false);assert.equal(JSON.stringify(state.data),earned);
   state.data.onboardingVersion=1;state.data.lastIdleClaimTime=now-10*60*60*1000;
-  assert.equal(state.getIdleRewards(now).gold,2880000);assert.equal(state.getIdleRewards(now).crystal,21000);
+  assert.equal(state.getIdleRewards(now).gold,0);assert.equal(state.getIdleRewards(now).crystal,0);
 });
 
 
@@ -2815,7 +2859,7 @@ test('inheritance refuses foreign and higher-level items, insufficient funds and
 });
 
 test('bag gem extraction respects capacity and exact live gem identity, preserving ordered rune deactivation', () => {
-  const state=establishedState();state.notify=()=>{};const gear=state.data.equipped.weapon;state.unequipItem('weapon');gear.gems=[{id:'gem_unique',name:'Unique',stat:'atk',val:30}];const gem=gear.gems[0];
+  const state=establishedState();state.notify=()=>{};const gear=state.data.equipped.weapon;if(state.data.bag.length>=state.getBagCapacity()-1)state.data.bag.pop();state.unequipItem('weapon');gear.gems=[{id:'gem_unique',name:'Unique',stat:'atk',val:30}];const gem=gear.gems[0];
   while(state.data.bag.length<state.getBagCapacity())state.data.bag.push({id:'filler_'+state.data.bag.length,count:1});
   const full=JSON.stringify(state.data);assert.equal(state.removeBagGem(gear.uid,0,gem).success,false);assert.equal(JSON.stringify(state.data),full);
   state.data.bag.pop();assert.equal(state.removeBagGem(gear.uid,0,gem).success,true);assert.equal(state.data.bag.find(item=>item.id==='gem_unique').count,1);

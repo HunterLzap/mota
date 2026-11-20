@@ -19,6 +19,7 @@ async (page) => {
     const overflow = async () => check(await game.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.body.scrollWidth <= innerWidth), 'Horizontal overflow');
     try {
       await game.goto('http://127.0.0.1:8088');
+      await game.waitForFunction(() => Boolean(window.appInstance && window.gameState && window.appInstance.views && window.appInstance.views.bag), null, { timeout: 30000 });
       await game.evaluate(async () => {
         const { GameState, gameState } = await import('/js/core/state.js');
         const { storage } = await import('/js/core/storage.js');
@@ -61,7 +62,8 @@ async (page) => {
         check(items.every((item, index) => !index || items[index - 1].reqLevel >= item.reqLevel), 'Level sorting is wrong');
         check(JSON.stringify(before) === JSON.stringify(await data()), 'Filtering or sorting changed inventory assets');
         await click(`[data-bag-uid="${uids[0]}"]`);
-        await click('#btn-bag-equip-item');
+        await game.locator('#bag-action-menu').waitFor();
+        await game.locator('#bag-action-menu button').filter({ hasText: '穿戴' }).first().click();
         check((await data()).equipped.weapon?.uid === uids[0], 'Filtered equipment did not actually equip');
         await game.screenshot({ path: `output/playwright/playability-bag-after-${viewport.width}.png` });
         await game.locator('#bag-slot-filter').selectOption('all');
@@ -97,6 +99,7 @@ async (page) => {
         const beforeTraining = await data();
         const quote = await game.evaluate(() => window.gameState.getCompanionTrainingQuote('mermaid'));
         check(quote.success && quote.level === 20 && quote.targetLevel === 25, 'Training quote did not use actual companion progress');
+        await game.evaluate(()=>{window.appInstance.views.pets.detailSub='more';window.appInstance.views.pets.render();});
         await game.locator('#btn-train-companion').focus(); await game.keyboard.press('Enter');
         check(await game.locator('#game-modal-message').innerText().then(text => text.includes('25级')), 'Training success feedback missing');
         await game.keyboard.press('Escape'); await game.locator('#game-modal-overlay').waitFor({ state: 'hidden' });

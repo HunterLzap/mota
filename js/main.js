@@ -123,6 +123,13 @@ class GameApp {
       const button = document.getElementById(`nav-tab-${tab}`);
       if (button) button.innerHTML = renderGameIcon(key, { size: 'w-5 h-5', className: 'nav-art' }) + `<span>${label}</span>`;
     }
+    for (const [id, key] of [['header-gold', 'coin_gold'], ['header-crystal', 'crystal'], ['header-prestige', 'ui_rank']]) {
+      const value = document.getElementById(id);
+      const resource = value?.parentElement;
+      if (resource && !resource.querySelector('.resource-art')) {
+        resource.insertAdjacentHTML('afterbegin', renderGameIcon(key, { size: 'w-5 h-5', className: 'resource-art' }));
+      }
+    }
     this.switchTab(this.currentTab);
     this.updateTopBar();
     if (this.questTracker) this.questTracker.render();
@@ -354,6 +361,12 @@ class GameApp {
     if (elGold) elGold.innerText = data.gold.toLocaleString();
     if (elCrystal) elCrystal.innerText = data.crystal.toLocaleString();
     if (elPrestige) elPrestige.innerText = data.prestige.toLocaleString();
+    const elActionDay = document.getElementById('header-action-day');
+    if (elActionDay) {
+      const perDay = Number.isSafeInteger(data.actionClock?.pointsPerDay) && data.actionClock.pointsPerDay > 0 ? data.actionClock.pointsPerDay : 30;
+      const remaining = Math.max(0, perDay - gameState.getActionPoints());
+      elActionDay.innerText = `第 ${gameState.getActionDay()} 行动日 · 行动点 ${remaining}/${perDay}`;
+    }
 
     if (elHpBar) elHpBar.style.width = `${hpPercent}%`;
     if (elHpText) elHpText.innerText = `${stats.hp} / ${stats.maxHp}`;
@@ -376,6 +389,8 @@ class GameApp {
     text('classic-hp-orb-text', stats.hp.toLocaleString());
     text('classic-mp-orb-text', stats.mp.toLocaleString());
     document.documentElement.style.setProperty('--class-portrait-position', {warrior:'0%',mage:'50%',hunter:'100%'}[data.classId] || '0%');
+    // 人物页立绘纵向取景：按各职业立绘最顶端（发顶/杖顶）定位，贴框顶约 10px 留白；同一精灵图，按职业设 y。
+    document.documentElement.style.setProperty('--class-portrait-y', {warrior:'6.4%',mage:'3.9%',hunter:'7.5%'}[data.classId] || '0%');
     document.documentElement.style.setProperty('--class-face-position', {warrior:'12.5%',mage:'50%',hunter:'87.5%'}[data.classId] || '12.5%');
     for (const [selector, percent] of [['.classic-health-orb', hpPercent], ['.classic-mana-orb', mpPercent]]) {
       const orb = document.querySelector(selector);
@@ -486,6 +501,22 @@ class GameApp {
     if (headerCharBox) {
       headerCharBox.addEventListener('click', () => {
         this.switchTab('hero');
+      });
+    }
+
+    // 左侧人物栏「更多属性」：次要战斗属性以弹窗查看，栏内不出现滚动条。
+    const btnMoreStats = document.getElementById('btn-more-stats');
+    if (btnMoreStats) {
+      btnMoreStats.addEventListener('click', () => {
+        const pick = id => document.getElementById(id)?.textContent?.trim() || '-';
+        const lines = [
+          `暴击　　　${pick('classic-stat-crit')}`,
+          `闪避　　　${pick('classic-stat-dodge')}`,
+          `反击　　　${pick('classic-stat-counter')}`,
+          `吸血　　　${pick('classic-stat-lifesteal')}`,
+          `魔抗　　　${pick('classic-stat-magic-resist')}`
+        ];
+        gameModal.alert(lines.join('\n'), '更多战斗属性');
       });
     }
   }

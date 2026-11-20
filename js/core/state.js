@@ -3,7 +3,7 @@ import { CLASSES, NATIONS, getClassSkills, getSkillTraining } from '../config/cl
 import { getPetParty } from './petParty.js';
 import { PET_CONFIGS, PET_TIERS } from '../config/pets.js';
 import { PET_SKILL_BOOKS } from '../config/petSkills.js';
-import { ITEM_SLOTS, QUALITIES, OFFICIAL_SETS, SPECIAL_ITEMS, REFORGE_AFFIXES, GEMS_CONFIG, generateEquipment, specializeEquipment } from '../config/items.js';
+import { ITEM_SLOTS, QUALITIES, OFFICIAL_SETS, SPECIAL_ITEMS, REFORGE_AFFIXES, GEMS_CONFIG, generateEquipment, specializeEquipment, applyCanonicalItemName, getSocketCap, hasDurability } from '../config/items.js';
 import { DUNGEON_GATES, DUNGEON_CLEAR_SUPPLIES, DUNGEON_FIRST_CLEAR_STORIES, getDungeonFloorGuard, generateDungeonDrop } from '../config/dungeons.js';
 import { DRAGON_TRIALS } from '../config/dragonSlaying.js';
 import { ROYAL_TRIALS } from '../config/trials.js';
@@ -17,10 +17,14 @@ import { COMMISSIONS, getCommission, normalizeCommissions, getCommissionEquipmen
 import { RUNES, RUNIC_WORDS, checkRunicWord } from '../config/runes.js';
 import { MILITARY_RANKS, STRONGHOLDS, FACTION_REWARDS } from '../config/factionWar.js';
 import { HOLY_RELICS, getUnlockedRelics, getRelicsTotalStats, getRelicById } from '../config/relics.js';
+import { CITY_SHOPS, SHOP_PRESTIGE_TIERS, SHOP_CATEGORIES, ENABLE_CITY_SHOPS, prestigeTierOf } from '../config/shops.js';
+import { CITIES, CITY_ORDER, CITY_SPECIAL_REWARDS, ENABLE_CITIES } from '../config/cities.js';
+import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '../config/achievements.js';
 import { storage } from './storage.js';
 import { MAPS } from '../config/maps.js';
 import { getTowerFloorData, LANDMARK_BOSSES } from '../config/towerLevels.js';
 import { canRetryFinale } from './journey.js';
+import { createActionClock, actionDayKey, ACTION_POINTS } from './actionClock.js';
 
 export class GameState {
   constructor() {
@@ -89,6 +93,7 @@ export class GameState {
         accumulatedExp: 0,
         accumulatedGold: 0,
         accumulatedDrops: [],
+        petExpPool: {},
         isExploring: false,
         entriesLeft: 3
       },
@@ -105,7 +110,7 @@ export class GameState {
       // 屠龙系统
       dragon: {
         activeChallenge: null,
-        trialsLeft: 3,
+        trialsLeft: 4,
         cleared: {}
       },
 
@@ -121,7 +126,9 @@ export class GameState {
       // 钓鱼收获
       fishing: {
         lamprey: 0,  // 七鳃鳗
-        arowana: 0   // 金龙鱼
+        arowana: 0,  // 金龙鱼
+        exchangeDay: 0,
+        exchangeCount: 0
       },
 
       // 暗影女盗奇遇
@@ -141,12 +148,15 @@ export class GameState {
         },
         activePotions: [],
         hiredMercId: null,
-        lastHarvestTime: Date.now()
+        lastHarvestTime: Date.now(),
+        harvestedToday: 0
       },
 
       // 野外巡航与当前探索点
       currentMapId: 'forest',
       lastIdleClaimTime: Date.now(),
+      lastIdleClaimDay: 0,
+      idleMinutesClaimed: 0,
 
       // 主线任务指引系统
       currentQuestId: 'quest_1',
@@ -155,9 +165,14 @@ export class GameState {
       },
       commissions: {},
 
-      // 每日活动记录
+      // 行动日时钟：天数由有效行动点推进，不依赖现实时间
+      actionClock: createActionClock(),
+      dailyResetDay: 1,
+      lastSalaryDay: 0,
+
+      // 每日活动记录（旧字段保留兼容，不再作为判定依据）
       lastSalaryDate: null,
-      dailyResetDate: new Date().toDateString(),
+      dailyResetDate: actionDayKey(1),
 
       // 王国角斗场与天梯对决
       arena: {
@@ -194,6 +209,19 @@ export class GameState {
         lastResetDate: new Date().toDateString()
       },
 
+      // 城市商店（每行动日限购刷新；声望只作解锁门槛）
+      shops: {
+        day: 1,
+        purchase: {}
+      },
+
+      // 主城与城际传送（C3）：当前城市 + 各城特色资源点领取记录
+      currentCity: 'capital',
+      cities: { keste: { specialClaimedDay: 0 }, aden: { specialClaimedDay: 0 } },
+
+      // 称号 / 成就墙（C4-P0）：已领取成就 + 当前展示称号（纯展示）
+      achievements: { claimed: [], activeTitle: null },
+
       // 远古神圣圣遗物系统 (魔塔 50~100 层终焉成就觉醒)
       relics: {
         unlocked: [],
@@ -225,19 +253,18 @@ export class GameState {
     this.notify();
   }
 
-  // 检查今日是否已领俸禄
+  // 检查本行动日是否已领俸禄
   canClaimSalary() {
-    const today = new Date().toDateString();
-    return this.data.lastSalaryDate !== today;
+    return this.data.lastSalaryDay !== this.getActionDay();
   }
 
-  // 领取每日俸禄
+  // 领取本行动日俸禄
   claimSalary() {
-    const today = new Date().toDateString();
-    if (this.data.lastSalaryDate === today) {
-      return { success: false, msg: '今日俸禄已全额领受！圣王谕旨：每日拂晓（次日）方可再度面圣领赏！' };
+    const day = this.getActionDay();
+    if (this.data.lastSalaryDay === day) {
+      return { success: false, msg: '本行动日俸禄已全额领受！完成更多行动进入下一行动日后可再度面圣领赏！' };
     }
-    this.data.lastSalaryDate = today;
+    this.data.lastSalaryDay = day;
     this.gainCurrency(1500, 20, 0);
     this.triggerQuestAction('claim_salary');
     this.addSystemLog('【王宫】恭敬晋谒圣王，成功领受今日骑士俸禄：1,500 金币、20 魔晶！', 'estate');
@@ -264,6 +291,7 @@ export class GameState {
         this.data.castle.expeditionId = this.createDungeonExpeditionId();
       }
       this.data.castle.claimedBossRewards = [...new Set((Array.isArray(this.data.castle.claimedBossRewards) ? this.data.castle.claimedBossRewards : []).filter(floor => Number.isInteger(floor) && LANDMARK_BOSSES[floor]))];
+      this.data.castle.petExpPool = this.data.castle.petExpPool && typeof this.data.castle.petExpPool === 'object' ? this.data.castle.petExpPool : {};
       this.data.dungeon = { ...defaults.dungeon, ...(saved.dungeon || {}) };
       this.data.dungeon.clearedGates = { ...(saved.dungeon?.clearedGates || {}) };
       if (this.data.dungeon.activeGateId && (typeof this.data.dungeon.expeditionId !== 'string' || !this.data.dungeon.expeditionId)) {
@@ -291,7 +319,18 @@ export class GameState {
         const item = this.data.equipped[slot.id];
         if (item && !item.reqClass) this.data.equipped[slot.id] = specializeEquipment(item, this.data.classId);
       }
-      if (Array.isArray(this.data.bag)) this.data.bag = this.data.bag.map(item => item?.slot && !item.reqClass ? specializeEquipment(item, this.data.classId) : item);
+      // 首饰无耐久（原作规则）：旧档残留的耐久字段读取时忽略。
+      for (const slotId of ['necklace', 'ring', 'bracelet']) {
+        const item = this.data.equipped[slotId];
+        if (item) { delete item.durability; delete item.maxDurability; }
+      }
+      if (Array.isArray(this.data.bag)) this.data.bag = this.data.bag.map(item => {
+        const normalized = applyCanonicalItemName(item?.slot && !item.reqClass ? specializeEquipment(item, this.data.classId) : item);
+        if (normalized && (normalized.slot === 'necklace' || normalized.slot === 'ring' || normalized.slot === 'bracelet')) {
+          delete normalized.durability; delete normalized.maxDurability;
+        }
+        return normalized;
+      });
       // 旧王都结业存档接入重制续章，不重新发放已经领取的20章奖励。
       if (this.data.currentQuestId === 'completed' && this.data.questProgress.quest_20?.claimed && !this.data.questProgress.quest_26?.claimed) {
         const next = QUEST_LIST.find(quest => quest.milestone && !this.data.questProgress[quest.id]?.claimed);
@@ -300,31 +339,58 @@ export class GameState {
       this.data.lastSalaryDate = saved.lastSalaryDate || null;
       this.data.arena = { ...defaults.arena, ...(saved.arena || {}) };
       this.data.arena.activeChallenge = null;
-      const today = new Date().toDateString();
-      if (this.data.arena.lastResetDate !== today) {
+      this.data.actionClock = { ...createActionClock(), ...(saved.actionClock || {}) };
+      this.data.dailyResetDay = Number.isSafeInteger(saved.dailyResetDay) ? saved.dailyResetDay : 1;
+      this.data.lastSalaryDay = Number.isSafeInteger(saved.lastSalaryDay) ? saved.lastSalaryDay : 0;
+      this.data.lastIdleClaimDay = Number.isSafeInteger(saved.lastIdleClaimDay) ? saved.lastIdleClaimDay : 0;
+      this.data.idleMinutesClaimed = Number.isSafeInteger(saved.idleMinutesClaimed) ? saved.idleMinutesClaimed : 0;
+      this.data.estate.harvestedToday = Number.isSafeInteger(this.data.estate.harvestedToday) ? this.data.estate.harvestedToday : 0;
+      // 旧档首次迁移：建立第 1 行动日并刷新每日配额；不追溯宠物体力，也不发放额外资源。
+      if (!saved.actionClock) {
+        this.data.dailyResetDay = 1;
+        this.data.dailyResetDate = actionDayKey(1);
+        this.data.castle.entriesLeft = 3;
+        this.data.dungeon.entriesLeft = 5;
+        this.data.dragon.trialsLeft = 4;
         this.data.arena.challengesLeft = 5;
-        this.data.arena.lastResetDate = today;
+        this.data.arena.activeChallenge = null;
       }
 
-      // 皇家酒馆数据迁移与跨日重置
+      // 皇家酒馆数据迁移
       this.data.tavern = { ...defaults.tavern, ...(saved.tavern || {}) };
       if (!Array.isArray(this.data.tavern.bounties) || this.data.tavern.bounties.length === 0) {
         this.data.tavern.bounties = defaults.tavern.bounties;
       }
-      if (this.data.tavern.lastResetDate !== today) {
-        this.data.tavern.bounties = defaults.tavern.bounties.map(b => ({ id: b.id, status: 'available' }));
-        this.data.tavern.drinkBuff = null;
-        this.data.tavern.lastResetDate = today;
-      }
 
-      // 三大阵营边境要塞数据健全与跨日重置
+      // 三大阵营边境要塞数据健全
       this.data.factionWar = { ...defaults.factionWar, ...(saved.factionWar || {}) };
       this.data.factionWar.totalMerit = this.getTotalFactionMerit();
       if (!this.data.factionWar.strongholds) this.data.factionWar.strongholds = defaults.factionWar.strongholds;
-      if (this.data.factionWar.lastResetDate !== today) {
+      if (!saved.actionClock) {
+        this.data.tavern.bounties = TAVERN_BOUNTIES.map(bounty => ({ id: bounty.id, status: 'available' }));
+        this.data.tavern.drinkBuff = null;
         this.data.factionWar.dailyClaimed = false;
-        this.data.factionWar.lastResetDate = today;
       }
+
+      // 城市商店数据健全：旧档自动补默认（无迁移、不丢档）；跨行动日购买记录按当前行动日初始化
+      this.data.shops = {
+        day: Number.isSafeInteger(saved.shops?.day) ? saved.shops.day : this.getActionDay(),
+        purchase: (saved.shops && saved.shops.purchase && typeof saved.shops.purchase === 'object') ? { ...saved.shops.purchase } : {}
+      };
+      if (this.data.shops.day !== this.getActionDay()) { this.data.shops.day = this.getActionDay(); this.data.shops.purchase = {}; }
+
+      // 主城数据健全：旧档默认王都、特色资源点领取记录自动补（无迁移、不丢档）
+      this.data.currentCity = CITIES[saved.currentCity] ? saved.currentCity : 'capital';
+      if (!ENABLE_CITIES) this.data.currentCity = 'capital';
+      this.data.cities = {
+        keste: { specialClaimedDay: Number.isSafeInteger(saved.cities?.keste?.specialClaimedDay) ? saved.cities.keste.specialClaimedDay : 0 },
+        aden: { specialClaimedDay: Number.isSafeInteger(saved.cities?.aden?.specialClaimedDay) ? saved.cities.aden.specialClaimedDay : 0 }
+      };
+      // 称号/成就墙数据健全：旧档补默认（无迁移、不丢档）
+      this.data.achievements = {
+        claimed: Array.isArray(saved.achievements?.claimed) ? [...new Set(saved.achievements.claimed.filter(x => typeof x === 'string'))] : [],
+        activeTitle: typeof saved.achievements?.activeTitle === 'string' ? saved.achievements.activeTitle : null
+      };
 
       // 远古神圣圣遗物数据健全与自动觉醒
       this.data.relics = { ...defaults.relics, ...(saved.relics || {}) };
@@ -369,8 +435,8 @@ export class GameState {
         if (item.reqLevel === undefined && Number.isFinite(item.level)) item.reqLevel = item.level;
         if (!item.setId && item.set) item.setId = item.set;
         if (item.sockets === undefined && Number.isFinite(item.holes)) item.sockets = item.holes;
-        if (item.durability === undefined) item.durability = 100;
-        if (item.maxDurability === undefined) item.maxDurability = 100;
+        if (hasDurability(item.slot) && item.durability === undefined) item.durability = 100;
+        if (hasDurability(item.slot) && item.maxDurability === undefined) item.maxDurability = 100;
         if (!item.uid) item.uid = globalThis.crypto?.randomUUID?.() || 'eq_' + Date.now() + '_' + (this.equipmentUidCounter = (this.equipmentUidCounter || 0) + 1);
       }
       for (const slot of ['offhand', 'shield']) {
@@ -394,20 +460,80 @@ export class GameState {
     this.resetDailyActivities();
   }
 
-  resetDailyActivities(today = new Date().toDateString()) {
-    if (this.data.dailyResetDate === today) return false;
-    this.data.dailyResetDate = today;
+  // 当前行动日（第几天）
+  getActionDay() {
+    const day = this.data.actionClock?.day;
+    return Number.isSafeInteger(day) && day > 0 ? day : 1;
+  }
+
+  // 当前行动日进度（0 ~ pointsPerDay-1）
+  getActionPoints() {
+    const points = this.data.actionClock?.points;
+    return Number.isFinite(points) && points >= 0 ? Math.floor(points) : 0;
+  }
+
+  // 统一行动点入口：达到阈值推进“行动日”，并集中重置所有每日内容。
+  addActionPoints(points) {
+    const amount = Math.max(0, Math.floor(Number(points) || 0));
+    if (!amount) return { advanced: false, day: this.getActionDay(), points: this.getActionPoints() };
+    if (!this.data.actionClock) this.data.actionClock = createActionClock();
+    const clock = this.data.actionClock;
+    clock.pointsPerDay = Number.isSafeInteger(clock.pointsPerDay) && clock.pointsPerDay > 0 ? clock.pointsPerDay : 30;
+    clock.points = Math.max(0, Math.floor(Number(clock.points) || 0)) + amount;
+    clock.totalActions = (Number.isSafeInteger(clock.totalActions) ? clock.totalActions : 0) + 1;
+    let advanced = false;
+    while (clock.points >= clock.pointsPerDay) {
+      clock.points -= clock.pointsPerDay;
+      clock.day = this.getActionDay() + 1;
+      this.resetDailyActivities(clock.day);
+      this.addSystemLog(`【行动日】第 ${clock.day} 天开始：每日次数、俸禄、悬赏、饮品与巡逻已刷新。`, 'system');
+      advanced = true;
+    }
+    this.notify();
+    return { advanced, day: clock.day, points: clock.points };
+  }
+
+  // 兼容旧测试/旧调用：传入旧日期字符串视为强制刷新；不传则按行动日防重入。
+  resetDailyActivities(target = null) {
+    const currentDay = this.getActionDay();
+    const forcedByLegacy = typeof target === 'string' && !/^action-day-\d+$/.test(target);
+    const targetDay = Number.isSafeInteger(target) && target > 0 ? target : currentDay;
+    const legacyDateMismatch = typeof this.data.dailyResetDate === 'string' && this.data.dailyResetDate !== actionDayKey(currentDay);
+    if (!forcedByLegacy && !legacyDateMismatch && this.data.dailyResetDay === targetDay) return false;
+    this.data.dailyResetDay = targetDay;
+    this.data.dailyResetDate = actionDayKey(targetDay);
     this.data.castle.entriesLeft = 3;
     this.data.dungeon.entriesLeft = 5;
-    this.data.dragon.trialsLeft = 3;
+    this.data.dragon.trialsLeft = 4;
     this.data.arena.challengesLeft = 5;
     this.data.arena.activeChallenge = null;
-    this.data.arena.lastResetDate = today;
-    this.data.tavern.bounties = TAVERN_BOUNTIES.map(bounty => ({ id: bounty.id, status: 'available' }));
+    this.data.arena.lastResetDate = actionDayKey(targetDay);
+    const previousBounties = Array.isArray(this.data.tavern.bounties) ? this.data.tavern.bounties : [];
+    this.data.tavern.bounties = TAVERN_BOUNTIES.map(bounty => {
+      const previous = previousBounties.find(entry => entry.id === bounty.id);
+      // 已接取/已就绪的悬赏跨日保留，避免玩家打完却因跨日刷新丢掉领奖资格。
+      if (previous && (previous.status === 'in_progress' || previous.status === 'ready_to_claim')) return previous;
+      return { id: bounty.id, status: 'available' };
+    });
     this.data.tavern.drinkBuff = null;
-    this.data.tavern.lastResetDate = today;
+    this.data.tavern.lastResetDate = actionDayKey(targetDay);
     this.data.factionWar.dailyClaimed = false;
-    this.data.factionWar.lastResetDate = today;
+    this.data.factionWar.lastResetDate = actionDayKey(targetDay);
+    this.data.estate.harvestedToday = 0;
+    this.data.lastIdleClaimDay = 0;
+    this.data.idleMinutesClaimed = 0;
+    // 城市商店：每行动日重置限购记录
+    if (!this.data.shops) this.data.shops = { day: targetDay, purchase: {} };
+    this.data.shops.day = targetDay;
+    this.data.shops.purchase = {};
+    // 各城特色资源点：每行动日重置领取记录
+    if (!this.data.cities) this.data.cities = {};
+    for (const cid of ['keste', 'aden']) {
+      if (!this.data.cities[cid]) this.data.cities[cid] = { specialClaimedDay: 0 };
+      this.data.cities[cid].specialClaimedDay = 0;
+    }
+    // 宠物体力按行动日衰减（与 §4.1 三阈值配套）。
+    for (const pet of this.data.pets || []) pet.stamina = Math.max(0, (pet.stamina ?? 100) - 10);
     storage.save(this.data);
     return true;
   }
@@ -418,16 +544,24 @@ export class GameState {
     return levelExperience(level);
   }
 
-  addExp(amount, publish = true) {
+  addPetExperience(pet, amount) {
+    if (!pet || !Number.isFinite(amount) || amount <= 0) return;
+    pet.exp = (pet.exp || 0) + amount;
+    while (pet.level < 100 && pet.exp >= this.getNextLevelExp(pet.level)) {
+      pet.exp -= this.getNextLevelExp(pet.level);
+      pet.level++;
+    }
+  }
+
+  addExp(amount, publish = true, grantPets = true) {
     const previousSkills = new Set(getClassSkills(this.data.classId, 0, this.data).map(skill => skill.id || skill.name));
     if (!Number.isFinite(amount) || amount <= 0) return false;
     this.data.exp += amount;
-    for (const { pet, active, slot } of getPetParty(this.data)) {
-      if (!active) continue;
-      pet.exp = (pet.exp || 0) + (slot === 0 ? amount : Math.floor(amount / 2));
-      while (pet.level < 100 && pet.exp >= this.getNextLevelExp(pet.level)) {
-        pet.exp -= this.getNextLevelExp(pet.level);
-        pet.level++;
+    if (grantPets) {
+      for (const { pet, slot } of getPetParty(this.data)) {
+        if (!pet) continue;
+        // 宠物经验不再受体力影响；主宠全额、副宠一半。
+        this.addPetExperience(pet, slot === 0 ? amount : Math.floor(amount / 2));
       }
     }
     let leveledUp = false;
@@ -499,6 +633,7 @@ export class GameState {
     this.gainCurrency(trial.level * 100, 50, 0);
     this.reconcileQuestMilestones();
     this.triggerQuestAction('royal_trials', 1);
+    this.addActionPoints(ACTION_POINTS.trial);
     this.notify();
     return { success: true, title: this.getPromotedClassName() };
   }
@@ -556,7 +691,7 @@ export class GameState {
     }
     const setBonuses = Object.entries(activeSetCounts).flatMap(([id, count]) => {
       const set = OFFICIAL_SETS[id];
-      return set ? [...(count >= 2 ? [set.bonus2] : []), ...(count >= 4 ? [set.bonus4] : [])] : [];
+      return set ? [...(count >= 2 ? [set.bonus2] : []), ...(count >= 4 ? [set.bonus4] : []), ...(count >= 7 ? [set.bonus7] : [])] : [];
     });
     const sumSet = key => setBonuses.reduce((sum, bonus) => sum + (bonus[key] || 0), 0);
     const skillLevelBonus = sumSet('allSkillLv');
@@ -631,6 +766,7 @@ export class GameState {
         if (item.stats.atk) atk += item.stats.atk * enhanceMult;
         if (item.stats.def) def += item.stats.def * enhanceMult;
         if (item.stats.speed) speed += item.stats.speed * enhanceMult;
+        if (item.stats.hit) hit += item.stats.hit;
         if (item.stats.crit) crit += item.stats.crit;
         if (item.stats.dodge) dodge += item.stats.dodge;
         if (item.stats.counter) counter += item.stats.counter;
@@ -708,53 +844,53 @@ export class GameState {
     hit += sumSet('hit');
     dmgBonus += sumSet('dmgBonus');
 
-    // 原著官方套装属性加成
-    Object.keys(activeSetCounts).forEach(setId => {
-      const set = OFFICIAL_SETS[setId];
-      const count = activeSetCounts[setId];
-      if (set && count >= 2) {
-        if (set.bonus2.atk) atk += set.bonus2.atk;
-        if (set.bonus2.def) def += set.bonus2.def;
-        if (set.bonus2.hp) hp += set.bonus2.hp;
-        if (set.bonus2.speed) speed += set.bonus2.speed;
-        if (set.bonus2.dodge) dodge += set.bonus2.dodge;
-        if (set.bonus2.crit) crit += set.bonus2.crit;
-      }
-      if (set && count >= 4) {
-        if (set.bonus4.hp) hp += set.bonus4.hp;
-        if (set.bonus4.counter) counter += set.bonus4.counter;
-        if (set.bonus4.lifesteal) lifesteal += set.bonus4.lifesteal;
-        if (set.bonus4.dodge) dodge += set.bonus4.dodge;
-        if (set.bonus4.dmgResist) dmgResist += set.bonus4.dmgResist;
-        if (set.bonus4.critDmg) critDmg += set.bonus4.critDmg;
-      }
-    });
+    // 原著官方套装属性加成：setBonuses 已按 2/4(/未来7) 档位过滤，统一按数值键累加，
+    // 避免逐 key 硬编码遗漏（如未来 7 件档的 atk/def 等会被静默丢弃）。现网数值与旧实现等价。
+    atk += sumSet('atk');
+    def += sumSet('def');
+    hp += sumSet('hp');
+    speed += sumSet('speed');
+    dodge += sumSet('dodge');
+    crit += sumSet('crit');
+    counter += sumSet('counter');
+    lifesteal += sumSet('lifesteal');
+    dmgResist += sumSet('dmgResist');
+    critDmg += sumSet('critDmg');
 
-    // 出战宠物属性 (体力 >= 60 才提供附加属性)
-    const activePetObj = getPetParty(this.data)[0].pet;
-    if (activePetObj && (activePetObj.stamina === undefined || activePetObj.stamina >= 60)) {
+    // 出战宠物属性（原作三阈值：80+ 全额，40~79 减半，<40 无效）
+    const mainPetMember = getPetParty(this.data)[0];
+    const activePetObj = mainPetMember.pet;
+    const petAttributeMultiplier = mainPetMember.attributeMultiplier || 0;
+    if (activePetObj && petAttributeMultiplier > 0) {
       const pCfg = PET_CONFIGS[activePetObj.id];
       if (pCfg) {
         const aptRatio = (activePetObj.apt.str + activePetObj.apt.con) / 3000;
-        atk += Math.floor((pCfg.baseBonus.atk || 0) * aptRatio + activePetObj.level * (pCfg.growth.atk || 3));
-        hp += Math.floor((pCfg.baseBonus.maxHp || 0) * aptRatio + activePetObj.level * 20);
-        def += Math.floor((pCfg.baseBonus.def || 0) * aptRatio);
-        speed += Math.floor((pCfg.baseBonus.speed || 0));
-        if (pCfg.baseBonus.counter) counter += pCfg.baseBonus.counter;
-        if (pCfg.baseBonus.dodge) dodge += pCfg.baseBonus.dodge;
-        if (pCfg.baseBonus.crit) crit += pCfg.baseBonus.crit;
-        if (pCfg.baseBonus.lifesteal) lifesteal += pCfg.baseBonus.lifesteal;
+        atk += Math.floor(((pCfg.baseBonus.atk || 0) * aptRatio + activePetObj.level * (pCfg.growth.atk || 3)) * petAttributeMultiplier);
+        hp += Math.floor(((pCfg.baseBonus.maxHp || 0) * aptRatio + activePetObj.level * 20) * petAttributeMultiplier);
+        def += Math.floor((pCfg.baseBonus.def || 0) * aptRatio * petAttributeMultiplier);
+        speed += Math.floor((pCfg.baseBonus.speed || 0) * petAttributeMultiplier);
+        if (pCfg.baseBonus.counter) counter += pCfg.baseBonus.counter * petAttributeMultiplier;
+        if (pCfg.baseBonus.dodge) dodge += pCfg.baseBonus.dodge * petAttributeMultiplier;
+        if (pCfg.baseBonus.crit) crit += pCfg.baseBonus.crit * petAttributeMultiplier;
+        if (pCfg.baseBonus.lifesteal) lifesteal += pCfg.baseBonus.lifesteal * petAttributeMultiplier;
+        // 四维资质全部进入有效属性：智力提供魔力，敏捷提供速度/闪避/暴击。
+        const intApt = activePetObj.apt.int || 0;
+        const dexApt = activePetObj.apt.dex || 0;
+        mp += Math.floor((intApt / 3000) * 80 * petAttributeMultiplier);
+        speed += Math.floor((dexApt / 3000) * 8 * petAttributeMultiplier);
+        dodge += (dexApt / 3000) * 4 * petAttributeMultiplier;
+        crit += (dexApt / 3000) * 4 * petAttributeMultiplier;
       }
       const learnedBooks = Object.values(PET_SKILL_BOOKS).filter(book =>
         (activePetObj.skills || []).some(id => id === book.id || id === book.skillId));
       for (const book of learnedBooks) {
         const effect = book.effect;
-        counter += effect.counterBonus || 0;
-        crit += effect.critBonus || 0;
-        lifesteal += effect.lifestealBonus || 0;
-        speed += effect.speedBonus || 0;
-        dodge += effect.dodgeBonus || 0;
-        dmgResist += (effect.dmgReduction || 0) * 100;
+        counter += (effect.counterBonus || 0) * petAttributeMultiplier;
+        crit += (effect.critBonus || 0) * petAttributeMultiplier;
+        lifesteal += (effect.lifestealBonus || 0) * petAttributeMultiplier;
+        speed += (effect.speedBonus || 0) * petAttributeMultiplier;
+        dodge += (effect.dodgeBonus || 0) * petAttributeMultiplier;
+        dmgResist += (effect.dmgReduction || 0) * 100 * petAttributeMultiplier;
       }
     }
 
@@ -881,16 +1017,20 @@ export class GameState {
 
   harvestEstate(now = Date.now()) {
     const estate = this.data.estate;
-    const interval = 30 * 60 * 1000;
-    const batches = Math.min(20, Math.floor((now - estate.lastHarvestTime) / interval));
-    if (!Number.isFinite(batches) || batches < 1) return { success: false, msg: '每 30 分钟成熟一次，请待药园与矿脉成熟后采收。' };
+    const harvestedToday = Number.isSafeInteger(estate.harvestedToday) ? estate.harvestedToday : 0;
+    const matureBatches = Math.min(2, Math.floor(this.getActionPoints() / 10));
+    const remainingToday = Math.max(0, matureBatches - harvestedToday);
+    const batches = remainingToday;
+    if (!Number.isFinite(batches) || batches < 1) {
+      return { success: false, msg: remainingToday <= 0 ? '本行动日药园与矿脉已采收完（每日最多 2 批），进入下一行动日后再来。' : '药园与矿脉尚未成熟：每累计 10 行动点成熟 1 批，完成更多行动后再来。' };
+    }
     for (const id of ['herb_dragonblood', 'herb_starlight', 'herb_spiritflower']) {
       estate.herbs[id] = (estate.herbs[id] || 0) + batches * 5;
     }
     this.data.crystal += batches * 25;
-    estate.lastHarvestTime = now - ((now - estate.lastHarvestTime) % interval);
+    estate.harvestedToday = (Number.isSafeInteger(estate.harvestedToday) ? estate.harvestedToday : 0) + batches;
     this.notify();
-    return { success: true, msg: `采收 ${batches} 批：三种草药各 +${batches * 5}，魔晶 +${batches * 25}。` };
+    return { success: true, msg: `采收 ${batches} 批：三种草药各 +${batches * 5}，魔晶 +${batches * 25}。本行动日还可采收 ${Math.max(0, 2 - estate.harvestedToday)} 批。` };
   }
 
   getExplorationReward(gold, crystal = 0) {
@@ -932,7 +1072,7 @@ export class GameState {
     if (castle.isExploring || castle.accumulatedExp !== 0 || castle.accumulatedGold !== 0) return { success: false, msg: '请先结算已有探险，累计收益不会被覆盖。' };
     this.resetDailyActivities();
     const permit = this.data.bag.find(item => item.id === 'royal_castle_permit' && Number.isSafeInteger(item.count) && item.count > 0);
-    if (!Number.isInteger(castle.entriesLeft) || castle.entriesLeft < 0 || (castle.entriesLeft === 0 && !permit)) return { success: false, msg: '今日3次古堡探险次数已耗尽，需要远征通行令或等待午夜。' };
+    if (!Number.isInteger(castle.entriesLeft) || castle.entriesLeft < 0 || (castle.entriesLeft === 0 && !permit)) return { success: false, msg: '本行动日3次古堡探险次数已耗尽，需要远征通行令或进入下一行动日。' };
     const key = this.data.bag.find(item => item.id === keyId && Number.isInteger(item.count) && item.count > 0);
     if (!key) return { success: false, msg: '缺少对应钥匙，无法破界！' };
     key.count--;
@@ -968,13 +1108,26 @@ export class GameState {
     }
     const exp = defeatedFloor === null ? castle.accumulatedExp : Math.floor(castle.accumulatedExp * 0.5);
     const gold = defeatedFloor === null ? castle.accumulatedGold : 0;
+    const petExpPool = castle.petExpPool && typeof castle.petExpPool === 'object' ? castle.petExpPool : null;
     // 发奖前使本次身份失效，重复/重入回调无法再次领取。
     castle.isExploring = false;
     castle.expeditionId = null;
     castle.accumulatedExp = 0;
     castle.accumulatedGold = 0;
     this.data.isCastleExplore = false;
-    this.addExp(exp, false);
+    if (petExpPool) {
+      // 宠物经验按逐层战前阵容快照发放；失败退出时同样只发一半。
+      this.addExp(exp, false, false);
+      const factor = defeatedFloor === null ? 1 : 0.5;
+      for (const [petId, amount] of Object.entries(petExpPool)) {
+        const pet = this.data.pets.find(entry => entry.id === petId);
+        if (pet) this.addPetExperience(pet, Math.floor(amount * factor));
+      }
+    } else {
+      // 旧档没有逐层快照：退回旧规则，由 addExp 统一分配。
+      this.addExp(exp, false, true);
+    }
+    castle.petExpPool = {};
     this.gainCurrency(gold, 0, 0, false);
     this.notify();
     return { success: true, exp, gold };
@@ -993,6 +1146,10 @@ export class GameState {
     const crystal = info.isBoss && !firstClear ? Math.floor(floor * 0.8 + 2) : info.crystalReward;
     const reward = this.getExplorationReward(gold, crystal);
     if (firstClear) castle.claimedBossRewards.push(floor);
+    castle.petExpPool ||= {};
+    for (const { pet, slot } of getPetParty(this.data)) {
+      if (pet) castle.petExpPool[pet.id] = (castle.petExpPool[pet.id] || 0) + (slot === 0 ? exp : Math.floor(exp / 2));
+    }
     castle.accumulatedExp += exp;
     castle.accumulatedGold += reward.gold;
     castle.floor = Math.min(100, floor + 1);
@@ -1005,6 +1162,7 @@ export class GameState {
     this.triggerQuestAction('clear_tower', 1);
     if ([1, 10, 20].includes(floor)) this.triggerQuestAction(`clear_tower_${floor}`, 1);
     this.recordCommissionEvent('tower', String(floor));
+    this.addActionPoints(ACTION_POINTS.castleFloor);
     this.notify();
     return { success: true, firstClear: Boolean(firstClear), exp, ...reward, item, newRelics };
   }
@@ -1015,7 +1173,7 @@ export class GameState {
     if (this.data.level < dragon.minLevel) return { success: false, msg: `等级不足！需达到 Lv.${dragon.minLevel}` };
     if (this.data.dragon.activeChallenge) return { success: false, msg: '当前屠龙讨伐尚未结束。' };
     this.resetDailyActivities();
-    if (!Number.isInteger(this.data.dragon.trialsLeft) || this.data.dragon.trialsLeft <= 0) return { success: false, msg: '今日3次屠龙讨伐次数已耗尽！' };
+    if (!Number.isInteger(this.data.dragon.trialsLeft) || this.data.dragon.trialsLeft <= 0) return { success: false, msg: '本行动日屠龙讨伐次数已耗尽！进入下一行动日后再来。' };
     const challengeId = this.createDungeonExpeditionId();
     this.data.dragon.trialsLeft--;
     this.data.dragon.activeChallenge = { dragonId, challengeId };
@@ -1036,7 +1194,7 @@ export class GameState {
     const gear = generateEquipment(slot, dragon.minLevel, reward.equipmentQuality, setId, this.data.classId);
     if (!Object.keys(gear.stats).length) gear.stats.hp = Math.floor((60 + dragon.minLevel * 18) * QUALITIES[reward.equipmentQuality].multiplier);
     const drops = [gear, { ...SPECIAL_ITEMS[reward.material], count: reward.materialCount }];
-    if (reward.egg && Math.random() < reward.eggChance) drops.push({ ...SPECIAL_ITEMS.pet_egg, id: reward.egg, name: reward.egg === 'pet_egg_gold' ? '黄金神兽契约蛋' : '暗金神兽契约蛋', quality: reward.egg === 'pet_egg_gold' ? 'gold' : 'darkgold', type: 'egg', count: 1 });
+    if (reward.egg && Math.random() < reward.eggChance) drops.push({ ...SPECIAL_ITEMS.pet_egg, id: reward.egg, name: reward.egg === 'pet_egg_gold' ? '黄金宠物蛋' : '暗金宠物蛋', quality: reward.egg === 'pet_egg_gold' ? 'gold' : 'darkgold', type: 'egg', count: 1 });
     if (reward.extraMaterial && Math.random() < reward.extraChance) drops.push({ ...SPECIAL_ITEMS[reward.extraMaterial], count: 1 });
     drops.forEach(item => this.grantBattleLoot(item));
     const previousClears = Number.isSafeInteger(this.data.dragon.cleared[dragonId]) && this.data.dragon.cleared[dragonId] > 0 ? this.data.dragon.cleared[dragonId] : 0;
@@ -1048,6 +1206,7 @@ export class GameState {
     this.gainCurrency(reward.gold, reward.crystal, reward.prestige, false);
     if (dragonId === 'slay_red_dragon') this.triggerQuestAction('slay_dragon', 1);
     if (dragonId === 'slay_silver_dragon') this.triggerQuestAction('slay_silver_dragon', 1);
+    this.addActionPoints(ACTION_POINTS.dragon);
     this.notify();
     return { success: true, victory: true, firstClear, story, drops, exp: dragon.minLevel * 250, ...reward };
   }
@@ -1064,7 +1223,7 @@ export class GameState {
     const dungeon = this.data.dungeon;
     if (dungeon.activeGateId) return { success: false, msg: '已有正在探索的古门，请先完成或撤离。' };
     const permit = this.data.bag.find(item => item.id === 'royal_dungeon_permit' && Number.isSafeInteger(item.count) && item.count > 0);
-    if (!Number.isInteger(dungeon.entriesLeft) || dungeon.entriesLeft < 0 || (dungeon.entriesLeft === 0 && !permit)) return { success: false, msg: '今日5次副本挑战次数已耗尽，需要调查通行令或等待午夜。' };
+    if (!Number.isInteger(dungeon.entriesLeft) || dungeon.entriesLeft < 0 || (dungeon.entriesLeft === 0 && !permit)) return { success: false, msg: '本行动日5次副本挑战次数已耗尽，需要调查通行令或进入下一行动日。' };
     if (dungeon.entriesLeft === 0) { permit.count--; if (!permit.count) this.data.bag = this.data.bag.filter(item => item !== permit); }
     else dungeon.entriesLeft--;
     dungeon.activeGateId = gate.id;
@@ -1118,6 +1277,7 @@ export class GameState {
       this.addSystemLog(`【古门大捷】通关【${gate.name}】，获得【${drop.name}】和暗金晶石x2。`, 'battle');
       if (story) this.addSystemLog(`【远征线索】${story}`, 'quest');
     }
+    this.addActionPoints(ACTION_POINTS.dungeonFloor);
     this.notify();
     return { success: true, final, firstClear, story, exp, ...reward, prestige: final ? 120 : 0, drop, supplies };
   }
@@ -1136,13 +1296,25 @@ export class GameState {
     const reward = this.getExplorationReward(boss.gold, boss.crystal);
     this.gainCurrency(reward.gold, reward.crystal, 20);
     const drop = { ...(SPECIAL_ITEMS[boss.guaranteedDrop.id] || boss.guaranteedDrop), count: boss.guaranteedDrop.count };
-    const slot = ITEM_SLOTS[Math.floor(Math.random() * ITEM_SLOTS.length)].id;
-    const gear = generateEquipment(slot, boss.level, boss.dropQuality, null, this.data.classId);
+    // 领主可定向掉落对应套装件（C2 新图）：从该套 slots 随机取部位；否则沿用通用随机部位。
+    const setDrop = Array.isArray(boss.setDrop) ? boss.setDrop[Math.floor(Math.random() * boss.setDrop.length)] : boss.setDrop;
+    let slot;
+    let setId = null;
+    if (setDrop && OFFICIAL_SETS[setDrop]) {
+      setId = setDrop;
+      const setSlots = (OFFICIAL_SETS[setDrop].slots && OFFICIAL_SETS[setDrop].slots.length) ? OFFICIAL_SETS[setDrop].slots : ITEM_SLOTS.map(s => s.id);
+      slot = setSlots[Math.floor(Math.random() * setSlots.length)];
+    } else {
+      slot = ITEM_SLOTS[Math.floor(Math.random() * ITEM_SLOTS.length)].id;
+    }
+    const gear = generateEquipment(slot, boss.level, boss.dropQuality, setId, this.data.classId);
     this.grantBattleLoot(drop);
     this.grantBattleLoot(gear);
+    this.grantBattleLoot({ ...SPECIAL_ITEMS.slave_sigil, count: 1 });
     this.recordRegionalStory('boss', mapId);
     if (boss.id === 'boss_forest') this.triggerQuestAction('slay_wild_boss', 1);
     this.recordCommissionEvent('wild_boss', mapId);
+    this.addActionPoints(ACTION_POINTS.wildBoss);
     this.notify();
     return { success: true, exp: boss.exp, ...reward, drop, gear };
   }
@@ -1173,16 +1345,20 @@ export class GameState {
     if (mapId === 'forest') this.triggerQuestAction('investigate_patrol');
     this.recordRegionalStory('wild', mapId);
     this.recordCommissionEvent('wild', mapId);
+    this.addActionPoints(ACTION_POINTS.wild);
     this.notify();
     return { success: true, exp: mob.exp, ...reward, drops };
   }
 
-  completeBattle() {
+  completeBattle(victory = null) {
     for (const item of Object.values(this.data.equipped)) {
       if (item && Number.isFinite(item.durability)) item.durability = Math.max(0, item.durability - 1);
     }
-    for (const { pet, slot } of getPetParty(this.data)) {
-      if (pet) pet.stamina = Math.max(0, (pet.stamina ?? 100) - (slot === 0 ? 3 : 1));
+    // 体力的日常消耗由“行动日 -10”承担；战斗只在失败时留下死亡惩罚 -5。
+    if (victory === false) {
+      for (const { pet } of getPetParty(this.data)) {
+        if (pet) pet.stamina = Math.max(0, (pet.stamina ?? 100) - 5);
+      }
     }
     this.data.estate.activePotions = (this.data.estate.activePotions || []).filter(potion => {
       potion.remainingFights = (potion.remainingFights ?? potion.effect?.fights ?? 0) - 1;
@@ -1307,12 +1483,12 @@ export class GameState {
     const map = MAPS.find(m => m.id === id);
     if (!map || this.data.level < map.reqLevel) return { success: false, msg: '地图未解锁，无法部署巡逻。' };
     if (this.data.currentMapId === id) return { success: false, msg: '当前已在此地巡逻。' };
-    // 先按旧营地结算，防止把此前时间兑换成高等级地图收益。
+    // 先按旧营地结算当日额度，防止把此前时间兑换成高等级地图收益。
     this.claimIdleRewards(now);
     this.data.currentMapId = id;
     this.data.lastIdleClaimTime = now;
     this.notify();
-    return { success: true, msg: `巡逻营地已转移至【${map.name}】，原营地成熟收益已结算。` };
+    return { success: true, msg: `巡逻营地已转移至【${map.name}】，本行动日剩余巡逻收益按新营地计算。` };
   }
 
   getPatrolRates(mapId = this.data.currentMapId) {
@@ -1321,38 +1497,69 @@ export class GameState {
     return this.data.onboardingVersion === 2 ? { ...rates, goldPerMin: rates.goldPerMin * 0.1, crystalPerMin: rates.crystalPerMin * 0.05 } : { ...rates };
   }
 
+  // 巡逻收益不再按现实时间无限累积：每个行动日最多 10 分钟基准产出。
   getIdleRewards(now = Date.now()) {
     const map = MAPS.find(map => map.id === this.data.currentMapId) || MAPS[0];
     const rates = this.getPatrolRates(map.id);
+    const day = this.getActionDay();
+    const claimed = this.data.lastIdleClaimDay === day ? Math.max(0, Number(this.data.idleMinutesClaimed) || 0) : 0;
+    const remaining = Math.max(0, 10 - claimed);
     const since = Number.isFinite(this.data.lastIdleClaimTime) ? this.data.lastIdleClaimTime : now;
-    const minutes = Math.max(0, Math.min(600, Math.floor((now - since) / 60000)));
+    const elapsed = Math.max(0, Math.floor((now - since) / 60000));
+    const minutes = Math.min(remaining, elapsed);
     return { minutes, exp: Math.floor(minutes * rates.expPerMin),
       gold: Math.floor(minutes * rates.goldPerMin), crystal: Math.floor(minutes * rates.crystalPerMin) };
   }
 
   claimIdleRewards(now = Date.now()) {
     const reward = this.getIdleRewards(now);
-    if (reward.minutes <= 0) return { success: false, msg: '巡逻尚未满一分钟，请稍后领取。' };
-    // 保留不足一分钟的余量；超过十小时的收益按上限结算。
-    const elapsed = now - this.data.lastIdleClaimTime;
+    if (reward.minutes <= 0) {
+      const day = this.getActionDay();
+      const claimed = this.data.lastIdleClaimDay === day ? Math.max(0, Number(this.data.idleMinutesClaimed) || 0) : 0;
+      return { success: false, msg: claimed >= 10 ? '本行动日巡逻收益已领满，进入下一行动日后可再领取。' : '巡逻尚未满一分钟，请稍后领取。' };
+    }
+    const day = this.getActionDay();
+    const priorClaimed = this.data.lastIdleClaimDay === day ? Math.max(0, Number(this.data.idleMinutesClaimed) || 0) : 0;
+    const elapsed = now - (Number.isFinite(this.data.lastIdleClaimTime) ? this.data.lastIdleClaimTime : now);
     this.data.lastIdleClaimTime = now - (elapsed % 60000);
+    this.data.lastIdleClaimDay = day;
+    this.data.idleMinutesClaimed = priorClaimed + reward.minutes;
     this.addExp(reward.exp);
     this.gainCurrency(reward.gold, reward.crystal);
     return { success: true, ...reward, msg: `巡逻收获：经验 +${reward.exp}，金币 +${reward.gold}，魔晶 +${reward.crystal}！` };
   }
 
-  feedPet(petId) {
+  feedPet(petId, itemId = 'pet_food') {
     const pet = this.data.pets.find(p => p.id === petId);
     if (!pet) return { success: false, msg: '未找到该神兽' };
-    if ((pet.stamina ?? 100) >= 100) return { success: false, msg: '伙伴体力已满，无需消耗兽肉。' };
-    const food = this.data.bag.find(i => i.id === 'pet_food' && i.count > 0);
-    if (!food) return { success: false, msg: '背包中没有【魔能兽肉排】' };
+    const foodEffects = { pet_food: 35, pet_food_basic: 15, pet_food_luxury: 60 };
+    const restore = foodEffects[itemId] || 0;
+    if (!restore) return { success: false, msg: '未知的宠物食品。' };
+    if ((pet.stamina ?? 100) >= 100) return { success: false, msg: '伙伴体力已满，无需再喂食。' };
+    const food = this.data.bag.find(i => i.id === itemId && i.count > 0);
+    if (!food) return { success: false, msg: `背包中没有【${itemId === 'pet_food' ? '魔能兽肉排' : itemId === 'pet_food_basic' ? '普通宠物口粮' : '豪华宠物饼干'}】` };
 
-    pet.stamina = Math.min(100, (pet.stamina ?? 100) + 35);
+    pet.stamina = Math.min(100, (pet.stamina ?? 100) + restore);
     food.count--;
     if (food.count <= 0) this.data.bag = this.data.bag.filter(i => i !== food);
     this.notify();
     return { success: true, msg: `喂养成功！${pet.name || '神兽'} 当前体力已恢复至 ${pet.stamina}/100！` };
+  }
+
+  // 兽栏金币喂养：单机兜底，最多恢复到 60（行动日/断粮时可继续战斗）。
+  feedPetWithGold(petId, targetStamina = 60) {
+    const pet = this.data.pets.find(p => p.id === petId);
+    if (!pet) return { success: false, msg: '未找到该神兽' };
+    const current = pet.stamina ?? 100;
+    const target = Math.min(60, Math.max(0, Math.floor(targetStamina)));
+    if (current >= target) return { success: false, msg: `金币喂养最多恢复到 ${target} 点体力。` };
+    const missing = target - current;
+    const cost = missing * 10;
+    if (this.data.gold < cost) return { success: false, msg: `金币不足！恢复 ${missing} 点体力需要 ${cost} 金币。` };
+    this.data.gold -= cost;
+    pet.stamina = target;
+    this.notify();
+    return { success: true, msg: `兽栏喂养完成：${pet.name || '神兽'} 体力恢复至 ${pet.stamina}/100，消耗 ${cost} 金币。` };
   }
 
   getCompanionTrainingQuote(petId) {
@@ -1602,6 +1809,40 @@ export class GameState {
     };
   }
 
+  // 熔炼：4 件同套装同品质部件 + 1 颗对应品质晶石 → 1 件指定部位套装部件。
+  smeltSetPieces(uidList, targetSlot) {
+    if (!Array.isArray(uidList) || uidList.length !== 4) return { success: false, msg: '熔炼需要正好 4 件套装部件。' };
+    if (new Set(uidList).size !== 4) return { success: false, msg: '熔炼材料不能重复。' };
+    const target = ITEM_SLOTS.find(slot => slot.id === targetSlot);
+    if (!target) return { success: false, msg: '请选择有效的目标部位。' };
+    const items = uidList.map(uid => this.data.bag.find(item => item.uid === uid));
+    if (items.some(item => !item || !item.slot || !item.setId)) return { success: false, msg: '材料必须是背包中的套装部件。' };
+    const first = items[0];
+    if (!items.every(item => item.setId === first.setId && item.quality === first.quality)) return { success: false, msg: '4 件材料必须同套装、同品质。' };
+    if (!['gold', 'darkgold', 'purplegold'].includes(first.quality)) return { success: false, msg: '只有黄金、暗金、紫金套装可以熔炼。' };
+    if (items.some(item => item.slot === targetSlot)) return { success: false, msg: '目标部位不能是已消耗材料之一。' };
+    const crystalId = first.quality === 'gold' ? 'crystal_gold' : first.quality === 'darkgold' ? 'crystal_darkgold' : 'crystal_purplegold';
+    const crystal = this.data.bag.find(item => item.id === crystalId && Number.isSafeInteger(item.count) && item.count > 0);
+    if (!crystal) return { success: false, msg: `熔炼需要 1 颗【${first.quality === 'gold' ? '黄金晶石' : first.quality === 'darkgold' ? '暗金晶石' : '紫金晶石'}】。` };
+    const set = OFFICIAL_SETS[first.setId];
+    if (!set) return { success: false, msg: '该套装配置不存在。' };
+    // 先移除材料与晶石，再放入产物；材料腾出的空间足以容纳 1 件装备。
+    const keep = this.data.bag.filter(item => !uidList.includes(item.uid));
+    crystal.count--;
+    if (crystal.count <= 0) this.data.bag = keep.filter(item => item !== crystal);
+    else {
+      this.data.bag = keep;
+      const remainingCrystal = this.data.bag.find(item => item.id === crystalId);
+      if (remainingCrystal) remainingCrystal.count = crystal.count;
+    }
+    const gear = generateEquipment(targetSlot, set.reqLevel || first.reqLevel || 1, first.quality, first.setId, this.data.classId);
+    gear.name = `${set.name.replace(/[【】]/g, '')}·${target.name}`;
+    this.data.bag.push(gear);
+    this.addSystemLog(`【套装熔炼】消耗 4 件【${set.name}】部件，熔炼出【${gear.name}】！`, 'forge');
+    this.notify();
+    return { success: true, msg: `熔炼成功！获得【${gear.name}】。`, item: gear };
+  }
+
   // 装备穿戴入身
   getUpgradeInheritanceQuote(uid) {
     if (!this.data.hasChosenClass) return { success: false, msg: '请先完成角色创建。' };
@@ -1799,16 +2040,17 @@ export class GameState {
     return true;
   }
 
-  // 宝石孔开凿 (消耗开孔水晶/金刚钻与金币，最多开 4 孔)
+  // 宝石孔开凿 (消耗打孔水晶/金刚钻与金币，最多开 4 孔)
   punchSocket(slotKey) {
     const item = this.data.equipped[slotKey];
     if (!item) return { success: false, msg: '该槽位未穿戴任何装备！' };
 
     const curSockets = item.sockets || 0;
-    if (curSockets >= 4) return { success: false, msg: '该装备已开启 4 个宝石孔，已达孔洞上限！' };
+    const socketCap = getSocketCap(item.slot);
+    if (curSockets >= socketCap) return { success: false, msg: `该装备已开启 ${socketCap} 个宝石孔，已达当前部位上限！` };
 
     const drillItem = this.data.bag.find(i => (i.id === 'diamond_1' || i.id === 'socket_crystal') && i.count > 0);
-    if (!drillItem) return { success: false, msg: '缺少开孔道具！需要【开孔水晶】或【金刚钻】！可在声望商行兑换。' };
+    if (!drillItem) return { success: false, msg: '缺少打孔道具！需要【打孔水晶】或【金刚钻】！可在声望商行兑换。' };
 
     const goldCost = (curSockets + 1) * 1000;
     if (this.data.gold < goldCost) return { success: false, msg: `金币不足！本次开孔需花费 ${goldCost} 金币！` };
@@ -1990,8 +2232,22 @@ export class GameState {
     if (!fw.strongholds[strongholdId]) {
       fw.strongholds[strongholdId] = { captured: false, progress: 0 };
     }
-    fw.strongholds[strongholdId].captured = true;
-    fw.strongholds[strongholdId].progress = 100;
+    const strongholdRecord = fw.strongholds[strongholdId];
+    if (strongholdRecord.captured) {
+      const day = this.getActionDay();
+      if (strongholdRecord.lastRepeatDay === day) {
+        return { success: false, msg: '本行动日该要塞已再度破关，进入下一行动日后再来。' };
+      }
+      strongholdRecord.lastRepeatDay = day;
+      const repeatGold = Math.floor(stronghold.goldReward * 0.2);
+      this.data.gold += repeatGold;
+      this.addSystemLog(`【边境巡防】再度攻破【${stronghold.name}】，本次为重复挑战：金币 +${repeatGold}，军勋不重复发放。`, 'battle');
+      this.addActionPoints(ACTION_POINTS.stronghold);
+      this.notify();
+      return { success: true, merit: 0, gold: repeatGold, repeat: true, promoted: null };
+    }
+    strongholdRecord.captured = true;
+    strongholdRecord.progress = 100;
     this.reconcileQuestMilestones();
     fw.totalMerit = this.getTotalFactionMerit() + stronghold.meritReward;
     fw.merit = (fw.merit || 0) + stronghold.meritReward;
@@ -2013,6 +2269,7 @@ export class GameState {
     if (promoted) {
       this.addSystemLog(`【帝国嘉奖】军功赫赫！勇者阵营军衔荣升为【${promoted.name}】！`, 'quest');
     }
+    this.addActionPoints(ACTION_POINTS.stronghold);
     this.notify();
     return { success: true, merit: stronghold.meritReward, gold: stronghold.goldReward, promoted };
   }
@@ -2025,7 +2282,7 @@ export class GameState {
       fw.lastResetDate = today;
     }
     if (fw.dailyClaimed) {
-      return { success: false, msg: '今日阵营军饷已领受，明日拂晓请再临军需处！' };
+      return { success: false, msg: '本行动日军饷已领受，进入下一行动日后请再临军需处！' };
     }
     const rankCfg = MILITARY_RANKS.find(r => r.id === fw.militaryRank) || MILITARY_RANKS[0];
     fw.dailyClaimed = true;
@@ -2087,7 +2344,7 @@ export class GameState {
     if (!opponent || !Number.isInteger(this.data.level) || this.data.level < 1 || this.data.level > 100) return { success: false, msg: '无效的对手或角色等级。' };
     this.resetDailyActivities();
     if (this.data.arena.activeChallenge) return { success: false, msg: '当前角斗挑战尚未结束。' };
-    if (!Number.isInteger(this.data.arena.challengesLeft) || this.data.arena.challengesLeft <= 0) return { success: false, msg: '今日5次角斗挑战次数已耗尽。' };
+    if (!Number.isInteger(this.data.arena.challengesLeft) || this.data.arena.challengesLeft <= 0) return { success: false, msg: '本行动日5次角斗挑战次数已耗尽。' };
     const challengeId = this.createDungeonExpeditionId();
     this.data.arena.challengesLeft--;
     this.data.arena.activeChallenge = { opponentId, challengeId };
@@ -2114,6 +2371,7 @@ export class GameState {
     const pointsDelta = this.data.arena.points - previousPoints;
     if (victory) this.triggerQuestAction('arena_duel');
     this.addSystemLog(`【王国角斗场】${victory ? '战胜' : '惜败于'}【${opponent.name}】，积分 ${pointsDelta >= 0 ? '+' : ''}${pointsDelta}（当前 ${this.data.arena.points}），声望 +${prestigeReward}、金币 +${goldReward}。`, 'battle', false);
+    if (victory) this.addActionPoints(ACTION_POINTS.arena);
     this.notify();
     return { success: true, victory, points: this.data.arena.points, pointsDelta, rank: rank.title, prestigeReward, goldReward, expReward };
   }
@@ -2133,6 +2391,267 @@ export class GameState {
     this.addSystemLog(`【军需商行】支取 ${shopItem.costPrestige} 点声望，成功调配军需【${shopItem.name}】！`, 'obtain');
     this.notify();
     return { success: true, msg: `成功兑换【${shopItem.name}】！已收入行囊！` };
+  }
+
+  // 城市商店：读取货架（含等级/声望锁定、本日限购、可负担状态）
+  getCityShop(cityId) {
+    if (!ENABLE_CITY_SHOPS) return { success: false, msg: '城市商店暂未开放。' };
+    const shop = CITY_SHOPS[cityId];
+    if (!shop) return { success: false, msg: '未找到该城商店。' };
+    const prestige = Number.isFinite(this.data.prestige) ? this.data.prestige : 0;
+    const tier = prestigeTierOf(prestige);
+    const purchase = (this.data.shops && this.data.shops.purchase && this.data.shops.purchase[cityId]) || {};
+    const goods = shop.goods.map(g => {
+      const soldToday = Number.isInteger(purchase[g.id]) ? purchase[g.id] : 0;
+      const leftToday = Math.max(0, (g.limit?.perDay ?? 0) - soldToday);
+      const levelOk = (this.data.level || 1) >= (g.unlock?.level || 0);
+      const prestigeOk = tier >= (g.unlock?.tier || 0);
+      const reqPrestige = SHOP_PRESTIGE_TIERS[g.unlock?.tier || 0]?.minPrestige || 0;
+      const affordable = (this.data.gold || 0) >= (g.price?.gold || 0) && (this.data.crystal || 0) >= (g.price?.crystal || 0);
+      let lockReason = '';
+      if (!levelOk) lockReason = `需等级 Lv.${g.unlock.level}`;
+      else if (!prestigeOk) lockReason = `需声望 ${reqPrestige} 解锁`;
+      else if (leftToday <= 0) lockReason = '本行动日已售罄';
+      return { ...g, soldToday, leftToday, reqPrestige, levelOk, prestigeOk, affordable, locked: !!lockReason, lockReason };
+    });
+    const nextTier = SHOP_PRESTIGE_TIERS.find(t => t.minPrestige > prestige) || null;
+    return {
+      success: true,
+      shop: { id: shop.id, cityName: shop.cityName, shopName: shop.shopName, icon: shop.icon, categories: shop.categories },
+      categories: SHOP_CATEGORIES.filter(c => shop.categories.includes(c.id)),
+      prestige, tier, nextTier,
+      goods
+    };
+  }
+
+  // 城市商店：购买（金币/魔晶消费，声望只作门槛不消耗）
+  buyCityShopGoods(cityId, goodsId, qty = 1) {
+    if (!ENABLE_CITY_SHOPS) return { success: false, msg: '城市商店暂未开放。' };
+    const shop = CITY_SHOPS[cityId];
+    if (!shop) return { success: false, msg: '未找到该城商店。' };
+    const good = shop.goods.find(g => g.id === goodsId);
+    if (!good) return { success: false, msg: '商店中未找到该商品。' };
+    const count = Math.max(1, Math.floor(Number(qty) || 1));
+    if (!this.data.shops) this.data.shops = { day: this.getActionDay(), purchase: {} };
+    if (!this.data.shops.purchase) this.data.shops.purchase = {};
+    if (!this.data.shops.purchase[cityId]) this.data.shops.purchase[cityId] = {};
+
+    if ((this.data.level || 1) < (good.unlock?.level || 0)) {
+      return { success: false, msg: `等级不足！需达到 Lv.${good.unlock.level} 才能购买【${good.name}】。` };
+    }
+    const tier = prestigeTierOf(this.data.prestige || 0);
+    if (tier < (good.unlock?.tier || 0)) {
+      const reqPrestige = SHOP_PRESTIGE_TIERS[good.unlock.tier]?.minPrestige || 0;
+      return { success: false, msg: `声望不足！需 ${reqPrestige} 声望解锁【${good.name}】（当前 ${this.data.prestige || 0} 点）。` };
+    }
+    const soldToday = Number.isInteger(this.data.shops.purchase[cityId][good.id]) ? this.data.shops.purchase[cityId][good.id] : 0;
+    const perDay = good.limit?.perDay ?? 0;
+    if (soldToday + count > perDay) {
+      return { success: false, msg: `超出本行动日限购！【${good.name}】今日剩余 ${Math.max(0, perDay - soldToday)} 件。` };
+    }
+    const goldCost = (good.price?.gold || 0) * count;
+    const crystalCost = (good.price?.crystal || 0) * count;
+    if ((this.data.gold || 0) < goldCost || (this.data.crystal || 0) < crystalCost) {
+      return { success: false, msg: `资源不足！购买需 ${goldCost} 金币${crystalCost ? `、${crystalCost} 魔晶` : ''}。` };
+    }
+    const unit = good.itemData || {};
+    const totalItem = { ...unit, count: (unit.count || 1) * count };
+    if (!this.addItemToBag(totalItem)) {
+      return { success: false, msg: `行囊已满 (${this.data.bag.length}/${this.getBagCapacity()})，请先整理或扩容！` };
+    }
+    this.data.gold -= goldCost;
+    this.data.crystal -= crystalCost;
+    this.data.shops.purchase[cityId][good.id] = soldToday + count;
+    this.addSystemLog(`【${shop.shopName}】花费 ${goldCost} 金币${crystalCost ? `、${crystalCost} 魔晶` : ''}，购入【${good.name}】×${count}。`, 'obtain');
+    this.notify();
+    return { success: true, msg: `成功购买【${good.name}】×${count}！已收入行囊。`, gold: goldCost, crystal: crystalCost };
+  }
+
+  // —— C3 主城 / 城际传送 / 特色资源点 ——
+  getCities() {
+    const current = this.data.currentCity || 'capital';
+    const list = CITY_ORDER.filter(id => CITIES[id]).map(id => {
+      const c = CITIES[id];
+      return {
+        id, name: c.name, short: c.short, scene: c.scene, unlockLevel: c.unlockLevel,
+        unlocked: (this.data.level || 1) >= (c.unlockLevel || 0), current: id === current
+      };
+    });
+    return { success: true, current, enabled: ENABLE_CITIES, cities: ENABLE_CITIES ? list : list.filter(c => c.id === 'capital') };
+  }
+
+  travelToCity(cityId) {
+    if (!ENABLE_CITIES) return { success: false, msg: '城际传送暂未开放。' };
+    const city = CITIES[cityId];
+    if (!city) return { success: false, msg: '未找到该主城。' };
+    if ((this.data.currentCity || 'capital') === cityId) return { success: true, msg: `已在【${city.short}】。`, cityId };
+    if ((this.data.level || 1) < (city.unlockLevel || 0)) {
+      return { success: false, msg: `等级不足！前往【${city.short}】需达到 Lv.${city.unlockLevel}。` };
+    }
+    this.data.currentCity = cityId;
+    this.addSystemLog(`【城际传送】已抵达【${city.name}】。`, 'system');
+    this.notify();
+    return { success: true, msg: `已抵达【${city.name}】。`, cityId };
+  }
+
+  claimCitySpecial(cityId) {
+    if (!ENABLE_CITIES) return { success: false, msg: '特色设施暂未开放。' };
+    const city = CITIES[cityId];
+    if (!city || !city.special) return { success: false, msg: '该主城没有特色资源点。' };
+    if (!this.data.cities) this.data.cities = {};
+    if (!this.data.cities[cityId]) this.data.cities[cityId] = { specialClaimedDay: 0 };
+    const today = this.getActionDay();
+    if (this.data.cities[cityId].specialClaimedDay === today) {
+      return { success: false, msg: `【${city.special.name}】本行动日已领取，进入下一行动日后再来。` };
+    }
+    const reward = CITY_SPECIAL_REWARDS[cityId];
+    if (!reward) return { success: false, msg: '该特色资源点暂无配置。' };
+    const parts = [];
+    if (reward.herbs) {
+      this.data.estate = this.data.estate || {};
+      this.data.estate.herbs = this.data.estate.herbs || {};
+      for (const [id, n] of Object.entries(reward.herbs)) this.data.estate.herbs[id] = (this.data.estate.herbs[id] || 0) + n;
+      parts.push('草药：' + Object.entries(reward.herbs).map(([id, n]) => `${id}+${n}`).join('、'));
+    }
+    if (Array.isArray(reward.items)) {
+      for (const it of reward.items) {
+        const base = SPECIAL_ITEMS[it.id] || { id: it.id, name: it.id, type: 'material' };
+        if (!this.addItemToBag({ ...base, count: it.count })) return { success: false, msg: `行囊已满 (${this.data.bag.length}/${this.getBagCapacity()})，请先整理或扩容！` };
+        parts.push(`${base.name || it.id}×${it.count}`);
+      }
+    }
+    this.data.cities[cityId].specialClaimedDay = today;
+    this.addSystemLog(`【${city.special.name}】领取：${parts.join('；')}。`, 'obtain');
+    this.notify();
+    return { success: true, msg: `已领取【${city.special.name}】奖励：${parts.join('；')}。`, cityId };
+  }
+
+  // —— C4-P0 称号 / 成就墙（纯展示 + 一次性小额奖励，不含竞技段位） ——
+  // 单个成就的当前进度值（只读现有存档派生）
+  achievementProgress(achievement) {
+    const kind = achievement?.condition?.kind;
+    switch (kind) {
+      case 'promotion':
+        return this.data.royalTrials?.completedStage || 0;
+      case 'militaryRank': {
+        const idx = MILITARY_RANKS.findIndex(r => r.id === (this.data.factionWar?.militaryRank || 'recruit'));
+        return idx < 0 ? 0 : idx;
+      }
+      case 'setCodex': {
+        const ids = new Set();
+        for (const it of [...Object.values(this.data.equipped || {}), ...(this.data.bag || [])]) {
+          if (it && it.setId && OFFICIAL_SETS[it.setId]) ids.add(it.setId);
+        }
+        return ids.size;
+      }
+      case 'petCodex':
+        return Array.isArray(this.data.pets) ? this.data.pets.length : 0;
+      case 'towerFloor':
+        return this.data.castle?.maxReachedFloor || 1;
+      case 'wildWins':
+        return this.data.wildVictories || 0;
+      case 'dungeonClears':
+        return Object.values(this.data.dungeon?.clearedGates || {}).filter(n => n > 0).length;
+      case 'dragonClears':
+        return Object.values(this.data.dragon?.cleared || {}).filter(n => n > 0).length;
+      default:
+        return 0;
+    }
+  }
+
+  getAchievements() {
+    const claimed = this.data.achievements?.claimed || [];
+    const items = ACHIEVEMENTS.map(a => {
+      const target = a.condition?.value || 0;
+      const raw = this.achievementProgress(a);
+      const achieved = raw >= target;
+      const isClaimed = claimed.includes(a.id);
+      return { ...a, progress: { current: Math.min(raw, target), target, raw }, achieved, claimed: isClaimed, claimable: achieved && !isClaimed };
+    });
+    return {
+      success: true,
+      categories: ACHIEVEMENT_CATEGORIES.map(c => ({ ...c })),
+      items,
+      activeTitle: this.data.achievements?.activeTitle || null,
+      titles: this.getTitles()
+    };
+  }
+
+  claimAchievement(id) {
+    const a = ACHIEVEMENTS.find(x => x.id === id);
+    if (!a) return { success: false, msg: '未找到该成就。' };
+    if (!this.data.achievements) this.data.achievements = { claimed: [], activeTitle: null };
+    if (this.data.achievements.claimed.includes(id)) return { success: false, msg: '该成就奖励已领取。' };
+    const raw = this.achievementProgress(a);
+    const target = a.condition?.value || 0;
+    if (raw < target) return { success: false, msg: `尚未达成【${a.name}】（${raw}/${target}）。` };
+    const gold = a.reward?.gold || 0;
+    const prestige = a.reward?.prestige || 0;
+    if (gold) this.data.gold += gold;
+    if (prestige) this.data.prestige += prestige;
+    this.data.achievements.claimed.push(id);
+    const parts = [];
+    if (gold) parts.push(`金币+${gold}`);
+    if (prestige) parts.push(`声望+${prestige}`);
+    if (a.title) parts.push(`称号【${a.title}】`);
+    this.addSystemLog(`【荣耀成就】达成【${a.name}】：${parts.join('、')}。`, 'obtain');
+    this.notify();
+    return { success: true, msg: `已领取【${a.name}】：${parts.join('、')}。`, title: a.title || null };
+  }
+
+  // 已拥有的称号（转职封号 + 军衔 + 成就称号；不含竞技段位）
+  getTitles() {
+    const owned = [];
+    const stage = this.data.royalTrials?.completedStage || 0;
+    for (let s = 1; s <= Math.min(stage, ROYAL_TRIALS.length); s++) {
+      owned.push({ id: 'career_' + s, name: this.getPromotedClassName(null, s), category: 'career' });
+    }
+    const idx = MILITARY_RANKS.findIndex(r => r.id === (this.data.factionWar?.militaryRank || 'recruit'));
+    for (let i = 1; i <= idx && i < MILITARY_RANKS.length; i++) {
+      owned.push({ id: 'rank_' + MILITARY_RANKS[i].id, name: MILITARY_RANKS[i].name, category: 'rank' });
+    }
+    const claimed = this.data.achievements?.claimed || [];
+    for (const a of ACHIEVEMENTS) {
+      if (a.title && claimed.includes(a.id)) owned.push({ id: 'title_' + a.id, name: a.title, category: 'achievement' });
+    }
+    const seen = new Set();
+    return owned.filter(t => (seen.has(t.name) ? false : (seen.add(t.name), true)));
+  }
+
+  setActiveTitle(title) {
+    const owned = this.getTitles();
+    if (title && !owned.some(t => t.name === title)) return { success: false, msg: '尚未拥有该称号。' };
+    if (!this.data.achievements) this.data.achievements = { claimed: [], activeTitle: null };
+    this.data.achievements.activeTitle = title || null;
+    this.addSystemLog(`【称号】当前展示称号：${title || '（无）'}。`, 'system');
+    this.notify();
+    return { success: true, msg: title ? `已佩戴称号【${title}】。` : '已取消称号展示。' };
+  }
+
+  // 鱼市兑换：鱼获是实际计数，必须能消费；按行动日限制兑换次数，只换基础资源。
+  exchangeFish(kind = 'lamprey', quantity = 1) {
+    const qty = Math.max(1, Math.min(10, Math.floor(Number(quantity) || 1)));
+    const day = this.getActionDay();
+    const fishing = this.data.fishing || (this.data.fishing = { lamprey: 0, arowana: 0 });
+    if (fishing.exchangeDay !== day) {
+      fishing.exchangeDay = day;
+      fishing.exchangeCount = 0;
+    }
+    if ((fishing.exchangeCount || 0) + qty > 3) return { success: false, msg: '本行动日鱼市兑换次数已满（最多 3 次）。' };
+    const need = kind === 'arowana' ? 5 : 10;
+    if ((fishing[kind] || 0) < need * qty) return { success: false, msg: `鱼获不足：需要 ${need * qty} 条${kind === 'arowana' ? '金龙鱼' : '七鳃鳗'}。` };
+    fishing[kind] -= need * qty;
+    fishing.exchangeDay = day;
+    fishing.exchangeCount = (fishing.exchangeCount || 0) + qty;
+    if (kind === 'arowana') {
+      this.gainCurrency(0, 30 * qty, 0, false);
+      this.grantBattleLoot({ ...SPECIAL_ITEMS.pet_food_basic, count: 2 * qty });
+      this.notify();
+      return { success: true, msg: `鱼市兑换：金龙鱼 ×${need * qty} → 魔晶 +${30 * qty}、普通宠物口粮 ×${2 * qty}。` };
+    }
+    this.gainCurrency(0, 50 * qty, 0, false);
+    this.notify();
+    return { success: true, msg: `鱼市兑换：七鳃鳗 ×${need * qty} → 魔晶 +${50 * qty}。` };
   }
 
   // 钓鱼系统
@@ -2170,23 +2689,47 @@ export class GameState {
     }
   }
 
-  // 侍从管理 (安抚、折磨、采矿)
+  // 侍从管理：契印收押、整备、折磨、采矿
+  captureSlaveWithSigil(slaveId) {
+    const config = SLAVE_CANDIDATES.find(item => item.id === slaveId);
+    if (!config) return { success: false, msg: '未知的侍从契印。' };
+    const list = this.data.slaves?.list || (this.data.slaves.list = []);
+    if (list.length >= 5) return { success: false, msg: '牢房最多容纳 5 名侍从。' };
+    if (list.some(slave => slave.id === slaveId)) return { success: false, msg: '该战俘已经收押，不能重复缔约。' };
+    const sigil = this.data.bag.find(item => item.id === 'slave_sigil' && Number.isInteger(item.count) && item.count > 0);
+    if (!sigil) return { success: false, msg: '缺少【侍从契印】，无法收押。' };
+    sigil.count--;
+    if (sigil.count <= 0) this.data.bag = this.data.bag.filter(item => item !== sigil);
+    list.push({
+      ...config,
+      uid: `slave_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      isComforted: false,
+      comfortUntil: 0,
+      preparedDay: 0,
+      workedTimes: 0
+    });
+    this.addSystemLog(`【庄园牢房】使用侍从契印，收押【${config.name}】。`, 'estate');
+    this.notify();
+    return { success: true, msg: `成功收押【${config.name}】为侍从。` };
+  }
+
   comfortSlave(slaveId) {
-    const slave = this.data.slaves.list.find(s => s.id === slaveId);
+    const slave = this.data.slaves.list.find(s => s.uid === slaveId || s.id === slaveId);
     if (!slave) return { success: false, msg: '侍从不存在' };
     slave.isComforted = true;
-    slave.comfortUntil = Date.now() + 3600000 * 2; // 2小时内防被抢
+    slave.preparedDay = this.getActionDay();
+    // UI 兼容字段：显示为已整备；实际产出加成按 preparedDay 判定。
+    slave.comfortUntil = Date.now() + 24 * 3600000;
     this.notify();
-    return { success: true, msg: `已对侍从【${slave.name}】进行安抚！两小时内绝对防掠夺！` };
+    return { success: true, msg: `已为侍从【${slave.name}】整备，当前行动日采矿产出提升 10%。` };
   }
 
   disciplineSlave(slaveId, now = Date.now()) {
-    const slave = this.data.slaves.list.find(s => s.id === slaveId);
+    const slave = this.data.slaves.list.find(s => s.uid === slaveId || s.id === slaveId);
     if (!slave) return { success: false, msg: '侍从不存在' };
-    if (Number.isFinite(slave.lastDisciplineTime) && now - slave.lastDisciplineTime < 30 * 60000) {
-      return { success: false, msg: '该侍从尚在休息，同类行动每 30 分钟可执行一次。' };
-    }
-    slave.lastDisciplineTime = now;
+    const day = this.getActionDay();
+    if (slave.lastDisciplineDay === day) return { success: false, msg: '本行动日该侍从已受过惩戒，进入下一行动日后再来。' };
+    slave.lastDisciplineDay = day;
     const expGain = slave.level * 45;
     const goldGain = slave.level * 30;
     this.addExp(expGain);
@@ -2196,18 +2739,18 @@ export class GameState {
   }
 
   assignSlaveMine(slaveId, now = Date.now()) {
-    const slave = this.data.slaves.list.find(s => s.id === slaveId);
+    const slave = this.data.slaves.list.find(s => s.uid === slaveId || s.id === slaveId);
     if (!slave) return { success: false, msg: '侍从不存在' };
-    if (Number.isFinite(slave.lastMineTime) && now - slave.lastMineTime < 30 * 60000) {
-      return { success: false, msg: '上一批矿务尚未完成，每 30 分钟可收取一次。' };
-    }
-    slave.lastMineTime = now;
-    const yieldCrystal = Math.floor(slave.level * 0.8) + 10;
-    const yieldGold = slave.level * 50;
+    const day = this.getActionDay();
+    if (slave.lastMineDay === day) return { success: false, msg: '本行动日该侍从已采矿，进入下一行动日后再来。' };
+    slave.lastMineDay = day;
+    const prepared = slave.preparedDay === day ? 1.1 : 1;
+    const yieldCrystal = Math.floor((Math.floor(slave.level * 0.8) + 10) * prepared);
+    const yieldGold = Math.floor(slave.level * 50 * prepared);
     this.gainCurrency(yieldGold, yieldCrystal, 0);
     slave.workedTimes = (slave.workedTimes || 0) + 1;
     this.notify();
-    return { success: true, msg: `役使侍从【${slave.name}】进入晶矿深处采掘！收获魔晶 +${yieldCrystal}，金币 +${yieldGold}！` };
+    return { success: true, msg: `役使侍从【${slave.name}】进入晶矿深处采掘！收获魔晶 +${yieldCrystal}，金币 +${yieldGold}！${prepared > 1 ? '（整备加成）' : ''}` };
   }
 
   // 任务触发器
@@ -2541,6 +3084,7 @@ export class GameState {
     item.status = 'ready_to_claim';
     this.data.tavern.bounties = bounties;
     this.addSystemLog(`【悬赏大捷】悬赏凶物已被彻底斩杀！速回王都酒馆悬赏榜交令领赏！`, 'quest');
+    this.addActionPoints(ACTION_POINTS.bounty);
     this.notify();
     return { success: true };
   }

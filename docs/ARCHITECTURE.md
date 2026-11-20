@@ -322,11 +322,13 @@ isolated on solid plain dark background, zero text, no modern frame --ar 1:1
 `photorealistic, photo, 3D render, smooth plastic, modern mobile game, clean cute cartoon, anime princess, kawaii, glossy slick digital art, vector sticker, overly refined, pristine, bright colorful candy lighting, clean glowing gold borders`
 
 #### 4. 后续批量开发与入库流水线 (Future Asset Pipeline)
+装备道具以用户于 2026-11-01 选定的本轮官方参考重绘为基准，权威对照见 [OFFICIAL_ARTWORK.md](OFFICIAL_ARTWORK.md)。同名已覆盖内容优先使用 `images/items/artwork/official/`，历史图集保留给尚无对应的新物品，不能为了覆盖率串用不同身份或职业的图。
+
 1. **统一尺寸**：
-   - 装备/道具图标：1:1 比例（1024x1024 原图生成，入库自动适应 64x64 / 128x128 游戏容器）；
+   - 装备/道具图标：1:1 格位，透明 PNG 图集；本轮装备四列三行、打包为 2048×1536，道具五列五行、打包为 1280×1280。打包尺寸与原始生成分辨率分别记录，不把放大当作恢复原作细节；
    - 神兽/领主立绘：1:1 圆形/方形徽章 或 3:4 战斗全身立绘；
    - 场景与主城画卷：16:9 全景画卷。
-2. **自动化入库**：图片保存至项目 `downloads/` 目录并规范命名（如 `items__wpn_sword.png`），执行 `python3 organize_images.py` 即可全自动分拣归位入库，通过 `js/ui/iconHelper.js` 统一呈现。
+2. **切图入库**：本轮生成原图保存在 `output/official-item-reference-2026-11-01/generated/`；`scripts/repack_official_atlases.py` 从原图提取透明连通区域并归位到生产图集，`scripts/export_official_artwork.py` 输出单件 PNG、清单及对照页。`officialItemArtwork.js` 登记坐标，由 `itemArtwork.js` 经 `renderGameIcon()` 统一显示。读取旧档仅归一已确认的官网显示名，身份 ID 与资产数量保持。
 
 ---
 

@@ -1,12 +1,12 @@
 // 野外大陆冒险与【黑羽蒙面女盗】奇遇 (西方奇幻冒险)
 import { gameState } from '../core/state.js';
 import { MAPS } from '../config/maps.js';
-import { SPECIAL_ITEMS } from '../config/items.js';
+import { SPECIAL_ITEMS, OFFICIAL_SETS } from '../config/items.js';
 import { sound } from '../core/sound.js';
 import { gameModal } from './modal.js';
 import { getVectorIcon } from '../assets/vectorIcons.js';
 import { renderGameIcon } from './iconHelper.js';
-import { getWildPortraitStyle, getWildRegionStyle } from './wildArtwork.js';
+import { getWildRegionStyle } from './wildArtwork.js';
 
 const THIEF_STATS = { hp: 8000, atk: 380, def: 180, speed: 30 };
 
@@ -80,13 +80,16 @@ export class WildView {
               </div>
             </div>
             <div class="wild-dossier-list">
-              ${thief && thief.appeared ? `<div class="wild-thief-card"><span class="wild-thief-icon">${renderGameIcon('boss_thief', { size: 'w-full h-full' })}</span><div><strong>黑羽蒙面女盗 · 高危支线</strong><small>生命 ${thiefStats.hp} · 攻击 ${thiefStats.atk} · 防御 ${thiefStats.def} · 速度 ${thiefStats.speed}</small><small>整备提醒：穿好武器与护胸，分配潜能；可先完成巡逻提升实力，再来挑战。</small></div><button id="btn-challenge-thief" class="mota-btn-gold">截击暗影女盗</button></div>` : ''}
-              ${selectedMap.boss ? `<div class="wild-boss-card"><div class="wild-enemy-portrait" role="img" aria-label="${selectedMap.boss.name}肖像" style="${getWildPortraitStyle(selectedMap.boss.id)}"></div><div class="wild-boss-copy"><strong>${selectedMap.boss.name} · Lv.${selectedMap.boss.level}</strong><small>生命 ${selectedMap.boss.hp} · 攻击 ${selectedMap.boss.atk} · 防御 ${selectedMap.boss.def}</small><small>必掉：${selectedMap.boss.guaranteedDrop.name} ×${selectedMap.boss.guaranteedDrop.count}</small></div><button id="btn-fight-wild-boss" class="mota-btn-gold">讨伐领主</button></div>` : ''}
+              <div class="wild-banner-row">
+                ${thief && thief.appeared ? `<div class="wild-thief-card" title="整备提醒：穿好武器与护胸，分配潜能；可先完成巡逻提升实力，再来挑战。"><span class="wild-portrait-slot wild-thief-portrait" role="img" aria-label="黑羽蒙面女盗肖像"><img class="wild-portrait-img" src="images/portraits/individual/boss_thief.png" alt=""></span><div class="wild-banner-copy"><strong>黑羽蒙面女盗 · 高危支线</strong><small>生命 ${thiefStats.hp} · 攻击 ${thiefStats.atk} · 防御 ${thiefStats.def} · 速度 ${thiefStats.speed}</small><small class="wild-thief-note">整备：武器·护甲·技能</small></div><button id="btn-challenge-thief" class="mota-btn-gold">截击暗影女盗</button></div>` : ''}
+                ${selectedMap.boss ? `<div class="wild-boss-card"><div class="wild-portrait-slot wild-boss-portrait" role="img" aria-label="${selectedMap.boss.name}肖像"><img class="wild-portrait-img" src="images/portraits/individual/${selectedMap.boss.id}.png" alt=""></div><div class="wild-banner-copy wild-boss-copy"><strong>${selectedMap.boss.name} · Lv.${selectedMap.boss.level}</strong><small>生命 ${selectedMap.boss.hp} · 攻击 ${selectedMap.boss.atk} · 防御 ${selectedMap.boss.def}</small><small>必掉：${selectedMap.boss.guaranteedDrop.name} ×${selectedMap.boss.guaranteedDrop.count}</small>${selectedMap.boss.setDrop && OFFICIAL_SETS[selectedMap.boss.setDrop] ? `<small class="wild-boss-setdrop">套装掉落：${OFFICIAL_SETS[selectedMap.boss.setDrop].name} ×1</small>` : ''}</div><button id="btn-fight-wild-boss" class="mota-btn-gold">讨伐领主</button></div>` : ''}
+              </div>
               <section class="wild-encounters"><h3 class="wild-monster-caption">盘踞魔物</h3><div class="wild-monster-grid">
-                ${selectedMap.monsters.map((mob, index) => `<article class="wild-monster-card"><div class="wild-monster-identity"><div class="wild-enemy-portrait" role="img" aria-label="${mob.name}肖像" style="${getWildPortraitStyle(mob.icon)}"></div><strong>${mob.name}</strong></div>
+                ${selectedMap.monsters.map((mob, index) => `<article class="wild-monster-card"><div class="wild-portrait-slot wild-monster-portrait" role="img" aria-label="${mob.name}肖像"><img class="wild-portrait-img" src="images/portraits/individual/${mob.icon}.png" alt=""></div>
+                  <div class="wild-monster-body"><strong class="wild-monster-name">${mob.name}</strong>
                   <dl>${[['生命', mob.hp], ['攻击', mob.atk], ['护甲', mob.def]].map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
-                  <p>爆装率 ${Math.floor((mob.dropRate || 0.2) * 100)}%</p><p>+${mob.gold} 金 · +${mob.exp} EXP</p>
-                  <button data-mob-idx="${index}" data-mob-name="${mob.name}" data-mob-hp="${mob.hp}" data-mob-atk="${mob.atk}" data-mob-def="${mob.def}" data-mob-icon="${mob.icon}" data-mob-drop="${mob.dropRate || 0.2}" class="btn-fight-mob mota-btn-dark">拔剑讨伐</button></article>`).join('')}
+                  <p class="wild-monster-meta">爆装率 ${Math.floor((mob.dropRate || 0.2) * 100)}% · +${mob.gold} 金 / +${mob.exp} EXP</p>
+                  <button data-mob-idx="${index}" data-mob-name="${mob.name}" data-mob-hp="${mob.hp}" data-mob-atk="${mob.atk}" data-mob-def="${mob.def}" data-mob-icon="${mob.icon}" data-mob-drop="${mob.dropRate || 0.2}" class="btn-fight-mob mota-btn-dark">拔剑讨伐</button></div></article>`).join('')}
               </div></section>
               <p class="wild-patrol-rates">巡逻产出：${formatRate(patrolRates.expPerMin)} 经验 / ${formatRate(patrolRates.goldPerMin)} 金币 / ${formatRate(patrolRates.crystalPerMin)} 魔晶，每分钟</p>
             </div>
@@ -100,6 +103,16 @@ export class WildView {
   }
 
   bindEvents() {
+    // 野外头像单图：加载成功显示，缺图保持空白占位（不引用旧图集）
+    this.container.querySelectorAll('.wild-portrait-img').forEach(img => {
+      const slot = img.parentElement;
+      img.addEventListener('load', () => { if (img.naturalWidth > 0 && slot) slot.classList.add('has-image'); });
+      img.addEventListener('error', () => { img.remove(); });
+      if (img.complete) {
+        if (img.naturalWidth > 0 && slot) slot.classList.add('has-image');
+        else img.remove();
+      }
+    });
     // 切换选中的地图据点
     document.querySelectorAll('.map-node-card').forEach(card => {
       card.addEventListener('click', () => {
@@ -152,7 +165,7 @@ export class WildView {
         if (!thief || !thief.appeared) return;
 
         this.onStartBattle({
-          enemyData: { name: '【盗贼团精锐】黑羽蒙面女盗', icon: 'boss_thief' },
+          enemyData: { name: '【盗贼团精锐】黑羽蒙面女盗', icon: 'boss_thief', portraitKey: 'boss_thief' },
           enemyStats: { ...THIEF_STATS, hp: thief.hp || THIEF_STATS.hp },
           onFinish: (victory) => {
             if (victory) {

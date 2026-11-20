@@ -49,7 +49,7 @@ async (page, { phase, output }) => {
         const equipment = await game.evaluate(() => gameState.data.bag.filter(item => item.slot).map(item => item.uid));
         for (const uid of equipment) {
           await game.locator(`[data-bag-uid="${uid}"]`).click();
-          await game.locator('#btn-bag-equip-item').click();
+          await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click());
         }
         await game.locator('#nav-tab-hero').click();
         await game.locator('#btn-open-class-skills').click();

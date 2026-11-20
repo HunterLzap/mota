@@ -194,7 +194,7 @@ async (page) => {
       await game.locator('[data-goto="smithy"]').click();
       await openFromSmithy();
       check(await root.locator('button[data-runic-word]').count() === 7, `${width}: missing rune-word recipes`);
-      check(await root.locator('button[data-socket-slot]').count() === 10, `${width}: missing equipment slots`);
+      check(await root.locator('button[data-socket-slot]').count() === 12, `${width}: missing equipment slots`);
       await chooseSlot('armor');
       for (const recipe of recipes) {
         await chooseRecipe(recipe.id);

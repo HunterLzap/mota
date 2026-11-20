@@ -50,7 +50,7 @@ export function getJourneyGuidance(data) {
     if (quest.id !== 'quest_1' && data.freeStatPoints >= 6) return step('把成长转化为战斗能力', '升级获得的潜能尚未分配。人物页可按职业建议分配，也可以自行选择；主属性增强职业能力，体魄增加生命。', 'hero', 'allocate_stats');
     if (quest.id === 'quest_4' && !data.pets.length) return step('孵化巡逻队留下的契约蛋', '赛拉会帮助你建立契约。孵化后让伙伴随行，先认识它的特性。', 'pets', 'set_active_pet');
     const tiredMember = getPetParty(data).find(member => member.pet && (member.pet.stamina ?? 100) < 65);
-    if (tiredMember && data.bag.some(item => item.id === 'pet_food' && item.count > 0)) return { ...step('让同行伙伴恢复体力', '主宠每战消耗3体力，副宠各消耗1体力。低于60时对应加成与经验成长暂停；选择疲劳的伙伴喂养后继续。', 'pets', 'feed_pet'), petId: tiredMember.pet.id };
+    if (tiredMember && data.bag.some(item => item.id === 'pet_food' && item.count > 0)) return { ...step('让同行伙伴恢复体力', '体力影响属性与天赋：80 以上全额；60–79 与 40–59 属性减半、天赋失效；低于 40 属性无效。体力每日衰减 10 点、战败 -5，选择体力偏低的伙伴喂养后再继续。', 'pets', 'feed_pet'), petId: tiredMember.pet.id };
     if (data.castle.isExploring && !quest.targetAction.includes('tower')) return step('先带着调查结果撤离魔塔', '本次经验与金币仍存在探索收益池。回到塔门主动结束探险，全额结算后再交付新的委托。', 'tower', 'withdraw_castle');
     if (quest.id === 'quest_10' && data.bag.some(item => item.id === 'courage_sword') && data.equipped.weapon?.id !== 'courage_sword') return step('换上刚领取的勇气武器', '在行囊选择勇气武器。旧武器已有强化时，可付费继承星级并换装；也可直接穿戴。再镶入金刚石，宝石以后能免费摘除。', 'bag', 'equip_gear');
     const expeditionItem = quest.id === 'quest_25' ? 'expedition_armor' : quest.id === 'quest_26' ? 'expedition_weapon' : null;

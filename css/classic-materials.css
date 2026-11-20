@@ -185,18 +185,7 @@
 .classic-client #tab-content-bag :is(.bag-filters,.bag-detail-tabs) button {
   min-height: 28px; padding: 4px 12px; font-size: 12px;
 }
-.classic-client .bag-items {
-  display: grid; position: relative; flex: 1; min-height: 0; gap: 5px; padding: 10px; margin: 9px 0;
-  align-items: center; justify-items: center; background: #35372e !important;
-  border: 1px solid #756d4e; box-shadow: inset 0 2px 8px #12180e80;
-}
-.classic-client #tab-content-bag :is(.bag-slot-cell,.bag-slot-empty) {
-  display: block; position: relative; width: auto; max-width: 100%; height: min(100%,54px); max-height: 54px;
-  aspect-ratio: 1; min-height: 0; padding: 7px; border: 1px solid #676349; border-radius: 0;
-  border-top-color: #11190e; border-left-color: #11190e;
-  background: #22271e !important; box-shadow: none; color: #f4dfb7 !important;
-}
-.classic-client #tab-content-bag .bag-slot-empty { background: #30332a !important; opacity: .6; }
+/* 行囊格子的容器/尺寸/底色已统一到 css/bag-grid.css（唯一权威，最后加载），此处不再定义。 */
 .classic-client #tab-content-bag .bag-slot-cell::after { content: ''; position: absolute; bottom: 5px; left: 7px; right: 7px; border-bottom: 2px solid var(--item-quality); pointer-events: none; }
 .classic-client #tab-content-bag .bag-slot-cell[aria-pressed="true"] { outline: 2px solid #dfb467; outline-offset: 1px; background: #42412d !important; }
 .classic-client #tab-content-bag .bag-slot-cell:hover { background: #3d4032 !important; }
@@ -365,7 +354,7 @@
 .classic-client #tab-content-wild .wild-map-description { display: none; }
 .classic-client #tab-content-wild .wild-map-flags { position: absolute; right: 6px; bottom: 7px; }
 .wild-region-art { position: relative; overflow: hidden; display: block; background: #222820; }
-.wild-region-art::before { content: ''; position: absolute; width: max(100%, 156px); aspect-ratio: 3 / 1; left: 50%; top: 50%; transform: translate(-50%, -50%); background: url('../images/scenes/wild-regions.png') center var(--region-y) / 100% 500% no-repeat; pointer-events: none; }
+.wild-region-art::before { content: ''; position: absolute; width: max(100%, 156px); aspect-ratio: 3 / 1; left: 50%; top: 50%; transform: translate(-50%, -50%); background: url('../images/scenes/wild-regions-8.png') center var(--region-y) / 100% 800% no-repeat; pointer-events: none; }
 .wild-map-thumbnail { width: 64px; height: 46px; flex-shrink: 0; border: 2px solid #6b6049; }
 .wild-region-summary { position: relative; }
 .wild-region-panorama { height: 90px; border: 3px solid #504932; box-shadow: inset 0 0 0 1px #b0a17c; }

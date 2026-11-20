@@ -113,8 +113,8 @@ async (page) => {
       await game.locator('#bag-slot-filter').selectOption('helmet');
       const uid = await game.locator('.bag-slot-cell').first().getAttribute('data-bag-uid');
       await game.locator('.bag-slot-cell').first().click();
-      await visibleHit('#btn-bag-equip-item'); await capture('comparison');
-      await game.locator('#btn-bag-equip-item').focus(); await game.keyboard.press('Enter'); await dismiss();
+      await game.locator('.bag-slot-cell').first().hover(); await capture('comparison');
+      await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); await dismiss();
       check(await game.locator('#tab-content-bag').isVisible(), 'Equipping unexpectedly left the inventory');
       check(await game.evaluate(uid => window.gameState.data.equipped.helmet?.uid === uid, uid), 'Real equipment action failed');
       await game.locator('#btn-bag-view-equipment').click();

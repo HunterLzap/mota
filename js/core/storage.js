@@ -364,9 +364,9 @@ export const storage = {
       throw new Error('无效的角斗挑战记录');
     }
     if (data.dragon !== undefined && (!validRecord(data.dragon) ||
-      (data.dragon.trialsLeft !== undefined && (!Number.isInteger(data.dragon.trialsLeft) || data.dragon.trialsLeft < 0 || data.dragon.trialsLeft > 3)) ||
-      (data.dragon.cleared !== undefined && (!validRecord(data.dragon.cleared) || Object.entries(data.dragon.cleared).some(([id, count]) => !['slay_red_dragon', 'slay_silver_dragon', 'slay_golden_dragon'].includes(id) || !Number.isSafeInteger(count) || count < 0))) ||
-      (data.dragon.activeChallenge !== undefined && data.dragon.activeChallenge !== null && (!validRecord(data.dragon.activeChallenge) || !['slay_red_dragon', 'slay_silver_dragon', 'slay_golden_dragon'].includes(data.dragon.activeChallenge.dragonId) || typeof data.dragon.activeChallenge.challengeId !== 'string' || !data.dragon.activeChallenge.challengeId)))) {
+      (data.dragon.trialsLeft !== undefined && (!Number.isInteger(data.dragon.trialsLeft) || data.dragon.trialsLeft < 0 || data.dragon.trialsLeft > 4)) ||
+      (data.dragon.cleared !== undefined && (!validRecord(data.dragon.cleared) || Object.entries(data.dragon.cleared).some(([id, count]) => !['slay_red_dragon', 'slay_silver_dragon', 'slay_golden_dragon', 'slay_night_dragon'].includes(id) || !Number.isSafeInteger(count) || count < 0))) ||
+      (data.dragon.activeChallenge !== undefined && data.dragon.activeChallenge !== null && (!validRecord(data.dragon.activeChallenge) || !['slay_red_dragon', 'slay_silver_dragon', 'slay_golden_dragon', 'slay_night_dragon'].includes(data.dragon.activeChallenge.dragonId) || typeof data.dragon.activeChallenge.challengeId !== 'string' || !data.dragon.activeChallenge.challengeId)))) {
       throw new Error('无效的屠龙讨伐记录');
     }
     if (data.factionWar !== undefined && (!validRecord(data.factionWar) ||

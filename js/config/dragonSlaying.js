@@ -57,5 +57,24 @@ export const DRAGON_TRIALS = [
     rewardDesc: '智慧/战神/胜利女神紫金装备x1（三套等概率）、紫金晶石x2；5000金币/100魔晶/100声望',
     rewards: { gold: 5000, crystal: 100, prestige: 100, equipmentSets: ['wisdom_goddess', 'wargod_set', 'victory_goddess'], equipmentQuality: 'purplegold', material: 'crystal_purplegold', materialCount: 2 },
     dropPool: ['wisdom_goddess', 'wargod_set', 'victory_goddess', 'crystal_purplegold']
+  },
+  {
+    id: 'slay_night_dragon',
+    name: '永夜蚀星龙',
+    dragonType: 'night',
+    icon: 'dragon_night',
+    minLevel: 90,
+    hp: 600000,
+    atk: 3000,
+    def: 1800,
+    mp: 220,
+    abilities: [{ name: '永夜噬光', interval: 4, mpCost: 70, multiplier: 1.25, damageType: 'magic', statuses: [{ type: 'wound', critBonus: 5, damageBonus: 0.2, duration: 2 }] }],
+    title: '永夜主宰',
+    desc: '吞噬星光的永夜古龙，盘踞在魔塔最深处的裂隙之上。',
+    firstVictoryStory: '永夜龙瞳熄灭，裂隙中最后一丝黑焰散去。光明圣使的遗辉从龙晶中升起，照亮了亚诺大陆归乡的路。你终于可以带着伙伴回到王都。',
+    repeatVictoryText: '永夜裂隙再次沉寂，光明圣使的遗辉仍在你身边闪耀。',
+    rewardDesc: '光明圣使紫金装备x1、紫金晶石x3；8000金币/150魔晶/150声望',
+    rewards: { gold: 8000, crystal: 150, prestige: 150, equipmentSets: ['light_emissary'], equipmentQuality: 'purplegold', material: 'crystal_purplegold', materialCount: 3 },
+    dropPool: ['light_emissary', 'crystal_purplegold']
   }
 ];

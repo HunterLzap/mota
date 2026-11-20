@@ -47,7 +47,7 @@ async (page) => {
         await game.locator('#nav-tab-bag').click();
         await game.locator(`[data-bag-uid="${uid}"]`).click();
         if (itemId === 'novice_weapon') await capture('bag');
-        await game.locator('#btn-bag-equip-item').click();
+        await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click());
         await dismiss();
       }
       if (viewport.width === 1440) await capture('equipment');

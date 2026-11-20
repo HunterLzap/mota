@@ -19,7 +19,8 @@ export const TAVERN_BOUNTIES = [
       items: [
         { id: 'bait_normal', name: '普通鱼饵', count: 2, type: 'material', quality: 'blue', icon: 'images/items/bait_normal.svg', desc: '带到王都垂钓水域使用；一星悬赏每天提供。' },
         { id: 'key_redwood', name: '红木钥匙', count: 2, type: 'key', quality: 'green', icon: 'images/items/key_redwood.svg', desc: '开启魔塔1~10层' },
-        { id: 'pet_food', name: '魔能兽肉排', count: 5, type: 'material', quality: 'blue', icon: 'images/items/pet_food.svg', desc: '补充神兽体力' }
+        { id: 'pet_food', name: '魔能兽肉排', count: 5, type: 'material', quality: 'blue', icon: 'images/items/pet_food.svg', desc: '补充神兽体力' },
+        { id: 'pet_food_basic', name: '普通宠物口粮', count: 3, type: 'material', quality: 'white', icon: 'images/items/pet_food.svg', desc: '补充神兽体力' }
       ]
     },
     desc: '王国治安官布告：密林深处的恶狼在月夜变异狂暴，袭击多支采药小队。速将其斩杀，取回狼王獠牙！'
@@ -60,8 +61,9 @@ export const TAVERN_BOUNTIES = [
       prestige: 110,
       crystal: 50,
       items: [
-        { id: 'crystal_protect', name: '保护水晶', count: 2, type: 'material', quality: 'purple', icon: 'images/items/crystal_protect.svg', desc: '升星失败绝不掉星' },
-        { id: 'bait_luxury', name: '秘制高级鱼饵', count: 3, type: 'material', quality: 'gold', icon: 'images/items/bait_luxury.svg', desc: '垂钓金龙鱼必备' }
+        { id: 'protect_crystal', name: '保护水晶', count: 2, type: 'material', quality: 'purple', icon: 'images/items/crystal_protect.svg', desc: '升星失败绝不掉星' },
+        { id: 'bait_luxury', name: '秘制高级鱼饵', count: 3, type: 'material', quality: 'gold', icon: 'images/items/bait_luxury.svg', desc: '垂钓金龙鱼必备' },
+        { id: 'pet_food_luxury', name: '豪华宠物饼干', count: 1, type: 'material', quality: 'gold', icon: 'images/items/pet_food.svg', desc: '补充神兽体力' }
       ]
     },
     desc: '圣堂骑士团急件：毒沼恶蟾喷吐剧毒瘴气，侵蚀了边境要塞护城河，急需高阶勇者深入泥沼将其铲除！'
@@ -83,7 +85,8 @@ export const TAVERN_BOUNTIES = [
       items: [
         { id: 'crystal_gold', name: '黄金晶石', count: 3, type: 'material', quality: 'gold', icon: 'images/items/crystal_gold.svg', desc: '神兽突破与重铸' },
         { id: 'bait_luxury', name: '高级鱼饵', count: 2, type: 'material', quality: 'gold', icon: 'images/items/bait_luxury.svg', desc: '带到王都垂钓水域使用；四星悬赏每天提供。' },
-        { id: 'diamond_1', name: '碎裂金刚钻', count: 1, type: 'material', quality: 'darkgold', icon: 'images/items/crystal_socket.svg', desc: '开启装备宝石孔' }
+        { id: 'diamond_1', name: '碎裂金刚钻', count: 1, type: 'material', quality: 'darkgold', icon: 'images/items/crystal_socket.svg', desc: '开启装备宝石孔' },
+        { id: 'pet_food_luxury', name: '豪华宠物饼干', count: 2, type: 'material', quality: 'gold', icon: 'images/items/pet_food.svg', desc: '补充神兽体力' }
       ]
     },
     desc: '王国元老院最高通缉：荒漠峡谷的古老飞龙苏醒，喷薄烈焰封锁了通往魔塔深渊的天空之道。屠灭恶龙者赐予公爵赏赐！'

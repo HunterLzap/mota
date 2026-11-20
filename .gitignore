@@ -59,4 +59,7 @@ saves/
 
 # Local browser verification artifacts
 .playwright-cli/
-output/playwright/
+output/
+
+# Original-game reference screenshots (local reference only)
+项目UI截图/

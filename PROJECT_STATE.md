@@ -1,6 +1,74 @@
 # Project State
 
-Last updated: 2026-11-01
+Last updated: 2026-11-05
+
+## 按钮三档实页样例（2026-11-05，已验证，待用户定风格）
+
+此前独立 demo 已存在；本次以独立 `css/button-theme-sample.css` + `index.html` 一条 link，将暗铁直角页签接入现有顶部 8 导航/商店 4 品类，羊皮纸金边接入王都 8 热区/商店购买，红金强调仅接入城市商店可见时的双按钮确认框；未增加交易市场等玩法，未改 JS/数值/存档，未全局推广。删该 link 即可回退。1280×900、1440×1000 同场景启用/禁用 CSS 前后截图已采：王都/商店 scrollHeight=clientHeight 分别 471/495，整页零溢出，8/8 热区中心命中、前后坐标尺寸完全一致，hover/focus/active 无位移，pageerror 0，商店外确认框外观相同。verify_all + town_hover/city_shop/classic_ui/scene_redesign/ui_revamp/ui_readiness/equip_slots 七专项通过。交付与前后对照：`output/ui-revamp-2026-11-03/batch4C/index.html`；证据及范围并入该阶段唯一汇总 `REPORT.md`。未 commit/push。
+
+补充（同日）用户认为平涂太简单，要求照原作描金复刻。已出 batch4D 第一版对照：原作描金页签、聊天页签+羊皮纸两件，1:1 并排（`batch4D/ornate-compare.html`、`compare-ornate.png`），羊皮纸取原图真实纹理；仍仅对照、未接入游戏/未全局铺。注意实际 newref3=聊天、newref4=描金页签（与派单描述相反）。剩余差距：页签顶部倒角/金角花为位图浮雕，CSS 略圆润。待用户定方向后再铺全局。verify_all 通过。
+补充2：按 Lead「能 copy 就 copy」，v2 改走原图像素 9-slice：脚本裁 `batch4E/skinA_*.png`（页签两态）、`skinB_tab*.png`（频道页签）、`parchment_tex.png`（羊皮纸真实纹理），用 `border-image slice fill stretch` 铺；出 1:1 与放大到真实导航高 28px 两段对照（`batch4E/ornate-copy.html`、`compare-copy.png`），1:1 基本重合、22→28px 放大不糊。仍仅对照、未接入游戏/未全局铺；游戏文件未动，verify_all 通过。
+补充3（用户明确纠偏：UI 只参考不照抄、没有的功能不做）：收回 v2 裁图像素照抄。改回**自有纯 CSS**哑光描金，只重写 `css/button-theme-sample.css`（沿用 index.html 一条 link，可删回退），接入现有顶部 8 导航/商店 4 品类/王都 8 热区/商店购买与确认；未新增聊天等系统、无图片、未改 JS/数值/存档。1280/1440 真机截图在 `output/ui-revamp-2026-11-03/batch4F/`（before/after town/shop）；两档零滚动、8 热区命中与几何前后完全一致、hover/focus/active 无位移、pageerror 0；verify_all + town_hover/city_shop/classic_ui/ui_revamp/ui_readiness/equip_slots/scene_redesign 全 PASS。未全站铺。
+补充4（行囊格子修复，2026-11-05）：用户报行囊格子被拉成高瘦竖条/宽窄不一。根因是 mota-theme/classic-materials/ui-refinements/scene-layout 四文件都在改 .bag-items/.bag-slot-* 尺寸且互相打架，加上 bagView.js:174 内联 `grid-template-rows:repeat(rows,1fr)` 把行撑满高度。已新建唯一权威 `css/bag-grid.css`（最后加载，54px 正方格、auto-fill 固定列、grid-auto-rows 固定、align-content:start、!important 覆盖内联 1fr），并删除四文件里冲突的尺寸/对齐声明（留注释）；未改 bagView 列数/分页、未动物品数据/逻辑/存档/其它页/按钮主题，删 index.html 该 link 可回退。满 40 件在 1280/1440 实测全部 54×54 正方、空/物品同尺寸、格子中心全命中、一页零滚动、pageerror 0（`output/ui-revamp-2026-11-03/batch4G/`）。verify_all + inventory_smithy/classic_ui/ui_revamp/ui_readiness/official_item_artwork/ui_artwork 全 PASS；inventory_sale/bag_expansion/ui_refinements/inventory_operations/fixed_inventory_pages 为 TRIAGE 已记录的历史 stale，非本次回归。
+
+补充5（行囊分页自适应，2026-11-05，已验证）：自动化复核发现追加4 固定 54px 后，窄窗 1024×768 分页仍用 JS 旧固定 12 列推算行，格区实容 11×2=22 格却塞 36 格，`overflow:hidden` 裁掉 14 格丢失内容。已只改 `js/ui/bagView.js`：新增 `measureGridCapacity()` 按 `.bag-items` 实际可用宽高/`--bag-cell`/gap 实时算每页格数（与 bag-grid.css auto-fill 同源），删行内 grid 模板，首屏/尺寸变化后校正重绘。三档尺寸×40/60/120/143 件实测：零裁切、54×54 正方、全命中、零滚动、翻页去重=持有数；1024 为 22/页（40件2页），1280 为 56/页、1440 为 64/页。`verify_all` + `browser_bag_grid`(新增1024档，红转绿) + 6 套相关专项全 PASS。未动物品数据/玩法/数值/存档/其它页/CSS（回退即还原该文件）。
+
+补充6（庄园锁定提示堆叠修复，2026-11-05，已验证）：用户报「有堆叠」——领地庄园两张未解锁卡的「完成…并领奖后开启」提示压住「开启炼金/佣兵调遣」按钮。根因 `scene-layout.css:352` 给 `.estate-facility .feature-lock-hint` 绝对定位（top7/right8），盖在按钮/标题上（featureAccess.js 在按钮后注入）。已将这一条改为正常流 `position:static; flex:0 0 100%; order:-1; text-align:right`，提示独占 caption 顶部一行。1280/1440/1334×890 实测 4 卡「提示/标题/说明/按钮」两两相交全 0（改前提示×按钮各 607px²）、零滚动、pageerror 0。`verify_all` + scene_redesign/classic_ui/ui_revamp/ui_readiness/town_hover 全 PASS。仅改该 CSS 一行，未动解锁逻辑/数据/存档。
+
+补充7（人物页人像上移 + 字体清晰度样本，2026-11-05）：A 人像上移已改生产——`scene-layout.css` 的 `.hero-body-portrait` 用 `background-position-y:var(--class-portrait-y,0%)`，`main.js` 按职业写该变量（战士6.4%/法师3.9%/猎人7.5%），同一精灵图按各职业立绘最顶端贴框顶 ~10px；1280/1440 逐职业实测顶端留白10–11.6px无裁切、头顶战士/猎人≈22–25px、法师杖高头略低、身份牌不挡、零滚动。B 字体清晰度仅做对照样本未落生产：正文/标签/数值改无衬线+字号12.5–13px+提对比、侧栏保字号只换字体、全站小灰字(`.feature-lock-hint`)设12px下限+对比；1280/1440 零溢出零滚动。待用户定方向再全站。`verify_all`+ui_revamp/classic_ui/ui_readiness/scene_redesign 全 PASS。未 commit。
+
+补充8（字体清晰度铺全站，2026-11-05）：用户拍板后按样本方向落一版。新增唯一 `css/font-theme.css`（index.html 最后一条 link，删该 link 即回退）：正文全局无衬线(微软雅黑/PingFang)、数字 tabular-nums、标题保留描金衬线、小号说明/锁定提示/副标题最小12px+对比下限(分深底/羊皮纸取色)、9/10px抬到12px、羊皮纸正文加深。逐页审计 1280/1440：8主标签+铁匠5密集子页全部 tab/doc/sidebar scroll=0、越界0；弹窗(更多战斗属性)盒高310无溢出。`verify_all`+ui_revamp/classic_ui/ui_readiness/scene_redesign/inventory_smithy/city_shop/equip_slots/bag_grid/town_hover 全 PASS（均串行单跑；首轮并发出现假溢出已排除）。未动玩法/数值/存档/JS。未 commit。
+
+补充9（去物品格原生白框，2026-11-05）：用户报悬停物品多一个白底原生提示框。根因是行囊物品格 `bagView.js:197` 与装备页部位按钮 `heroView.js:220` 的浏览器原生 `title`，与深色属性卡 `#mota-global-tooltip` 重复。已删这两处 `title`、保留/补 `aria-label`（heroView 用新增模块级 `escapeHtml()` 转义，修复了误用局部 `esc` 的 `esc is not defined`）。其它非物品 title 未动。1280/1440 实测：行囊格 2/2、装备部位 12/12 均无 title 且有 aria-label，悬停只出深色卡、pageerror 0。`verify_all`+bag_grid/equip_slots/ui_revamp/inventory_smithy/classic_ui 全 PASS。未动数据/玩法/存档。未 commit。
+
+补充10（羊皮纸边缘压淡→中间档，2026-11-05）：用户先嫌边缘太深、又嫌一版压过淡失了羊皮纸厚重感。最终取原版与过淡版中间档：唯一 `css/parchment-soft.css`（index.html 最后一条 link，删即回退）——同贴图容器 background-size **110%** 居中只裁最外圈焦边、内阴影取中间 **#805b2f52**。三档边缘/中心亮度比（魔塔 main 内圈/中心）：1280 原版0.716→**中间0.779**→过淡0.821；1440 0.704→**0.768**→0.811。纹理暖色/旧痕保留；魔塔/行囊 1280/1440 零滚动 pageerror0、不影响文字清晰度。`verify_all`+ui_revamp/classic_ui/scene_redesign/ui_readiness 全 PASS。纯 CSS 未换图未动结构/玩法/存档/字体/按钮。未 commit。
+
+补充11（行囊格子放大 + 名字显示清楚，2026-11-05）：用户反馈格子偏小、问是否在图标下显示名字。只改唯一 `css/bag-grid.css` + `js/ui/bagView.js`：`--bag-cell` 54→64px、图标 32→40px、`.bag-slot-name` 10→11px（行高13、提亮 #f0e2c4）、padding 收 3/2/5；图标下单行名字+省略号，数量/强化角标照旧。分页按实测自动重算，并把页数改为按实际物品数、空格只填当前页，消除变大后每页36格<容量40多出的全空尾页。三档 2件/满40件实测：1280 36格/页(2页)、1440 39格/页(2页)、1024 18格/页(3页)，64×64 正方、图标40、名字11px可见、零滚动、分页0丢0裁、pageerror0；2件均第1/1页无空尾页。`verify_all`+bag_grid/equip_slots/inventory_smithy/ui_revamp/classic_ui/ui_readiness/scene_redesign 全 PASS。未动物品数据/玩法/存档/其它页/字体/按钮/羊皮纸；回退还原两文件。未 commit。
+
+## 内容扩充与 UI 复刻（2026-11-04，已验证）
+
+按用户「还原原作 + 提高可玩性」要求完成：
+(1) **UI 复刻四页**——装备页改 **12 部位纸娃娃 + 悬停属性卡 + 左键菜单(穿/维修/卖/拆/丢) + 套装页签**（旧档自动补位不丢档、`ENABLE_12_SLOTS` 可回滚）；人物页（潜能四维含体质加点、战斗力 7 格）；宠物页（3 出战位拖拽上阵、资质/重铸/训练）；战斗页按原作图改（对称立绘 + HP/MP + 攻击/防御/命中/闪避/暴击/速度、主动/光环/被动、分级战报、悬停说明伤害类型、敌我旁白、胜负统计）。全项目**零滚动**一屏到底。
+(2) 野外怪物 **21 + 12 张 B 版**（带场景背景）接入。
+(3) **C1 套装**：17 套（补魔塔英雄/亚诺后裔/黑暗魔神）、每套 7 件、2/4/7 三档、掉落来源补齐、技能/强度回归全绿。
+(4) **C2 地图**：5→8 图（新增冰雪北境 Lv30 / 沙漠古城 Lv50 / 幽暗地窟 Lv70），12 新怪 + 3 领主立绘、区域背景、领主定向掉对应套装件；54 路线 / 成长平衡 / `verify_all` 全绿。
+(5) **王都商店·皇家商会**：四页签、声望档(0/1000/3000/6000/10000)+等级门槛、每行动日限购、金币/魔晶购买扣款入包、跨日复位；经济防套利（买价≥1.2×base、不卖毕业套）、`ENABLE_CITY_SHOPS` 可回滚。
+
+门禁：`verify_all` / `test_runtime` / `test_growth_balance` / `test_restoration_routes(54)` 全绿；C2 全量 14 套浏览器专项 FAILED=0；试玩验收端到端全过、无阻断/无回归/无功能 bug、双尺寸零溢出零 pageerror。未 commit/push。剩余：C3 主城（克斯特/亚丁）、C4 玩法（金字塔/训练场/称号）、破击率等规则还原；历史 stale 测试归 `output/ui-revamp-2026-11-03/TRIAGE.md`。交付 `output/ui-revamp-2026-11-03/`。
+
+## UI 展示层整改（2026-11-03，已验证）
+
+按用户 L1 + UI 阶段要求完成纯展示层整改。文案纠偏：套装图鉴按有效耐久计数、敌方魔力条仅施法者显示、「装备减伤」→「常驻减伤（不含佣兵）」、古堡败退写明经验50%金币全失、技能书/鱼饵/战术秘闻/晋升「全队」文案校正、「疲劳」统一「体力」。UI 页面接已有逻辑：王都「皇家兽栏」（体力/三档食品/金币喂养）、铁匠铺「熔炼」页签（4件同套装同品质+晶石→指定部位）、碧波水域「鱼市兑换」、副本出征三模式反馈、顶栏/野外「第X行动日 · 行动点剩余/30」。战斗页 P4/P5：战报分级着色、开场说明折叠、胜利战利品入战报日志+入账浮层。图鉴套数改动态（14），铁匠 7 页签单行。后续按用户查看反馈修正王都中心大街：地图热区与「王城设施」目录去除序号、7 热区重排为上/中/下三排不重叠（两尺寸 getBoundingClientRect 0 相交/0 裁切）、目录名称/说明/状态三行竖排。
+
+两批并行、文件不重叠：A=js/ui/{battleView,heroView,petView}.js + js/config/{items,classes}.js + js/core/{combat,journey}.js（仅纯展示串）；B=js/ui/{townView,towerView}.js + index.html + js/main.js + css/ui-refinements.css。未改战斗/经济数值与存档 schema，未 commit/push。
+
+门禁：verify_all、browser_syntax_and_init、test_runtime(170+)、node --check、browser_ui_revamp(1280/1440) 全绿；受影响既有专项适配后全绿；双尺寸真实浏览器验收展示=结算一致（槽1/2/4/5 哨兵保持）。5 个未触及模块历史 stale 专项（scene_redesign/activities/subsystems/ui_artwork/ui_alignment 断言）未修，建议另轮清理。交付 output/ui-revamp-2026-11-03/REPORT.md 及 batchA/batchB/acceptance/visual-audit 截图。
+
+## 待执行设计计划（2026-11-01，仅记录）
+
+已整理战斗与系统审计结论、逐系统设计与三层落地计划，见 `docs/DESIGN_PLAN_2026-11-01.md`；原始官网 2014 快照对照见 `docs/ORIGINAL_SITE_COMPARISON_2026-11-01.md`（已读游戏简介/任务/古堡/副本/挂机/屠龙/宠物/装备/技能/称号/道具/套装/FAQ，红框联机内容已排除）。完整落地规格（逐系统设计/UI/操作流程/代码落点/分阶段与决策清单）见 `docs/COMPREHENSIVE_REDESIGN_SPEC_2026-11-01.md`。当前已按用户授权先落地“行动日”核心逻辑（30 行动点/日；每日次数、俸禄、悬赏、巡逻/庄园额度按行动日重置；现实时间不再作为每日判定），并继续落地 L2 非 UI 逻辑：宠物体力 80/60/40 三阈值+每日-10+失败-5、宠物经验不受体力影响、古堡逐层宠物经验快照、装备命中生效、孔位 3/2/1 与首饰无耐久、神官治疗、副本三模式、真武 90。并继续 L3 非 UI：宠物食品三档/兽栏金币喂养、套装熔炼+紫金晶石消费、夜煞龙+光明圣使、鱼市兑换、要塞重复奖励；侍从契印/整备、庄园/侍从行动日冷却、资质 int/dex 生效也已完成。UI 改动按用户要求暂不实施；剩余 L1 的纯 UI/展示项（图鉴耐久、敌方魔力条、减伤标签、古堡败退文案等）与 UI 阶段待后续。
+
+## 战斗页信息布局 P0–P2（2026-11-01）
+
+用户提供原版与现版战斗截图后授权第一版整改：中央舞台缩为13vh横幅，移除中央重复立绘；左右等大肖像与生命/魔力、属性卡对齐；补命中值/闪避值/暴击/反击/装备减伤，当前引擎无独立破击率，不伪造字段。新增只读开场属性快照供UI读取职业光环、伙伴/佣兵、所罗门修正后的真实开场值；不修改演算公式、技能、奖励或存档结构。
+
+三职业×1280×900/1440×1000隔离展示夹具，横幅117/130px、战报469/480px；画像/生命栏对齐，耗蓝与最终余额、零MP空条、长战报事件完整、结算可达及零pageerror/失败请求/横溢通过。既有battle_page两尺寸、171项runtime、时序与五项Python检查通过。旧defeat_settlement在战前因其直接改活动槽的夹具触发当前保存冲突保护而未通过；独立败退展示探针正常关闭，不冒称古堡收益回归通过。未触及玩家真实存档、未commit/push。报告与截图：`output/battle-revamp-2026-11-01/REPORT.md`。用户续令后已补编队头像槽：原横幅内常驻主宠/副宠1/副宠2/佣兵四格，共用神兽页绘画头像，显示等级/体力/疲劳状态及佣兵光环；浮字移至双方大肖像。两尺寸满编/空槽及59疲劳/60生效阈值、无裁剪/横溢/页面错误通过；battle_dashboard、battle_page、classic_pet_details、171runtime和五项Python再次通过。开场说明折叠和战利品战报待后续。
+
+## 官方装备道具图集与官网命名（2026-11-01）
+
+用户已选定本轮生成图为后续装备道具美术基准，授权同步切图、游戏和文档，并统一官网叫法；身份或玩法冲突先沟通。当前权威对照为 `docs/OFFICIAL_ARTWORK.md`，优先于历史“装备按部位共用、套装只用徽记”的记录。
+
+11 张官网套装图及 21 张道具图已取回，保留来源哈希、坐标与 119 张原始裁图。新手与六套同名正式套装重绘共 84 格，道具重绘 21 格；按透明连通区域重新归位，避免跨格碎边。生成原图保留于 `output/official-item-reference-2026-11-01/generated/`，7 张装备图集为打包后 2048×1536、道具为 1280×1280；不是原生 512px 单件原作高清图。原始部位 67 格、补绘 17 格分别记录。
+
+实际渲染按套装＋部位＋职业武器匹配；`novice_weapon`、`novice_armor` 新手任务装和普通装备的基础部位图已接入，修正法师／猎人新手武器不能固定显示剑的问题。未取得专属外形的其他七套只显示基础部位图，不宣称还原其原作。打孔水晶、黄金宠物蛋、暗金宠物蛋按官网名称显示；旧档读取只更新这些 ID 的名字，不改 ID、品质、数量、堆叠和孵化／配方。通用蛋、金刚钻、黄金／暗金晶石存在身份或效果差异，保留规则与名称待用户确认；官网不存在的当前装备不强行改成另一套。
+
+本轮先前已通过两桌面尺寸七套／新手任务装／套装图鉴／9 类道具的生产浏览器呈现及刷新检查，五项规定 Python、绘画兼容专项也已执行。最新追加官方名称归一和三职业新手武器断言通过，229 项生产输入覆盖扩至全部 14 张新旧图集。浏览器展示检查使用显式夹具，不能当作自然获取或真实存档证据；未访问玩家五槽。交付见 `output/official-item-reference-2026-11-01/REPORT.md` 与 `index.html`。
+
+## UI视觉一致性与图标系统专项（2026-11-01）
+
+真实Chrome两尺寸审计后，仅处理图标与视觉呈现：8张高频绘画图集由烘焙RGB黑底转为透明RGBA，导航/账簿/职业头像/装备道具的可见不透明图标底由每尺寸101个降为0；顶栏补充金币、魔晶、声望绘画图标；创角三城邦改用现有绘画盾徽/古树/城堡徽记并统一标题带；女盗卡片与战斗肖像由SVG改为同页绘画肖像。未改玩法、数值、任务、战斗、存档或主要布局。
+
+两尺寸创建界面、8个导航按钮、8个主页面及资源栏布局通过；无横溢、破图、非透明绘画图标、console/page/network错误，实际穿戴刷新保持。五类相关检查通过。低频商店/图鉴/古门及部分战斗列表仍有未映射旧SVG，未宣称全库清除。详见 `output/ui-icon-consistency-2026-11-01/REPORT.md` 与同目录16张对比图、截图、`verification.json`、`asset-audit.json`。
 
 ## 夜间稳定性与体验优化（2026-11-01）
 

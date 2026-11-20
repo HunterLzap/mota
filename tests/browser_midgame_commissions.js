@@ -146,7 +146,7 @@ async (page) => {
           check(await game.locator(button(config.id)).isDisabled(), 'Claimed task can be claimed again');
           await selectBag(gear.uid);
           const preview = await game.evaluate(uid => window.gameState.getEquipmentPreview(uid), gear.uid);
-          await keyboard('#btn-bag-equip-item'); await dismiss();
+          await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); await dismiss();
           const actual = await game.evaluate(() => window.gameState.getEffectiveStats());
           check(actual.atk === preview.after.atk && actual.magicResist === preview.after.magicResist &&
             actual.speed === preview.after.speed, 'Reward equipment preview differs from effective stats');

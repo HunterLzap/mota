@@ -443,17 +443,19 @@ def test_class_advancement_and_sets_and_pets():
       }
       print('  ✓ 存档职业严格锁定唯一一次，旧档自动迁移，刷新及载入决不再出现创角弹窗！');
 
-      // 3. 测试 13 套官方原著远古套装完整性
+      // 3. 测试 17 套官方原著远古套装完整性（C1 补齐 7 件套 + 2/4/7 三档）
       const setKeys = Object.keys(OFFICIAL_SETS);
-      if (setKeys.length !== 13) {
-        throw new Error(`官方套装数量不符合 13 套，当前为 ${setKeys.length}`);
+      if (setKeys.length !== 17) {
+        throw new Error(`官方套装数量不符合 17 套，当前为 ${setKeys.length}`);
       }
       setKeys.forEach(k => {
         const s = OFFICIAL_SETS[k];
         if (!s.bonus2 || !s.bonus2.desc) throw new Error(`套装 ${k} 缺失 bonus2.desc`);
         if (!s.bonus4 || !s.bonus4.desc) throw new Error(`套装 ${k} 缺失 bonus4.desc`);
+        if (!s.bonus7 || !s.bonus7.desc) throw new Error(`套装 ${k} 缺失 bonus7.desc`);
+        if (!Array.isArray(s.slots) || s.slots.length !== 7) throw new Error(`套装 ${k} slots 非 7 部位`);
       });
-      print('  ✓ 13 套远古原著神装（勇气、守护骑士、萨格尔、审判者、克斯特、制裁者、亚丁、征服者、四大女神、卡尔里斯）配置及 2/4 件羁绊完备！');
+      print('  ✓ 17 套远古原著神装（14 套原装 + 魔塔英雄/亚诺后裔/黑暗魔神）均为 7 部位 + 2/4/7 三档羁绊完备！');
 
       // 4. 测试 22 种原著神兽完整性
       const petKeys = Object.keys(PET_CONFIGS);

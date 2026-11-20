@@ -1,5 +1,5 @@
 // 幻境试炼转职与称号配置：100% 还原《魔塔世界》百度百科原著西方魔幻转职系统
-// 20~80级共 7 个正统转职阶位：魔、幻、影、皇家、圣、神、绝地
+// 20~90级共 8 个正统转职阶位：魔、幻、影、皇家、圣、神、绝地、真武
 export const ROYAL_TRIALS = [
   {
     level: 20,
@@ -173,6 +173,31 @@ export const ROYAL_TRIALS = [
       hunter: {
         title: '绝地猎人',
         desc: '跨越死亡绝地的无羁巡林客，登临荒野射术巅峰的神射领主。'
+      }
+    }
+  },
+  {
+    level: 90,
+    fameReq: 12000,
+    title: '真武',
+    badge: '【真武】之封号',
+    icon: 'trial_divine',
+    bossName: '真武虚空裁决者',
+    bossStats: { hp: 600000, atk: 3600, def: 2000 },
+    statsBonus: { atk: 1200, def: 900, maxHp: 15000, crit: 15, dmgBonus: 25 },
+    rewardDesc: '获得传世【真武】封号，攻击+1200，防御+900，生命+15000，暴击+15%，主动攻击伤害+25%',
+    classPromotions: {
+      warrior: {
+        title: '真武战士',
+        desc: '踏入真武殿堂的终极战魂，以不朽战意统御战场。'
+      },
+      mage: {
+        title: '真武法师',
+        desc: '参悟真武本源的大贤者，执掌时空与元素的终极法理。'
+      },
+      hunter: {
+        title: '真武猎人',
+        desc: '超越凡俗视界的真武神射，箭锋所指万物寂灭。'
       }
     }
   }

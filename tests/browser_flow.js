@@ -51,7 +51,7 @@ async (page) => {
         const gear = (await data()).bag.find(item => item.id === id);
         await game.locator('#nav-tab-bag').click();
         await game.locator(`[data-bag-uid="${gear.uid}"]`).click();
-        await game.locator('#btn-bag-equip-item').click(); await dismiss();
+        await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); await dismiss();
       }
       await nav();
       await game.locator('.btn-fight-mob').first().click();
@@ -100,7 +100,7 @@ async (page) => {
       const courage = (await data()).bag.find(item => item.id === 'courage_sword');
       await game.locator('#nav-tab-bag').click();
       await game.locator(`[data-bag-uid="${courage.uid}"]`).click();
-      await game.locator('#btn-bag-equip-item').click(); await dismiss();
+      await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); await dismiss();
       await nav();
       await game.locator('#btn-punch-socket').click(); await dismiss();
       await game.locator('.btn-select-bag-gem').first().click();

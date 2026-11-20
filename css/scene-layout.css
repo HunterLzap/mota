@@ -20,7 +20,7 @@
 }
 .hero-dossier-heading h2,.estate-hub > header h2 { font-size: 14px; font-weight: bold; }
 .hero-dossier-heading button { padding: 3px 12px; }
-.hero-dossier-body { display: grid; grid-template-columns: minmax(180px,29%) minmax(0,1fr); flex: 1; min-height: 0; gap: 9px; }
+.hero-dossier-body { display: grid; grid-template-columns: minmax(248px,26%) minmax(0,1fr); flex: 1; min-height: 0; gap: 9px; }
 .hero-identity-scene {
   position: relative; min-height: 0; overflow: hidden; isolation: isolate;
   border: 3px ridge #817052; background: #161c16 url('../images/scenes/royal-capital.png') center / cover;
@@ -31,7 +31,9 @@
 }
 .hero-body-portrait {
   position: absolute; left: 0; right: 0; top: 0; bottom: 60px; z-index: -1;
-  background-color: transparent; background-size: 300% auto; background-position-y: top;
+  background-color: transparent; background-size: 300% auto;
+  /* 按职业把立绘最顶端贴到框顶小留白（见 main.js --class-portrait-y），人物上移、构图更满，且不切头/发/杖顶。 */
+  background-position-y: var(--class-portrait-y, 0%);
 }
 .hero-identity-plaque { position: absolute; bottom: 64px; left: 6px; right: 6px; padding: 9px 5px; text-align: center; background: linear-gradient(transparent,#131a12e8); }
 .classic-client main .hero-identity-plaque :is(span,p) { color: #ddcda8 !important; font-size: 12px; }
@@ -67,6 +69,39 @@
 .hero-dossier-actions > span { margin-right: auto; color: #715637; }
 .hero-dossier-actions button { padding: 4px 14px; font-size: 12px; }
 
+/* 人物页左栏「角色信息」：复刻参考版式，仅用真实字段。 */
+.hero-stage-column { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+.hero-stage-column .hero-identity-scene { flex: 1; min-height: 0; }
+.hero-stage-column .hero-lore-ledger { flex: 0 0 auto; padding: 7px; border: 1px solid #aa8a5d; background: #b7965812; font-size: 12px; line-height: 1.65; }
+.hero-stage-column .hero-lore-ledger :is(p,b) { color: #624426 !important; }
+.hero-info-column {
+  display: flex; flex-direction: column; min-height: 0; padding: 7px; gap: 3px;
+  border: 2px ridge #817052; overflow: hidden; color: #4a3721;
+  background: linear-gradient(160deg, #ddc99e, #ead6ac 48%, #d8bd8c);
+  box-shadow: inset 0 0 0 1px #e9d5a3;
+}
+.hero-info-caption { display: flex; justify-content: space-between; align-items: center; padding: 2px 2px 5px; border-bottom: 2px solid #9a8058; font-size: 12px; font-weight: bold; color: #4a3418; }
+.hero-info-caption small { font-weight: 400; color: #6b5334; font-size: 10px; }
+.hero-info-head { display: flex; align-items: center; gap: 8px; padding: 4px 0 2px; }
+.hero-info-avatar { width: 42px; height: 42px; flex-shrink: 0; border: 2px ridge #8b7654; border-radius: 3px; background: #1c1710; overflow: hidden; }
+.hero-info-name b { display: block; font-size: 13px; color: #5a3018; }
+.hero-info-name small { font-size: 11px; color: #6b5334; }
+.hero-info-lines { margin: 0; }
+.hero-info-lines > div { display: flex; justify-content: space-between; gap: 8px; padding: 3px 1px; border-bottom: 1px dotted #b49a72; font-size: 11px; }
+.hero-info-lines dd { margin: 0; font-family: var(--font-game-numeric, Georgia, serif); color: #3f2d18; font-weight: bold; }
+.hero-info-block { margin: 6px 0 2px; font-size: 11px; font-weight: bold; color: #7a4a1e; border-bottom: 1px solid #b49a72; padding-bottom: 2px; display: flex; justify-content: space-between; gap: 6px; }
+.hero-info-block span { font-weight: 400; color: #6b5334; }
+.hero-info-column .hero-potential-rows > div { grid-template-columns: 30px 1fr auto 22px; gap: 5px; padding: 2px 0; font-size: 11px; }
+.hero-info-column .hero-potential-rows small { font-size: 9px; }
+.hero-info-column .hero-potential-rows button { height: 20px; }
+.hero-info-column #btn-recommended-stats { width: 100%; margin-top: 3px; padding: 3px 6px; font-size: 11px; }
+.hero-info-column .hero-allocation-hint { margin-top: 2px; font-size: 10px; line-height: 1.35; }
+.hero-combat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 10px; }
+.hero-combat-grid > div { display: flex; justify-content: space-between; gap: 6px; padding: 2px 1px; border-bottom: 1px dotted #b49a72; font-size: 11px; }
+.hero-combat-grid b { font-family: var(--font-game-numeric, Georgia, serif); color: #3f2d18; }
+.hero-combat-extra { margin: 3px 0 0; font-size: 10px; line-height: 1.3; color: #715637; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero-info-column .hero-info-lines > div:last-child { border-bottom: 0; }
+
 /* The paper doll and its ledger stay between the two equipment wings. */
 .classic-client .equip-equipment-columns { grid-template-columns: minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr); }
 .classic-client main .equip-equipment-columns > .equip-combat-summary {
@@ -84,7 +119,7 @@
   background-color: #161c15; background-size: 300% 100%;
 }
 .classic-client .equip-character-sheet .equip-effective-stats { padding: 7px; background: #ddc396; flex-shrink: 0; }
-.classic-client .equip-character-sheet .equip-effective-stats dl { grid-template-columns: 1fr; gap: 0; }
+.classic-client .equip-character-sheet .equip-effective-stats dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 .classic-client .equip-character-sheet .equip-effective-stats dl > div { gap: 4px; }
 .classic-client main .equip-combat-summary .equip-set-summary { background: #d4bc8e !important; flex-shrink: 0; }
 .classic-client .equip-combat-summary .equip-actions { flex-shrink: 0; }
@@ -93,11 +128,9 @@
 .classic-client main .bag-inventory { background: #24291f !important; border-color: #84714f !important; }
 .classic-client .bag-inventory .bag-tools,.classic-client .bag-inventory .bag-capacity-note,.classic-client .bag-inventory .bag-pagination { color: #d7c69f !important; }
 .classic-client .bag-inventory .bag-tools select { background: #34392a; color: #f0deba; border-color: #7c6f4e; }
-.classic-client .bag-items { align-items: center; justify-items: center; gap: 5px; padding: 8px; margin: 7px 0; background: #171d15 !important; }
-.classic-client #tab-content-bag :is(.bag-slot-cell,.bag-slot-empty) { width: 100%; max-width: 58px; max-height: 58px; }
-.classic-client #tab-content-bag .bag-slot-art { width: auto; aspect-ratio: 1; max-width: 40px; max-height: 40px; }
+/* 行囊格子的容器/尺寸/图像已统一到 css/bag-grid.css（唯一权威，最后加载），此处不再定义。 */
 .classic-client main .bag-item-icon { width: 64px; height: 64px; padding: 2px; }
-.item-artwork { vertical-align: middle; flex-shrink: 0; background-color: #14170f; }
+.item-artwork { vertical-align: middle; flex-shrink: 0; background-color: transparent; filter: drop-shadow(0 1px 1px #0008); }
 .alchemy-grid { grid-template-rows: repeat(2,minmax(0,1fr)); }
 .classic-client main .alchemy-card { min-height: 0; padding: 8px; }
 .alchemy-card-content { min-height: 0; overflow-y: auto; flex: 1; scrollbar-gutter: stable; }
@@ -111,35 +144,144 @@
 .classic-client main .bag-inventory :is(.bag-tools label,.bag-tools select,.bag-pagination span) { color: #decca4 !important; }
 
 /* A city panorama and a compact directory share the same six live entrances. */
-.town-atlas-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(240px,29%); flex: 1; min-height: 0; gap: 7px; }
+.town-atlas-layout { display: grid; grid-template-columns: minmax(0,1fr); flex: 1; min-height: 0; gap: 7px; }
 .classic-client .classic-town-scene { min-height: 0; }
 .classic-town-art { object-position: center; }
 .town-scene-caption { position: absolute; top: 10px; left: 14px; padding: 8px 12px; background: linear-gradient(90deg,#11190fe8,transparent); pointer-events: none; }
 .classic-client main .town-scene-caption :is(span,p) { color: #d2c6a5 !important; font-size: 11px; letter-spacing: .12em; }
 .classic-client main .town-scene-caption h3 { font-size: 25px; letter-spacing: .15em; font-weight: bold; color: #f2d9a3 !important; }
-.classic-client main .classic-town-location { width: 136px; min-height: 36px; padding: 5px 12px; }
+.classic-client main .classic-town-location { width: 130px; min-height: 36px; padding: 5px 10px; }
 .classic-client main .classic-town-location:is(:hover,:active,:focus-visible) { padding: 5px 12px !important; }
 .classic-client main .classic-town-location span { font-size: 12px; }
 .classic-client main .classic-town-location .feature-lock-hint { font-size: 10px; line-height: 1.3; }
-.classic-town .location-palace { left: 53%; top: 24%; }
-.classic-town .location-smithy { left: 18%; top: 48%; }
-.classic-town .location-tavern { left: 82%; top: 48%; }
-.classic-town .location-fishing { left: 18%; top: 80%; }
-.classic-town .location-dragons { left: 82%; top: 81%; }
+.classic-town .location-palace { left: 50%; top: 22%; }
+.classic-town .location-smithy { left: 16%; top: 48%; }
+.classic-town .location-tavern { left: 84%; top: 48%; }
+.classic-town .location-stable { left: 15%; top: 78%; }
+.classic-town .location-faction_war { left: 37%; top: 78%; }
+.classic-town .location-fishing { left: 59%; top: 78%; }
+.classic-town .location-dragons { left: 81%; top: 78%; }
+.classic-town .location-royal_shop { left: 83%; top: 22%; }
+.classic-town .location-shop { left: 83%; top: 22%; }
 .town-facility-directory { min-height: 0; overflow-y: auto; padding: 6px; background: #23281e; border: 3px ridge #817051; }
 .classic-client main .town-directory-entry {
-  display: flex; flex-direction: row; width: 100%; gap: 8px; align-items: center; padding: 4px 3px; text-align: left;
+  display: flex; flex-direction: row; width: 100%; gap: 4px; align-items: center; padding: 1px 3px; text-align: left;
   border-bottom: 1px solid #6e6042; color: #eed8ab !important;
 }
 .town-directory-entry > b { display: grid; place-items: center; width: 22px; height: 26px; flex-shrink: 0; background: #454630; border: 1px solid #8a7750; font-size: 12px; }
-.town-directory-entry > span:nth-child(2) { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.classic-client main .town-directory-entry strong { color: #efdaa9 !important; font-size: 12px; }
-.classic-client main .town-directory-entry :is(small,em) { color: #bdb397 !important; font-size: 10px; font-style: normal; line-height: 1.3; }
+.town-directory-entry > span:first-of-type { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+.classic-client main .town-directory-entry strong { color: #efdaa9 !important; font-size: 11px; line-height: 1.2; }
+.classic-client main .town-directory-entry :is(small,em) { color: #bdb397 !important; font-size: 9px; font-style: normal; line-height: 1.15; }
 .town-directory-arrow { margin-left: auto; font-size: 20px; }
 .town-directory-entry:hover { background: #ad99591c; }
 .town-directory-entry .feature-lock-hint { display: none; }
 
 /* Region navigation sits above the scenery and its compact encounter docket. */
+/* 第4批A 王都卡片子页一屏紧凑（仅 .town-* 作用域，不改业务） */
+.classic-client .town-dragons .mota-parchment-panel,
+.classic-client .town-trials .mota-parchment-panel,
+.classic-client .town-faction .mota-parchment-panel { padding: 8px !important; }
+.classic-client .town-dragons h3,
+.classic-client .town-trials h3,
+.classic-client .town-faction h3 { font-size: 13px !important; line-height: 1.25 !important; }
+.classic-client .town-dragons .my-3,
+.classic-client .town-trials .my-3,
+.classic-client .town-faction .my-3 { margin: 4px 0 !important; }
+.classic-client .town-dragons .p-3,
+.classic-client .town-trials .p-3,
+.classic-client .town-faction .p-3 { padding: 6px !important; }
+.classic-client .town-dragons .text-2xl,
+.classic-client .town-trials .text-2xl,
+.classic-client .town-faction .text-2xl { font-size: 16px !important; }
+.classic-client .town-dragons .text-xl,
+.classic-client .town-trials .text-xl,
+.classic-client .town-faction .text-xl { font-size: 14px !important; }
+.classic-client .town-dragons .text-base,
+.classic-client .town-trials .text-base,
+.classic-client .town-faction .text-base { font-size: 13px !important; }
+.classic-client .town-dragons .text-xs,
+.classic-client .town-trials .text-xs,
+.classic-client .town-faction .text-xs { font-size: 10.5px !important; }
+.classic-client .town-dragons .text-purple-300 { display: -webkit-box; -webkit-line-clamp: 1 !important; -webkit-box-orient: vertical; overflow: hidden; }
+.classic-client .town-dragons .mota-parchment-panel,
+.classic-client .town-trials .mota-parchment-panel,
+.classic-client .town-faction .mota-parchment-panel { padding: 5px !important; }
+.classic-client .town-dragons .text-xs,
+.classic-client .town-trials .text-xs,
+.classic-client .town-faction .text-xs { font-size: 9.5px !important; line-height: 1.2 !important; }
+.classic-client .town-dragons h3,
+.classic-client .town-trials h3,
+.classic-client .town-faction h3 { font-size: 12px !important; }
+.classic-client .town-dragons .my-3,
+.classic-client .town-trials .my-3,
+.classic-client .town-faction .my-3 { margin: 2px 0 !important; }
+.classic-client .town-dragons button,
+.classic-client .town-trials button,
+.classic-client .town-faction button { font-size: 10.5px !important; }
+/* 王都列表/卡片页紧凑：去掉内部滚动并压缩卡片 */
+.classic-client .town-drinks .flex-1.min-h-0,
+.classic-client .town-merc .mercenary-grid,
+.classic-client .town-tavernhub .flex-1.min-h-0,
+.classic-client .town-fishing .min-h-0.overflow-y-auto { overflow: visible !important; }
+.classic-client .town-drinks .p-3\.5,
+.classic-client .town-merc .p-3,
+.classic-client .town-tavernhub .p-4 { padding: 8px !important; }
+.classic-client .town-drinks .gap-3,
+.classic-client .town-merc .gap-3,
+.classic-client .town-tavernhub .gap-3 { gap: 6px !important; }
+.classic-client .town-drinks .text-xs,
+.classic-client .town-merc .text-xs,
+.classic-client .town-tavernhub .text-xs { font-size: 10.5px !important; }
+.classic-client .town-fishing .my-6 { margin: 4px 0 !important; }
+.classic-client .town-fishing .p-4,
+.classic-client .town-fishing .p-5 { padding: 8px !important; }
+.classic-client .town-faction .p-2\.5 { padding: 5px !important; }
+.classic-client .town-faction .space-y-2\.5 > * + * { margin-top: 4px !important; }
+.classic-client .town-faction .text-xs { font-size: 10px !important; line-height: 1.2 !important; }
+.classic-client .town-merc .flex-1.min-h-0 { overflow: visible !important; }
+.classic-client .town-dragons .gap-3\.5 { gap: 6px !important; }
+.classic-client .town-dragons .space-y-1\.5 > * + * { margin-top: 1px !important; }
+.classic-client .town-dragons .pt-3, .classic-client .town-dragons .py-2\.5 { padding-top: 4px !important; padding-bottom: 4px !important; }
+.classic-client .town-trials .p-4, .classic-client .town-trials .p-5, .classic-client .town-trials .p-3 { padding: 6px !important; }
+.classic-client .town-trials .space-y-1\.5 > * + * { margin-top: 2px !important; }
+.classic-client .town-trials .gap-3 { gap: 6px !important; }
+.classic-client .town-faction .gap-2\.5 { gap: 5px !important; }
+.classic-client .town-faction .space-y-1\.5 > * + * { margin-top: 2px !important; }
+.classic-client .town-faction .mt-2 { margin-top: 4px !important; }
+.classic-client .town-faction .p-2 { padding: 4px !important; }
+.classic-client .town-faction .text-sm { font-size: 12px !important; }
+.classic-client .town-faction .py-1\.5 { padding-top: 3px !important; padding-bottom: 3px !important; }
+.classic-client .town-faction .mb-2 { margin-bottom: 4px !important; }
+.classic-client .town-faction .pb-1\.5 { padding-bottom: 3px !important; }
+.classic-client .town-faction .space-y-2 > * + * { margin-top: 3px !important; }
+.classic-client .town-faction .gap-2 { gap: 4px !important; }
+.classic-client .town-trials .text-sm { font-size: 12px !important; }
+.classic-client .town-trials .text-lg { font-size: 14px !important; }
+.classic-client .town-trials .pb-2 { padding-bottom: 3px !important; }
+.classic-client .town-trials .mb-2 { margin-bottom: 4px !important; }
+.classic-client .town-trials .py-3 { padding-top: 4px !important; padding-bottom: 4px !important; }
+.classic-client .town-trials .p-3\.5 { padding: 6px !important; }
+.classic-client .town-trials .my-3 { margin: 4px 0 !important; }
+.classic-client .town-trials .pb-3 { padding-bottom: 4px !important; }
+.classic-client .town-trials .pt-2, .classic-client .town-trials .pt-3 { padding-top: 4px !important; }
+.classic-client .town-trials .space-y-2\.5 > * + * { margin-top: 4px !important; }
+.classic-client .town-trials .p-2 { padding: 4px !important; }
+.classic-client .town-faction .pt-2 { padding-top: 4px !important; }
+.classic-client .town-faction .pb-1, .classic-client .town-faction .pb-2 { padding-bottom: 2px !important; }
+.classic-client .town-faction .py-1 { padding-top: 2px !important; padding-bottom: 2px !important; }
+.classic-client .town-faction .space-y-2 > * + * { margin-top: 2px !important; }
+.classic-client .town-faction .p-2 { padding: 3px 4px !important; }
+.classic-client .town-faction .w-9 { width: 30px !important; height: 30px !important; }
+.classic-client .town-faction .mt-0\.5 { margin-top: 1px !important; }
+.classic-client .town-faction { padding: 4px !important; }
+.classic-client .town-faction .mota-breadcrumb { padding: 2px 8px !important; }
+.classic-client .town-faction .p-2\.5 { padding: 4px !important; }
+.classic-client .town-faction .pb-1\.5 { padding-bottom: 2px !important; }
+.classic-client .town-faction .space-y-2\.5 > * + * { margin-top: 3px !important; }
+.classic-client .town-faction .text-\[9px\] { font-size: 8.5px !important; }
+
+
+
 .wild-atlas { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 6px; }
 .classic-client main .wild-atlas-heading { display: flex; align-items: center; gap: 10px; flex-shrink: 0; min-height: 40px; font-size: 11px; }
 .wild-atlas-heading h2 { font-weight: bold; font-size: 13px; white-space: nowrap; }
@@ -147,14 +289,14 @@
 .wild-atlas-heading button { padding: 4px 12px; white-space: nowrap; }
 .classic-client #tab-content-wild .wild-grid { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0,1fr); grid-template-rows: 70px minmax(0,1fr); gap: 7px; }
 .classic-client #tab-content-wild .wild-map-list { padding: 4px; min-height: 0; }
-.classic-client #tab-content-wild .wild-map-nodes { display: grid; height: 100%; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 4px; margin: 0; overflow: visible; }
+.classic-client #tab-content-wild .wild-map-nodes { display: grid; height: 100%; grid-template-columns: repeat(8,minmax(0,1fr)); gap: 3px; margin: 0; overflow: visible; }
 .classic-client #tab-content-wild .map-node-card { min-height: 0; margin: 0; padding: 4px; border-radius: 0; }
-.classic-client #tab-content-wild .wild-map-copy { display: flex; align-items: center; gap: 5px; }
-.classic-client #tab-content-wild .wild-map-thumbnail { width: 37px; height: 43px; }
-.classic-client main #tab-content-wild .wild-map-label :is(strong,small) { display: block; font-size: 11px; line-height: 1.5; color: #49331c !important; }
-.classic-client main #tab-content-wild .wild-map-label small { font-size: 10px; }
+.classic-client #tab-content-wild .wild-map-copy { display: flex; align-items: center; gap: 4px; }
+.classic-client #tab-content-wild .wild-map-thumbnail { width: 30px; height: 36px; }
+.classic-client main #tab-content-wild .wild-map-label :is(strong,small) { display: block; font-size: 10px; line-height: 1.35; color: #49331c !important; }
+.classic-client main #tab-content-wild .wild-map-label small { font-size: 9px; }
 .classic-client #tab-content-wild .wild-map-detail { padding: 6px; min-height: 0; }
-.wild-dossier { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr); gap: 8px; flex: 1; min-height: 0; }
+.wild-dossier { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr); grid-template-rows: minmax(0,1fr); align-items: stretch; gap: 8px; flex: 1; height: 100%; min-height: 0; }
 .wild-dossier > .wild-region-summary { position: relative; min-height: 255px; }
 .classic-client #tab-content-wild .wild-region-panorama { height: 100%; min-height: 255px; }
 .classic-client #tab-content-wild .wild-region-panorama::before { height: 100%; width: auto; min-width: 100%; aspect-ratio: 3 / 1; }
@@ -163,26 +305,36 @@
 .classic-client #tab-content-wild .wild-region-heading p { font-size: 12px; line-height: 1.6; }
 .classic-client #tab-content-wild .wild-region-heading :is(small,span) { color: #e9d8b0 !important; font-size: 11px; }
 .wild-region-heading button { padding: 3px 10px; font-size: 12px; }
-.wild-dossier-list { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
+.wild-dossier-list { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 4px; }
+.classic-client #tab-content-wild .wild-map-detail { overflow: hidden; }
 .classic-client #tab-content-wild .wild-dossier > * + * { margin-top: 0; }
-.classic-client #tab-content-wild :is(.wild-boss-card,.wild-thief-card) { display: flex; align-items: center; gap: 6px; padding: 5px; border: 1px solid #947347; background: #c4a56a30; }
+.classic-client #tab-content-wild .wild-portrait-slot { background: #2b241b; border: 1px dashed #8b7654; border-radius: 2px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* 女盗 / 领主：并排紧凑横幅，头像位 76px 留空占位（待新版单图落盘后填入） */
+.classic-client #tab-content-wild .wild-banner-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 5px; }
+.classic-client #tab-content-wild :is(.wild-boss-card,.wild-thief-card) { display: flex; align-items: center; gap: 3px; padding: 2px 4px; border: 1px solid #947347; background: #c4a56a30; min-width: 0; }
 .classic-client #tab-content-wild .wild-thief-card { border-color: #a05c40; background: #9a321e15; }
-.wild-thief-icon { display: block; width: 32px; height: 36px; flex-shrink: 0; padding: 3px; border: 1px solid #9b694d; background: #4e2219; }
-.classic-client main #tab-content-wild :is(.wild-boss-card,.wild-thief-card) strong { color: #61401f !important; font-size: 12px; }
-.wild-boss-copy,.wild-thief-card > div { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.classic-client main #tab-content-wild :is(.wild-boss-card,.wild-thief-card) small { display: block; color: #735735 !important; font-size: 10px; line-height: 1.4; }
-.wild-boss-card button,.wild-thief-card button { padding: 4px 10px; flex-shrink: 0; font-size: 11px; }
-.classic-client #tab-content-wild .wild-boss-card .wild-enemy-portrait { width: 36px; height: 40px; }
-.classic-client #tab-content-wild .wild-monster-caption { padding: 2px 0; font-size: 12px; color: #583e20 !important; font-weight: bold; }
-.wild-monster-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; }
-.classic-client #tab-content-wild .wild-monster-card { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 5px; border: 1px solid #a58a5b; background: #dbc294; border-radius: 0; }
-.classic-client #tab-content-wild .wild-monster-identity { display: flex; align-items: center; gap: 4px; min-height: 40px; }
-.classic-client #tab-content-wild .wild-monster-identity .wild-enemy-portrait { width: 32px; height: 36px; }
-.classic-client main #tab-content-wild .wild-monster-card strong { color: #5a3a1c !important; font-size: 11px; }
-.classic-client #tab-content-wild .wild-monster-card dl { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); font-size: 10px; text-align: center; padding: 3px 0; border-block: 1px solid #b69c70; }
-.classic-client main #tab-content-wild .wild-monster-card :is(dt,dd,p) { color: #624728 !important; font-size: 10px; line-height: 1.4; }
-.classic-client #tab-content-wild .wild-monster-card button { padding: 3px 5px; font-size: 11px; margin-top: auto; }
-.classic-client main #tab-content-wild .wild-patrol-rates { margin-top: auto; padding-top: 3px; font-size: 10px; line-height: 1.5; color: #735735 !important; }
+.classic-client #tab-content-wild .wild-boss-portrait,
+.classic-client #tab-content-wild .wild-thief-portrait { width: 76px; height: 76px; }
+.classic-client #tab-content-wild .wild-thief-portrait { border-color: #9b694d; background: #241612; }
+.classic-client main #tab-content-wild :is(.wild-boss-card,.wild-thief-card) strong { color: #61401f !important; font-size: 11px; line-height: 1.2; }
+.wild-banner-copy { display: flex; flex-direction: column; gap: 0; flex: 1; min-width: 0; }
+.classic-client main #tab-content-wild :is(.wild-boss-card,.wild-thief-card) small { display: block; color: #735735 !important; font-size: 10px; line-height: 1.15; }
+.classic-client main #tab-content-wild .wild-thief-note { color: #8a6a44 !important; }
+.wild-boss-card button,.wild-thief-card button { padding: 2px 6px; flex-shrink: 0; font-size: 10px; }
+
+/* 盘踞魔物：一行 3 张竖立绘卡，头像位 96px 1:1 留空占位（待新版单图落盘后填入） */
+.classic-client #tab-content-wild .wild-monster-caption { padding: 0; font-size: 11px; color: #583e20 !important; font-weight: bold; }
+.classic-client #tab-content-wild .wild-monster-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
+.classic-client #tab-content-wild .wild-monster-card { display: flex; flex-direction: column; align-items: stretch; gap: 1px; min-width: 0; padding: 3px; border: 1px solid #a58a5b; background: #dbc294; border-radius: 0; }
+.classic-client #tab-content-wild .wild-monster-portrait { width: 96px; height: 96px; margin: 0 auto; }
+.classic-client #tab-content-wild .wild-monster-body { display: flex; flex-direction: column; gap: 0; min-width: 0; text-align: center; }
+.classic-client main #tab-content-wild .wild-monster-card .wild-monster-name { color: #5a3a1c !important; font-size: 12px; font-weight: bold; line-height: 1.2; overflow-wrap: anywhere; }
+.classic-client #tab-content-wild .wild-monster-card dl { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); font-size: 10px; text-align: center; padding: 1px 0; border-block: 1px solid #b69c70; }
+.classic-client main #tab-content-wild .wild-monster-card :is(dt,dd,p) { color: #624728 !important; font-size: 10px; line-height: 1.2; }
+.classic-client #tab-content-wild .wild-monster-card .wild-monster-meta { font-size: 10px; line-height: 1.15; }
+.classic-client #tab-content-wild .wild-monster-card button { padding: 2px 4px; font-size: 10.5px; margin-top: auto; }
+.classic-client main #tab-content-wild .wild-patrol-rates { margin-top: auto; padding-top: 2px; font-size: 10px; line-height: 1.35; color: #735735 !important; }
 
 /* Keep all four estate routes while giving the art space above each plaque. */
 .estate-hub-layout { display: grid; grid-template-columns: minmax(160px,22%) minmax(0,1fr); flex: 1; min-height: 0; gap: 8px; }
@@ -199,21 +351,21 @@
 .classic-client main #tab-content-estate .estate-facility-caption h3 { font-size: 14px; }
 .classic-client main #tab-content-estate .estate-facility-caption p { font-size: 11px; }
 .estate-facility-caption button { padding: 3px 12px; font-size: 12px; margin-left: auto; }
-.estate-facility .feature-lock-hint { position: absolute; right: 8px; top: 7px; font-size: 10px !important; }
+.estate-facility .feature-lock-hint { position: static !important; flex: 0 0 100% !important; order: -1 !important; margin: 0 !important; text-align: right !important; line-height: 1.25 !important; font-size: 10px !important; }
 
-/* A live battle stage sits above the independently scrolling combat journal. */
+/* Compact scene banner above the independently scrolling combat journal. */
 .classic-client .battle-layout { grid-template-columns: minmax(205px,22%) minmax(0,1fr) minmax(205px,22%); }
 .classic-client .battle-report { padding: 8px; background: #252b21; gap: 6px; }
 .classic-client main .battle-report { background: #252b21 !important; }
 .battle-stage {
-  position: relative; isolation: isolate; flex: 0 0 clamp(190px,29vh,290px); min-height: 160px; overflow: hidden;
+  position: relative; isolation: isolate; flex: 0 0 clamp(104px,13vh,150px); min-height: 104px; overflow: hidden;
   border: 3px ridge #8e7b51; background: #171e14 url('../images/scenes/royal-capital.png') center / cover;
 }
 .battle-stage::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(#10170f33,#10170fa0); }
 .battle-stage-wild { background-image: none; }
 .battle-stage-wild::after {
   content: ''; position: absolute; left: 50%; top: 50%; width: max(100%,870px); aspect-ratio: 3 / 1;
-  transform: translate(-50%,-50%); z-index: -2; background: url('../images/scenes/wild-regions.png') center var(--region-y) / 100% 500% no-repeat;
+  transform: translate(-50%,-50%); z-index: -2; background: url('../images/scenes/wild-regions-8.png') center var(--region-y) / 100% 800% no-repeat;
 }
 .battle-stage-caption { position: absolute; top: 6px; left: 10px; right: 10px; display: flex; justify-content: space-between; font-size: 12px; color: #e4cf9d; }
 .battle-stage-actor {
@@ -269,3 +421,233 @@
   .battle-stage { flex-basis: 160px; }
   .battle-stage-actor { width: 65px; height: 105px; bottom: 28px; }
 }
+
+/* Battle roster: identical portrait frames keep both vital/stat ledgers aligned. */
+.classic-client .battle-stage .battle-stage-caption { font-size: 13px; }
+.classic-client main .battle-stage .battle-stage-names { font-size: 13px; padding: 4px 8px; }
+.classic-client .battle-scene .battle-roster .battle-portrait,
+.classic-client .battle-scene .battle-ally .battle-portrait.class-portrait { width: clamp(116px, 11vw, 146px); height: clamp(150px, 18vh, 180px); margin: 10px auto; padding: 0; }
+.classic-client .battle-roster .battle-stat-note { font-size: 11px; line-height: 1.5; text-align: left; margin-top: 6px; }
+@media (max-width: 760px) {
+  .classic-client .battle-scene .battle-roster .battle-portrait,
+  .classic-client .battle-scene .battle-ally .battle-portrait.class-portrait { width: 80px; height: 96px; }
+  .classic-client .battle-stage { flex-basis: 64px; min-height: 64px; }
+  .classic-client main .battle-stage #damage-float-area { top: 24px; }
+}
+/* P2：生命/魔力双条 + 属性补齐 */
+.classic-client .battle-roster .battle-health { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.classic-client .battle-roster .battle-vital { font-size: 12px; }
+.classic-client .battle-roster .battle-vital > span { margin-right: 8px; color: #4a3a24; }
+.classic-client .battle-roster .battle-vital > strong { font-family: var(--font-game-numeric, Georgia, serif); }
+.battle-mana-track { height: 8px; background: #080605; margin-top: 5px; }
+.battle-mana-track > div { height: 100%; background: linear-gradient(#3f86c9, #245a92); transition: width .2s ease-out; }
+.classic-client .battle-roster .battle-stats { font-size: 12px; }
+
+/* Persistent companion slots use the existing banner instead of journal space. */
+.classic-client .battle-stage { flex-basis: clamp(132px,15vh,150px); min-height: 132px; }
+.battle-companions { position: absolute; inset: 28px 8px 8px; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.battle-companion { min-width: 0; display: flex; align-items: center; gap: 6px; padding: 6px; border: 1px solid #8e7952; background: #171c13ed; box-shadow: inset 0 0 8px #0006; }
+.battle-companion-face { display: flex; align-items: center; justify-content: center; flex: 0 0 42px; width: 42px; height: 52px; border: 1px solid #a08b5b; background: #22251c; overflow: hidden; color: #b6a27a; }
+.battle-companion-face .pet-portrait-art { width: 100%; height: 100%; background-size: 400% 300%; background-repeat: no-repeat; }
+.battle-companion-face > .painted-icon { width: 100%; height: 100%; }
+.battle-companion > div { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.classic-client main .battle-companion small { font-size: 11px; color: #cdbb94; }
+.classic-client main .battle-companion strong { font-size: 13px; line-height: 1.3; color: #f2dda8; overflow-wrap: anywhere; }
+.classic-client main .battle-companion div > span { font-size: 11px; line-height: 1.4; color: #c5d1b1; }
+.battle-stamina-track { display: block; width: 100%; height: 4px; background: #090c07; }
+.battle-stamina-track i { display: block; height: 100%; background: #739751; }
+.battle-companion.is-tired { border-color: #b27247; }
+.classic-client main .battle-companion.is-tired div > span { color: #ffc18d; }
+.battle-companion.is-tired .battle-stamina-track i { background: #ba7747; }
+.battle-companion.is-tired .battle-companion-face { filter: saturate(.3); }
+.battle-companion.is-empty { border-style: dashed; background: #171c13bb; }
+.classic-client main .battle-companion.is-empty strong { color: #b7ae98; }
+.battle-portrait-wrap { position: relative; display: flow-root; }
+.battle-portrait-damage { position: absolute; top: 40%; left: 0; right: 0; text-align: center; pointer-events: none; text-shadow: 0 1px 3px #000; z-index: 1; }
+@media (max-width: 1100px) {
+  .classic-client .battle-stage { flex-basis: 156px; min-height: 156px; }
+  .battle-companion { flex-direction: column; text-align: center; padding: 4px; gap: 3px; }
+  .battle-companion-face { width: 38px; height: 40px; flex-basis: 40px; }
+  .battle-companion > div { width: 100%; }
+}
+@media (max-width: 760px) {
+  .classic-client .battle-stage { flex-basis: 156px; min-height: 156px; }
+  .battle-companions { gap: 3px; inset-inline: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .battle-mana-track > div { transition: none; } }
+
+/* 行囊详情一屏：属性对比 / 基础词条 子页签 + 紧凑排版，无滚动条 */
+.classic-client #tab-content-bag .bag-detail-subtabs { display: flex; gap: 5px; margin-bottom: 4px; flex-shrink: 0; }
+.classic-client #tab-content-bag .bag-detail-subtabs button { padding: 2px 9px; font-size: 11px; }
+.classic-client #tab-content-bag .bag-detail-content { overflow: hidden !important; padding-right: 0; }
+.classic-client #tab-content-bag .bag-detail-content .bag-comparison { font-size: 11px; }
+.classic-client #tab-content-bag .bag-detail-content .bag-comparison caption { font-size: 12px; padding-bottom: 3px; }
+.classic-client #tab-content-bag .bag-detail-content .bag-comparison :is(th, td) { padding: 1px 2px; line-height: 1.2; }
+.classic-client #tab-content-bag .bag-detail-content .bag-current-equipment { margin-bottom: 3px; line-height: 1.3; }
+.classic-client #tab-content-bag .bag-detail-content .bag-comparison-note { margin-top: 2px; font-size: 11px; line-height: 1.3; }
+.classic-client #tab-content-bag .bag-detail-content .bag-section-heading { margin: 3px 0 2px; padding: 1px 0; }
+.classic-client #tab-content-bag .bag-detail-content .bag-stat-line { padding: 2px 1px; line-height: 1.3; }
+.classic-client #tab-content-bag .bag-detail-content .bag-item-description { line-height: 1.4; }
+.classic-client #tab-content-bag .bag-detail .bag-item-title { padding-bottom: 4px; margin-bottom: 4px; }
+.classic-client #tab-content-bag .bag-detail .bag-item-icon { width: 48px; height: 48px; padding: 5px; }
+
+/* 神兽详情一屏：资料/资质 与 培养/特性 子页签 + 紧凑排版，默认视图无滚动 */
+.classic-client #tab-content-pets .pet-detail-subtabs { display: flex; gap: 6px; padding: 3px 12px 0; }
+.classic-client #tab-content-pets .pet-detail-subtabs button { padding: 3px 10px; font-size: 11px; }
+.classic-client #tab-content-pets .pet-classic-sheet { padding-bottom: 2px; }
+.classic-client #tab-content-pets .pet-classic-sheet .pet-detail-portrait { height: 104px; }
+.classic-client #tab-content-pets .pet-detail-identity { padding: 6px 12px; gap: 10px; }
+.classic-client #tab-content-pets .pet-aptitude-block { padding: 4px 12px; }
+.classic-client #tab-content-pets .pet-aptitude-table { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+.classic-client #tab-content-pets .pet-aptitude-block h4 { margin-bottom: 2px; }
+.classic-client #tab-content-pets .pet-overview-actions { padding: 4px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.classic-client #tab-content-pets .pet-overview-actions .pet-action-row { display: contents; }
+.classic-client #tab-content-pets .pet-overview-actions button { padding: 3px 6px; font-size: 11px; }
+.classic-client #tab-content-pets .pet-aptitude-table > div { padding: 3px 0; }
+.classic-client #tab-content-pets .pet-data-lines { margin: 0 0 2px; }
+.classic-client #tab-content-pets .pet-data-lines > div { line-height: 17px; }
+.classic-client #tab-content-pets .pet-meter-line { margin: 2px 0; }
+.classic-client #tab-content-pets .pet-detail-summary h4 { font-size: 15px; }
+.classic-client #tab-content-pets .pet-sheet-note { padding: 6px 12px; line-height: 1.45; }
+.classic-client #tab-content-pets .pet-trait-line { padding: 6px 12px; }
+
+/* 副本古门一屏：约束网格行高 + 紧凑门卡/详情，无滚动 */
+.classic-client #tab-content-tower .dungeon-workspace { min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.classic-client #tab-content-tower .dungeon-workspace > div { min-height: 0; overflow: hidden; }
+.classic-client #tab-content-tower .dungeon-workspace .dungeon-gate-card { padding: 1px 6px; }
+.classic-client #tab-content-tower .dungeon-workspace .dungeon-gate-card .w-7 { width: 22px; height: 22px; padding: 2px; }
+.classic-client #tab-content-tower .dungeon-workspace .space-y-1\\.5 > * + * { margin-top: 3px !important; }
+.classic-client #tab-content-tower .dungeon-workspace > div:nth-child(2) { padding: 8px !important; }
+.classic-client #tab-content-tower .dungeon-workspace > div:nth-child(2) > div:first-child { overflow: hidden; }
+.classic-client #tab-content-tower .dungeon-workspace > div:nth-child(2) .space-y-2\\.5 > * + * { margin-top: 5px !important; }
+.classic-client #tab-content-tower .dungeon-workspace > div:nth-child(2) .rounded-xl { padding: 5px 7px !important; }
+.classic-client #tab-content-tower .dungeon-workspace > div:nth-child(2) .rounded-lg { padding: 4px 6px !important; }
+.classic-client #tab-content-tower .dungeon-workspace .dungeon-gate-card { padding: 0 6px; }
+.classic-client #tab-content-tower .dungeon-workspace .dungeon-gate-card .w-7 { width: 20px; height: 20px; }
+.classic-client #tab-content-tower .dungeon-workspace .space-y-1\\.5 > * + * { margin-top: 2px !important; }
+.classic-client .equip-character-sheet .equip-effective-stats { padding: 5px; }
+.classic-client .equip-character-sheet .equip-effective-stats dl > div { padding: 2px 0; }
+.classic-client .equip-character-sheet .equip-effective-stats { padding: 3px; }
+.classic-client .equip-character-sheet .equip-effective-stats dl > div { padding: 1px 0; }
+.classic-client .equip-character-sheet .equip-effective-stats > p { margin-top: 2px; }
+.classic-client .equip-character-sheet { grid-template-columns: minmax(0, 1fr) 112px; gap: 8px; }
+.classic-client .equip-character-sheet .equip-body-portrait { width: 112px; height: 168px; }
+.classic-client .equip-character-sheet .equip-effective-stats dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.classic-client .equip-character-sheet .equip-effective-stats dd { font-size: 12px; line-height: 1.25; }
+.classic-client .equip-character-sheet .equip-effective-stats dt { font-size: 11px; }
+.classic-client .equip-character-sheet .equip-effective-stats dt,
+.classic-client .equip-character-sheet .equip-effective-stats dd { white-space: nowrap; }
+.classic-client .equip-character-sheet .equip-effective-stats dl > div { align-items: center; }
+
+/* 古堡钥匙列一屏：外层不滚 + 钥匙卡紧凑，全部 6 把一屏展示 */
+.classic-client #tab-content-tower .castle-key-scroll { overflow: hidden !important; }
+.classic-client #tab-content-tower .castle-key-list { max-height: none !important; overflow: visible !important; }
+.classic-client #tab-content-tower .castle-key-list > * + * { margin-top: 3px !important; }
+.classic-client #tab-content-tower .castle-key-list > div { padding: 2px 6px !important; }
+.classic-client #tab-content-tower .castle-key-list .w-7 { width: 22px; height: 22px; padding: 2px; }
+.classic-client #tab-content-tower .castle-key-list button { padding: 2px 8px !important; font-size: 11px; }
+
+/* 庄园炼金一屏：卡片内容紧凑，满内容（永久潜能项）也不内滚 */
+.classic-client .alchemy-card { padding: 2px; }
+.classic-client .alchemy-card-content > div:first-child { margin-bottom: 2px; padding-bottom: 2px; }
+.classic-client .alchemy-card-content p { line-height: 1.15; }
+.classic-client .alchemy-card-content .p-2 { padding: 2px 5px; }
+.classic-client .alchemy-card-content .space-y-1 > * + * { margin-top: 2px; }
+.classic-client .alchemy-card-content > div + div { margin-top: 2px; }
+.classic-client .alchemy-card > div:last-child { margin-top: 1px; padding-top: 1px; }
+
+/* 神兽目录槽位一屏：8 只满编也紧凑收纳，列表不滚 */
+.classic-client #tab-content-pets .pet-classic-slots { grid-auto-rows: 46px; gap: 4px; padding: 6px; }
+.classic-client #tab-content-pets .pet-select-card,
+.classic-client #tab-content-pets .pet-empty-slot { padding: 2px; gap: 3px; }
+.classic-client #tab-content-pets .pet-slot-icon { width: 28px; height: 32px; }
+.classic-client #tab-content-pets .pet-slot-copy { gap: 1px; }
+.classic-client #tab-content-pets .pet-slot-copy b { font-size: 11px; }
+.classic-client #tab-content-pets .pet-slot-copy small { font-size: 9px; }
+
+/* 野外头像单图：方形 1:1 槽，带背景方图 cover 铺满、不裁边；缺图保留空白占位 */
+.classic-client #tab-content-wild .wild-portrait-slot { position: relative; overflow: hidden; background-size: cover; background-position: center; }
+.classic-client #tab-content-wild .wild-portrait-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.classic-client #tab-content-wild .wild-portrait-slot.has-image { border-style: solid; background: #1c1712; }
+
+/* R2 装备页/背包：单列全宽行囊 + 12 部位铁匠修理格 */
+.classic-client .bag-layout { grid-template-columns: minmax(0, 1fr) !important; }
+.classic-client #tab-content-bag .bag-detail { display: none !important; }
+.classic-client .smithy-workshop .smithy-repair-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.classic-client .smithy-repair-cell { padding: 6px; gap: 4px; }
+.classic-client .equip-set-tabs button { white-space: nowrap; }
+
+/* 皇家商会（王都商店）：四页签 + 紧凑货架，一屏不滚 */
+.town-shop-town { padding: 6px; gap: 6px; }
+.shop-breadcrumb { display: flex; align-items: center; gap: 12px; }
+.shop-breadcrumb .shop-wallet { margin-left: auto; font-size: 12px; color: #4a3721; }
+.shop-breadcrumb .shop-wallet b { color: #5a3018; font-family: var(--font-game-numeric, Georgia, serif); }
+.shop-tier-line { font-size: 12px; color: #4a3721; padding: 2px 4px; }
+.shop-cat-tabs { display: flex; gap: 5px; }
+.shop-cat-tabs button { padding: 4px 18px; font-size: 12px; border: 2px ridge #6b5030; border-radius: 5px 5px 0 0; background: #c8af80; color: #4a3418; font-weight: 700; cursor: pointer; }
+.shop-cat-tabs button.is-current { background: linear-gradient(#ecd4a3, #c8a775); border-color: #705030; color: #392514; }
+.shop-goods-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; align-content: start; overflow: hidden; }
+.shop-goods-card { border: 1px solid #8b7654; border-radius: 6px; background: linear-gradient(160deg, #e6d3a6, #d3b884); padding: 7px; display: flex; flex-direction: column; gap: 4px; color: #3f2d18; font-size: 12px; }
+.shop-goods-card.is-locked { opacity: .6; }
+.shop-goods-card.is-soldout { opacity: .55; }
+.shop-goods-head { display: flex; gap: 7px; align-items: center; }
+.shop-goods-icon { width: 40px; height: 40px; flex-shrink: 0; border: 1px solid #7a5d34; background: #1c1710; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.shop-goods-icon img { width: 100%; height: 100%; object-fit: contain; }
+.shop-goods-name { font-weight: 700; color: #5a3018; line-height: 1.25; overflow-wrap: anywhere; }
+.shop-goods-price { display: flex; gap: 10px; border-top: 1px dashed #a98a5b; padding-top: 4px; }
+.shop-price-gold { color: #8a5a12; }
+.shop-price-crystal { color: #2f5b8a; }
+.shop-goods-price b { font-family: var(--font-game-numeric, Georgia, serif); }
+.shop-goods-req { font-size: 11px; color: #6b5334; }
+.shop-goods-req .ok { color: #2f6b2a; }
+.shop-goods-req .no { color: #9a2f22; }
+.shop-goods-limit { font-size: 11px; color: #6b5334; }
+.shop-goods-foot { margin-top: auto; display: flex; align-items: center; gap: 6px; }
+.shop-goods-reason { font-size: 11px; color: #9a2f22; flex: 1; }
+.shop-buy-btn { padding: 3px 12px; font-size: 12px; }
+.shop-buy-btn:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 1320px) { .shop-goods-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* 荣耀殿堂（成就 · 称号） */
+.honor-hall .honor-active { margin-left: 8px; font-size: 12px; color: #4a3721; }
+.honor-hall .honor-active b { color: #7a2f6a; }
+.honor-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 238px; gap: 8px; }
+.honor-grid { min-height: 0; overflow: hidden; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; align-content: start; }
+.honor-card { border: 1px solid #8b7654; border-radius: 6px; background: #e9d6ab; padding: 6px; display: flex; flex-direction: column; gap: 3px; color: #3f2d18; font-size: 11px; }
+.honor-card.is-claimable { background: #e7e0b4; border-color: #b98a3a; box-shadow: inset 0 0 0 1px #caa048; }
+.honor-card.is-claimed { opacity: .72; }
+.honor-card-top { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.honor-name { font-weight: 700; font-size: 12px; color: #5a3018; }
+.honor-badge { font-size: 9px; border-radius: 9px; padding: 0 6px; color: #fff; white-space: nowrap; }
+.honor-badge.is-claim { background: #b06a1e; }
+.honor-badge.is-done { background: #2f7a33; }
+.honor-badge.is-claimed { background: #8a8a7a; }
+.honor-badge.is-locked { background: #8a8a7a; }
+.honor-desc { line-height: 1.35; color: #5c4730; }
+.honor-track { height: 7px; background: #b9a67c; border: 1px solid #8b7654; border-radius: 4px; overflow: hidden; }
+.honor-track i { display: block; height: 100%; background: linear-gradient(#7a9a4a, #4f6b2a); }
+.honor-prog { font-size: 10px; color: #6b5334; }
+.honor-reward { font-size: 10px; color: #8a5a12; }
+.honor-title-reward { font-size: 10px; color: #7a2f6a; }
+.honor-claim-btn { align-self: flex-start; padding: 2px 12px; font-size: 11px; margin-top: 2px; }
+.honor-claim-btn:disabled { opacity: .5; cursor: default; }
+.honor-titles { border: 2px ridge #817052; background: linear-gradient(160deg, #e8d4a8, #d6b985 60%, #cfae78); padding: 7px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.honor-titles h4 { font-size: 12px; font-weight: 700; color: #4a3418; border-bottom: 1px solid #9a8058; padding-bottom: 4px; margin-bottom: 5px; }
+.honor-title-list { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
+.honor-title-row { display: flex; align-items: center; gap: 5px; padding: 4px 6px; border: 1px solid #8b7654; border-radius: 5px; background: #e9d6ab; font-size: 11px; }
+.honor-title-row.active { border-color: #7a4a1e; background: #f3e2bc; box-shadow: inset 0 0 0 1px #caa048; }
+.honor-title-row b { flex: 1; color: #5a3018; font-size: 11px; }
+.honor-title-cat { font-size: 9px; color: #8a6a3a; }
+.honor-equip-btn { padding: 1px 8px; font-size: 10px; }
+/* 列表式（一行一成就/称号，允许滚轮） */
+.honor-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; padding-right: 2px; }
+.honor-row { display: flex; align-items: center; gap: 10px; border: 1px solid #8b7654; border-radius: 6px; background: #e9d6ab; padding: 5px 9px; }
+.honor-row.is-claimable { background: #e7e0b4; border-color: #b98a3a; box-shadow: inset 0 0 0 1px #caa048; }
+.honor-row.is-claimed { opacity: .72; }
+.honor-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.honor-row-title { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.honor-row .honor-desc { font-size: 11px; }
+.honor-row-meta { display: flex; align-items: center; gap: 10px; font-size: 10px; color: #6b5334; }
+.honor-row-meta .honor-track { width: 130px; height: 7px; background: #b9a67c; border: 1px solid #8b7654; border-radius: 4px; overflow: hidden; display: inline-block; flex: 0 0 130px; }
+.honor-row-meta .honor-track i { display: block; height: 100%; background: linear-gradient(#7a9a4a, #4f6b2a); }
+.honor-row .honor-claim-btn { flex-shrink: 0; padding: 3px 14px; font-size: 12px; }

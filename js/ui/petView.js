@@ -14,24 +14,19 @@ import { getPlayerSynergyStrike } from '../core/combat.js';
 import { SYNERGY_FORMATIONS, SYNERGY_STRIKES } from '../config/dungeons.js';
 import { MERCENARIES } from '../config/estate.js';
 
-// 两幅 4×3 肖像图集共用于目录缩略图与详情立绘。
-const PET_PORTRAIT_ORDER = [
-  'golden_dragon', 'mermaid', 'silver_dragon', 'djinn',
-  'harpy', 'faerie_dragon', 'light_spirit', 'black_angel',
-  'gryphon', 'winter_wolf', 'phoenix', 'naga',
-  'pixie', 'succubus', 'white_angel', 'sphinx',
-  'thunderbird', 'unicorn', 'pegasus', 'imp', 'nightmare', 'gorgon'
-];
+import { renderPetPortrait } from './petPortrait.js';
 
 export class PetView {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
     this.selectedPetId = null;
     this.currentSubTab = 'overview'; // 'overview' | 'wash' | 'skills'
+    this.detailSub = 'main'; // 'main' | 'more'（详情内折叠页）
     this.rosterScroll = {};
   }
 
   render() {
+    if (!['main', 'more'].includes(this.detailSub)) this.detailSub = 'main';
     const previousRoster = this.container.querySelector('.pet-classic-slots');
     if (previousRoster) this.rosterScroll[previousRoster.dataset.rosterKind] = previousRoster.scrollTop;
     const previousDetail = this.container.querySelector('#pet-panel-body');
@@ -56,7 +51,7 @@ export class PetView {
     const mercenary = MERCENARIES.find(merc => merc.id === data.estate?.hiredMercId);
     const detailScroll = previousDetail?.dataset.selectedPet === this.selectedPetId && previousDetail?.dataset.subtab === this.currentSubTab ? previousDetail.scrollTop : 0;
     const partyHint = !mainPet.pet ? '先选择一只主宠，让伙伴加入战斗。'
-      : !mainPet.active ? '主宠已疲劳：选择它并喂养，体力达到 60 后恢复协同。'
+      : !mainPet.active ? '主宠体力不足：选择它并喂养，体力恢复后重新生效。'
       : party.some(member => !member.pet) ? '主宠已就位。空副位可放入伙伴，获得额外天赋。'
       : '阵容已就位。选择伙伴可喂养、培养或调整位置。';
 
@@ -68,7 +63,7 @@ export class PetView {
           <button id="btn-hatch-egg" class="pet-hatch-button">孵化神兽蛋</button>
         </nav>
         <div class="pet-party-strip" aria-label="主副宠阵容">
-          ${party.map(({ slot, pet, config, active }) => `<div><strong>${slot === 0 ? '主宠' : '副宠' + slot}</strong>${pet ? `<span>${config.name}<small>${active ? slot === 0 ? '参战 · 属性与天赋' : '协同 · 提供天赋' : '疲劳 · 需喂养'}</small></span><button data-clear-party="${slot}" class="mota-btn-dark" aria-label="撤下${slot === 0 ? '主宠' : '副宠' + slot}">撤下</button>` : `<span class="pet-party-vacant">空位</span><button data-pick-party="${slot}" class="mota-btn-dark">${slot === 0 ? '选择主宠' : '选择副宠'}</button>`}</div>`).join('')}
+          ${party.map(({ slot, pet, config, active }) => `<div data-drop-slot="${slot}"><strong>${slot === 0 ? '主宠' : '副宠' + slot}</strong>${pet ? `<span>${config.name}<small>${active ? slot === 0 ? '参战 · 属性与天赋' : '协同 · 提供天赋' : '体力不足 · 需喂养'}</small></span><button data-clear-party="${slot}" class="mota-btn-dark" aria-label="撤下${slot === 0 ? '主宠' : '副宠' + slot}">撤下</button>` : `<span class="pet-party-vacant">空位</span><button data-pick-party="${slot}" class="mota-btn-dark">${slot === 0 ? '选择主宠' : '选择副宠'}</button>`}</div>`).join('')}
         </div>
         <p class="pet-party-next">${partyHint}</p>
         <details class="pet-synergy-summary" ${guideOpen ? 'open' : ''}>
@@ -92,7 +87,7 @@ export class PetView {
                 const owned = ownedPets.find(p => p.id === conf.id);
                 const isSelected = this.selectedPetId === conf.id;
                 const partySlot = getPetParty(data).find(member => member.pet?.id === conf.id)?.slot;
-                return `<button type="button" data-pet-id="${conf.id}" class="pet-select-card ${isSelected ? 'is-selected' : ''}" aria-pressed="${isSelected}">
+                return `<button type="button" data-pet-id="${conf.id}" draggable="true" class="pet-select-card ${isSelected ? 'is-selected' : ''}" aria-pressed="${isSelected}">
                   <span class="pet-slot-icon">${this.renderPortrait(conf)}</span>
                   <span class="pet-slot-copy"><b>${conf.name}</b><small>${owned ? `Lv.${owned.level} · ${partySlot === 0 ? '主宠出战' : partySlot ? '副宠' + partySlot : '待命'}` : `Lv.${conf.minLevel} 缔约`}</small></span>
                 </button>`;
@@ -151,9 +146,7 @@ export class PetView {
     const conf = PET_CONFIGS[this.selectedPetId] || Object.values(PET_CONFIGS)[0];
     const owned = gameState.data.pets.find(p => p.id === conf.id);
     const tier = PET_TIERS[conf.defaultTier || 'gold'];
-    return `
-      <article class="pet-classic-sheet">
-        <h3 class="pet-classic-caption">神兽资料<span>${owned ? '已缔约' : '尚未缔约'}</span></h3>
+    const mainBlock = `
         <div class="pet-detail-identity">
           <div class="pet-detail-portrait">${this.renderPortrait(conf)}</div>
           <div class="pet-detail-summary">
@@ -161,20 +154,23 @@ export class PetView {
             <dl class="pet-data-lines"><div><dt>初始品阶</dt><dd>${tier.name}</dd></div><div><dt>缔约等级</dt><dd>Lv.${conf.minLevel}</dd></div><div><dt>专属特性</dt><dd>${conf.traitName}</dd></div><div><dt>契约状态</dt><dd>${owned ? `已缔约 · Lv.${owned.level}` : gameState.data.level >= conf.minLevel ? '达到缔约等级' : `角色达到 ${conf.minLevel} 级后缔约`}</dd></div></dl>
           </div>
         </div>
+        <section class="pet-aptitude-block"><h4>初始资质</h4>${this.renderAptitudes(conf.defaultApt, tier.maxApt)}</section>`;
+    const moreBlock = `
         <section class="pet-trait-line"><h4>专属特性 · ${conf.traitName}</h4><p>${conf.traitDesc}</p></section>
-        <section class="pet-aptitude-block"><h4>初始资质</h4>${this.renderAptitudes(conf.defaultApt, tier.maxApt)}</section>
-        <p class="pet-sheet-note">获得契约蛋后可孵化符合等级要求的神兽。实际资质以孵化结果为准。</p>
+        <p class="pet-sheet-note">获得契约蛋后可孵化符合等级要求的神兽。实际资质以孵化结果为准。</p>`;
+    return `
+      <article class="pet-classic-sheet">
+        <h3 class="pet-classic-caption">神兽资料<span>${owned ? '已缔约' : '尚未缔约'}</span></h3>
+        <div class="pet-detail-subtabs" role="group" aria-label="宠物详情切换">
+          <button data-pet-sub="main" aria-pressed="${this.detailSub !== 'more'}" class="${this.detailSub !== 'more' ? 'mota-btn-gold' : 'mota-btn-dark'}">资料 / 资质</button>
+          <button data-pet-sub="more" aria-pressed="${this.detailSub === 'more'}" class="${this.detailSub === 'more' ? 'mota-btn-gold' : 'mota-btn-dark'}">特性 / 说明</button>
+        </div>
+        ${this.detailSub === 'more' ? moreBlock : mainBlock}
       </article>`;
   }
 
   renderPortrait(conf) {
-    const index = PET_PORTRAIT_ORDER.indexOf(conf.id);
-    if (index < 0) return renderGameIcon(conf.id, { size: 'w-full h-full' });
-    const sheet = index < 12 ? '01' : '02';
-    const cell = index % 12;
-    const x = [0, 33.333333, 66.666667, 100][cell % 4];
-    const y = Math.floor(cell / 4) * 50;
-    return `<div class="pet-portrait-art" role="img" aria-label="${conf.name}肖像" style="background-image:url('images/portraits/pets-${sheet}.png');background-position:${x}% ${y}%"></div>`;
+    return renderPetPortrait(conf);
   }
 
   renderAptitudes(apt, maxApt) {
@@ -187,19 +183,21 @@ export class PetView {
     const isActive = data.activePetId === owned.id;
     const stamina = owned.stamina ?? 100;
     const isExhausted = stamina < 60;
+    const staminaState = stamina >= 80 ? '良好 · 特性与天赋生效'
+      : stamina >= 60 ? '天赋失效 · 属性减半'
+      : stamina >= 40 ? '属性减半 · 特性失效'
+      : '属性无效';
     const foodCount = data.bag.find(i => i.id === 'pet_food')?.count || 0;
     const trainingQuote = gameState.getCompanionTrainingQuote(owned.id);
     const tier = PET_TIERS[owned.tier] || PET_TIERS.gold;
     const nextExp = gameState.getNextLevelExp(owned.level);
     const exp = owned.exp || 0;
-    return `
-      <article class="pet-classic-sheet">
-        <h3 class="pet-classic-caption">宠物资料<span>${getPetParty(data).find(member => member.pet?.id === owned.id)?.slot === 0 ? '主宠出战' : getPetParty(data).some(member => member.slot && member.pet?.id === owned.id) ? '副宠随行' : '待命'}</span></h3>
+    const mainBlock = `
         <div class="pet-detail-identity">
           <div class="pet-detail-portrait">${this.renderPortrait(conf)}<span>${tier.name}</span></div>
           <div class="pet-detail-summary">
             <h4>${conf.name}<small>Lv.${owned.level}</small></h4>
-            <dl class="pet-data-lines"><div><dt>专属特性</dt><dd>${conf.traitName}</dd></div><div><dt>当前状态</dt><dd class="${isExhausted ? 'pet-exhausted' : ''}">${isExhausted ? '疲劳 · 特性与加成暂停' : '良好 · 可提供特性与加成'}</dd></div></dl>
+            <dl class="pet-data-lines"><div><dt>专属特性</dt><dd>${conf.traitName}</dd></div><div><dt>当前状态</dt><dd class="${isExhausted ? 'pet-exhausted' : ''}">${staminaState}</dd></div></dl>
             <div class="pet-meter-line"><span>体力</span><div class="pet-meter" role="progressbar" aria-label="宠物体力" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${stamina}"><i class="pet-stamina-fill ${isExhausted ? 'is-exhausted' : ''}" style="width:${Math.min(100, Math.max(0, stamina))}%"></i><b>${stamina} / 100</b></div></div>
             <div class="pet-meter-line"><span>经验</span><div class="pet-meter" role="progressbar" aria-label="宠物经验" aria-valuemin="0" aria-valuemax="${nextExp}" aria-valuenow="${Math.min(exp, nextExp)}"><i class="pet-exp-fill" style="width:${Math.min(100, exp / nextExp * 100)}%"></i><b>${owned.level >= 100 ? '等级已满' : `${exp} / ${nextExp}`}</b></div></div>
           </div>
@@ -208,10 +206,19 @@ export class PetView {
         <div class="pet-overview-actions">
           <div class="pet-action-row"><button id="btn-toggle-active-pet" class="mota-btn-gold">${isActive ? '当前随行出战中' : '设为随行出战主宠'}</button><button id="btn-feed-pet" class="mota-btn-dark" ${foodCount < 1 || stamina >= 100 ? 'disabled' : ''}>${stamina >= 100 ? '体力已满' : foodCount < 1 ? '缺少兽肉' : '喂食 (+35)'}</button><span>兽肉 ${foodCount}</span></div>
           <div class="pet-action-row">${[1, 2].map(slot => `<button data-assign-party="${slot}" class="mota-btn-dark" ${data.supportPetIds?.[slot - 1] === owned.id ? 'disabled' : ''}>设为副宠${slot}</button>`).join('')}</div>
-        </div>
-        <section class="pet-trait-line"><h4>专属特性 · ${conf.traitName}</h4><p>${conf.traitDesc}</p></section>
+        </div>`;
+    const moreBlock = `
         ${trainingQuote.success ? `<section class="pet-training-line"><div><strong>营地训练</strong> Lv.${owned.level} → ${trainingQuote.targetLevel}<p>${trainingQuote.gold}金币 · ${trainingQuote.crystal}魔晶 · 兽肉 1；保留特性与资质。</p></div><button id="btn-train-companion" class="mota-btn-dark">训练这位伙伴</button></section>` : ''}
-        <p class="pet-sheet-note">体力低于60时暂停加成。每战主宠消耗3体力，副宠各消耗1体力；副宠获得一半随行经验，不提供属性或魔典。已有占位的伙伴会与目标位置交换。契约蛋可在王都声望商行以100声望兑换。</p>
+        <section class="pet-trait-line"><h4>专属特性 · ${conf.traitName}</h4><p>${conf.traitDesc}</p></section>
+        <p class="pet-sheet-note">体力影响属性与天赋：80 以上全额生效；60–79 与 40–59 属性减半、天赋失效；低于 40 属性无效。体力每日衰减 10 点、战败 -5，可喂食兽肉/口粮/饼干，或到王都皇家兽栏用金币恢复（最多到 60）。副宠获得一半随行经验，不提供属性或魔典。已有占位的伙伴会与目标位置交换。契约蛋可在王都声望商行以 100 声望兑换。</p>`;
+    return `
+      <article class="pet-classic-sheet">
+        <h3 class="pet-classic-caption">宠物资料<span>${getPetParty(data).find(member => member.pet?.id === owned.id)?.slot === 0 ? '主宠出战' : getPetParty(data).some(member => member.slot && member.pet?.id === owned.id) ? '副宠随行' : '待命'}</span></h3>
+        <div class="pet-detail-subtabs" role="group" aria-label="宠物详情切换">
+          <button data-pet-sub="main" aria-pressed="${this.detailSub !== 'more'}" class="${this.detailSub !== 'more' ? 'mota-btn-gold' : 'mota-btn-dark'}">资料 / 资质</button>
+          <button data-pet-sub="more" aria-pressed="${this.detailSub === 'more'}" class="${this.detailSub === 'more' ? 'mota-btn-gold' : 'mota-btn-dark'}">培养 / 特性</button>
+        </div>
+        ${this.detailSub === 'more' ? moreBlock : mainBlock}
       </article>`;
   }
 
@@ -332,7 +339,7 @@ export class PetView {
               </div>
             `).join('') : `
               <div class="col-span-2 text-center py-4 text-xs text-slate-500">
-                行囊中暂无远古魔导书，可通过主线任务奖励或屠龙掉落获得！
+                行囊中暂无远古魔导书，可通过主线任务奖励或王都声望商行兑换获得！
               </div>
             `}
           </div>
@@ -348,6 +355,7 @@ export class PetView {
         const candidate = gameState.data.pets.find(pet => !getPetParty(gameState.data).some(member => member.pet?.id === pet.id));
         this.selectedPetId = requested || candidate?.id || gameState.data.pets[0]?.id || null;
         this.currentSubTab = gameState.data.pets.some(pet => pet.id === this.selectedPetId) ? 'overview' : 'compendium';
+        this.detailSub = 'main';
         this.render();
         const card = this.container.querySelector('.pet-select-card.is-selected');
         card?.scrollIntoView({ block: 'nearest' });
@@ -366,6 +374,37 @@ export class PetView {
         this.container.querySelector('.pet-select-card.is-selected')?.focus({ preventScroll: true });
       };
     });
+
+    // 左键拖曳宠物头像到出战位（主宠/副宠1/副宠2），点选保留兜底
+    this.container.querySelectorAll('.pet-select-card[draggable="true"]').forEach(card => {
+      card.addEventListener('dragstart', (event) => {
+        const petId = card.getAttribute('data-pet-id');
+        this._dragPetId = petId;
+        if (event.dataTransfer) { event.dataTransfer.setData('text/plain', petId); event.dataTransfer.effectAllowed = 'move'; }
+      });
+      card.addEventListener('dragend', () => { this._dragPetId = null; });
+    });
+    this.container.querySelectorAll('[data-drop-slot]').forEach(slotEl => {
+      const slot = Number(slotEl.getAttribute('data-drop-slot'));
+      slotEl.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+        slotEl.classList.add('is-drop-over');
+      });
+      slotEl.addEventListener('dragleave', () => slotEl.classList.remove('is-drop-over'));
+      slotEl.addEventListener('drop', (event) => {
+        event.preventDefault();
+        slotEl.classList.remove('is-drop-over');
+        const petId = (event.dataTransfer && event.dataTransfer.getData('text/plain')) || this._dragPetId;
+        if (!petId) return;
+        const result = gameState.setPetPartySlot(slot, petId);
+        if (!result.success) return gameModal.alert(result.msg, '随行阵容');
+        sound.playSlash();
+        this.selectedPetId = petId;
+        this.render();
+        this.container.querySelector('.pet-select-card.is-selected')?.focus({ preventScroll: true });
+      });
+    });
     this.container.querySelectorAll('.btn-return-pet-book').forEach(button => {
       button.addEventListener('click', () => {
         const petId = this.selectedPetId;
@@ -382,11 +421,19 @@ export class PetView {
       if (btn) {
         btn.addEventListener('click', () => {
           this.currentSubTab = tab;
+          this.detailSub = 'main';
           sound.playSlash();
           this.render();
           document.getElementById(`pet-subtab-${tab}`)?.focus({ preventScroll: true });
         });
       }
+    });
+    this.container.querySelectorAll('[data-pet-sub]').forEach(button => {
+      button.onclick = () => {
+        this.detailSub = button.dataset.petSub;
+        this.render();
+        this.container.querySelector(`[data-pet-sub="${this.detailSub}"]`)?.focus({ preventScroll: true });
+      };
     });
 
     // 选中宠物
@@ -394,6 +441,7 @@ export class PetView {
       card.addEventListener('click', () => {
         const id = card.getAttribute('data-pet-id');
         this.selectedPetId = id;
+        this.detailSub = 'main';
         sound.playSlash();
         this.render();
         this.container.querySelector('.pet-select-card.is-selected')?.focus({ preventScroll: true });

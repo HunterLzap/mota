@@ -1,7 +1,10 @@
-// 装备与物品配置：100% 还原《魔塔世界》百度百科原著
+// 装备与物品配置：参考《魔塔世界》百度百科的简体单机改编版
 // 10大经典槽位：武器、护胸、护腿、披风、头盔、护手、护靴、腰带、项链、戒指
 
-export const ITEM_SLOTS = [
+// 12 部位总开关（默认开；关闭即回退为原作精简版 10 部位，用于回滚）
+export const ENABLE_12_SLOTS = true;
+
+const BASE_ITEM_SLOTS = [
   { id: 'weapon', name: '武器', icon: 'images/items/wpn_sword.svg' },
   { id: 'armor', name: '护胸', icon: 'images/items/arm_chest.svg' },
   { id: 'pants', name: '护腿', icon: 'images/items/eq_pants.svg' },
@@ -14,10 +17,30 @@ export const ITEM_SLOTS = [
   { id: 'ring', name: '戒指', icon: 'images/items/eq_ring.svg' }
 ];
 
+// 原作 12 部位新增：护心镜（防具）/ 手镯（首饰）。图标为占位，后续补正式绘画。
+const EXTRA_ITEM_SLOTS = [
+  { id: 'mirror', name: '护心镜', icon: 'images/items/arm_chest.svg' },
+  { id: 'bracelet', name: '手镯', icon: 'images/items/eq_ring.svg' }
+];
+
+export const ITEM_SLOTS = ENABLE_12_SLOTS ? [...BASE_ITEM_SLOTS, ...EXTRA_ITEM_SLOTS] : BASE_ITEM_SLOTS;
+
 export const SLOT_MAP = ITEM_SLOTS.reduce((acc, slot) => {
   acc[slot.id] = slot;
   return acc;
 }, {});
+
+// 原作孔位上限：武器 3、防具 2（含护心镜）、首饰 1（项链/戒指/手镯）。
+export function getSocketCap(slot) {
+  if (slot === 'weapon') return 3;
+  if (slot === 'necklace' || slot === 'ring' || slot === 'bracelet') return 1;
+  return 2;
+}
+
+// 首饰类无耐久（项链/戒指/手镯）；护心镜归防具，有耐久。
+export function hasDurability(slot) {
+  return slot !== 'necklace' && slot !== 'ring' && slot !== 'bracelet';
+}
 
 export const QUALITIES = {
   white: { id: 'white', name: '白装', color: '#9ca3af', border: 'border-slate-400', bg: 'bg-slate-700/50', multiplier: 1.0 },
@@ -27,7 +50,19 @@ export const QUALITIES = {
   purplegold: { id: 'purplegold', name: '紫金装', color: '#a855f7', border: 'border-purple-500', bg: 'bg-purple-950/90', multiplier: 4.5 }
 };
 
-// 官方原著套装大全 (百度百科 100% 还原)
+// Canonical display names retain legacy IDs and inventory stack boundaries.
+export const CANONICAL_ITEM_NAMES = {
+  socket_crystal: '打孔水晶',
+  pet_egg_gold: '黄金宠物蛋',
+  pet_egg_darkgold: '暗金宠物蛋'
+};
+
+export function applyCanonicalItemName(item) {
+  const name = CANONICAL_ITEM_NAMES[item?.id];
+  return name && item.name !== name ? { ...item, name } : item;
+}
+
+// 官方套装大全（参考百度百科，简体单机改编）
 export const OFFICIAL_SETS = {
   courage: {
     id: 'courage',
@@ -35,8 +70,10 @@ export const OFFICIAL_SETS = {
     quality: 'gold',
     reqLevel: 30,
     source: '剧情任务/魔塔前段',
+    slots: ['weapon', 'armor', 'pants', 'helmet', 'gloves', 'boots', 'cloak'],
     bonus2: { atk: 60, hp: 500, desc: '2件套：攻击+60，生命值上限+500' },
-    bonus4: { allSkillLv: 2, hit: 10, desc: '4件套：职业技能等级+2，命中率+10%' }
+    bonus4: { allSkillLv: 2, hit: 10, desc: '4件套：职业技能等级+2，命中率+10%' },
+    bonus7: { allSkillLv: 3, hit: 15, desc: '7件套：职业技能等级+3，命中率+15%' }
   },
   guardian_knight: {
     id: 'guardian_knight',
@@ -44,8 +81,10 @@ export const OFFICIAL_SETS = {
     quality: 'gold',
     reqLevel: 50,
     source: '竞技场/战场',
+    slots: ['weapon', 'armor', 'helmet', 'gloves', 'boots', 'belt', 'mirror'],
     bonus2: { def: 120, hit: 10, desc: '2件套：物理防御+120，命中率+10%' },
-    bonus4: { hp: 1200, allSkillLv: 3, desc: '4件套：生命上限+1200，职业技能等级+3' }
+    bonus4: { hp: 1200, allSkillLv: 3, desc: '4件套：生命上限+1200，职业技能等级+3' },
+    bonus7: { def: 600, hp: 1500, dmgResist: 10, desc: '7件套：防御值+600，生命上限+1500，减伤+10%' }
   },
   sagael_set: {
     id: 'sagael_set',
@@ -53,8 +92,10 @@ export const OFFICIAL_SETS = {
     quality: 'darkgold',
     reqLevel: 50,
     source: '古堡探险/死亡之门',
+    slots: ['weapon', 'armor', 'pants', 'cloak', 'helmet', 'belt', 'bracelet'],
     bonus2: { mp: 500, atk: 120, desc: '2件套：魔法值上限+500，攻击力+120' },
-    bonus4: { counter: 20, allSkillLv: 4, desc: '4件套：反击率+20%，职业技能等级+4' }
+    bonus4: { counter: 20, allSkillLv: 4, desc: '4件套：反击率+20%，职业技能等级+4' },
+    bonus7: { atk: 300, counter: 15, allSkillLv: 3, desc: '7件套：攻击力+300，反击率+15%，职业技能等级+3' }
   },
   judge: {
     id: 'judge',
@@ -62,8 +103,10 @@ export const OFFICIAL_SETS = {
     quality: 'darkgold',
     reqLevel: 50,
     source: '变幻之门/死亡之门',
+    slots: ['weapon', 'armor', 'pants', 'gloves', 'boots', 'necklace', 'ring'],
     bonus2: { hp: 600, speed: 20, desc: '2件套：生命上限+600，攻击速度+20' },
-    bonus4: { lifesteal: 15, allSkillLv: 3, desc: '4件套：生命偷取+15%，职业技能等级+3' }
+    bonus4: { lifesteal: 15, allSkillLv: 3, desc: '4件套：生命偷取+15%，职业技能等级+3' },
+    bonus7: { critDmg: 40, lifesteal: 10, allSkillLv: 3, desc: '7件套：暴击伤害+40%，生命偷取+10%，职业技能等级+3' }
   },
   kester_set: {
     id: 'kester_set',
@@ -71,8 +114,10 @@ export const OFFICIAL_SETS = {
     quality: 'darkgold',
     reqLevel: 70,
     source: '古堡探险/巨龙之门',
+    slots: ['weapon', 'armor', 'helmet', 'gloves', 'boots', 'cloak', 'bracelet'],
     bonus2: { crit: 10, atk: 100, desc: '2件套：暴击率+10%，基础攻击力+100' },
-    bonus4: { dodge: 15, allSkillLv: 5, desc: '4件套：闪避率+15%，职业技能等级+5' }
+    bonus4: { dodge: 15, allSkillLv: 5, desc: '4件套：闪避率+15%，职业技能等级+5' },
+    bonus7: { dodge: 15, speed: 30, allSkillLv: 4, desc: '7件套：闪避率+15%，攻击速度+30，职业技能等级+4' }
   },
   punisher: {
     id: 'punisher',
@@ -80,8 +125,10 @@ export const OFFICIAL_SETS = {
     quality: 'darkgold',
     reqLevel: 70,
     source: '风暴之门/巨龙之门',
+    slots: ['weapon', 'armor', 'pants', 'helmet', 'belt', 'mirror', 'cloak'],
     bonus2: { armorBreak: 100, atk: 120, desc: '2件套：破击值+100，攻击力+120' },
-    bonus4: { critDmg: 45, allSkillLv: 5, desc: '4件套：暴击伤害+45%，职业技能等级+5' }
+    bonus4: { critDmg: 45, allSkillLv: 5, desc: '4件套：暴击伤害+45%，职业技能等级+5' },
+    bonus7: { atk: 350, armorBreak: 150, allSkillLv: 4, desc: '7件套：攻击力+350，破击值+150，职业技能等级+4' }
   },
   aden_set: {
     id: 'aden_set',
@@ -89,8 +136,10 @@ export const OFFICIAL_SETS = {
     quality: 'darkgold',
     reqLevel: 80,
     source: '古堡探险/时空之门',
+    slots: ['weapon', 'armor', 'pants', 'helmet', 'gloves', 'boots', 'belt'],
     bonus2: { hp: 800, def: 250, desc: '2件套：生命上限+800，防御值+250' },
-    bonus4: { counter: 25, allSkillLv: 6, desc: '4件套：反击几率+25%，全技能等级+6级' }
+    bonus4: { counter: 25, allSkillLv: 6, desc: '4件套：反击几率+25%，全技能等级+6级' },
+    bonus7: { def: 700, hp: 2000, counter: 10, desc: '7件套：防御值+700，生命上限+2000，反击率+10%' }
   },
   conqueror: {
     id: 'conqueror',
@@ -98,8 +147,10 @@ export const OFFICIAL_SETS = {
     quality: 'darkgold',
     reqLevel: 80,
     source: '时空之门/古堡深层',
+    slots: ['weapon', 'armor', 'pants', 'cloak', 'helmet', 'gloves', 'mirror'],
     bonus2: { atk: 180, hp: 1000, desc: '2件套：攻击力+180，生命上限+1000' },
-    bonus4: { dmgBonus: 25, allSkillLv: 6, desc: '4件套：主动攻击伤害+25%，职业技能等级+6' }
+    bonus4: { dmgBonus: 25, allSkillLv: 6, desc: '4件套：主动攻击伤害+25%，职业技能等级+6' },
+    bonus7: { atk: 400, dmgBonus: 20, allSkillLv: 4, desc: '7件套：攻击力+400，主动攻击伤害+20%，职业技能等级+4' }
   },
   destiny_goddess: {
     id: 'destiny_goddess',
@@ -107,8 +158,10 @@ export const OFFICIAL_SETS = {
     quality: 'purplegold',
     reqLevel: 40,
     source: '屠银龙产出',
+    slots: ['weapon', 'armor', 'pants', 'helmet', 'necklace', 'ring', 'bracelet'],
     bonus2: { dodge: 15, speed: 25, desc: '2件套：闪避率+15%，先手速度+25' },
-    bonus4: { allSkillLv: 1, doubleStrike: 20, desc: '4件套：全部职业技能等级+1，普攻连击率+20%' }
+    bonus4: { allSkillLv: 1, doubleStrike: 20, desc: '4件套：全部职业技能等级+1，普攻连击率+20%' },
+    bonus7: { dodge: 15, speed: 30, doubleStrike: 15, desc: '7件套：闪避率+15%，先手速度+30，普攻连击率+15%' }
   },
   wisdom_goddess: {
     id: 'wisdom_goddess',
@@ -116,8 +169,10 @@ export const OFFICIAL_SETS = {
     quality: 'purplegold',
     reqLevel: 60,
     source: '屠金龙产出',
+    slots: ['weapon', 'armor', 'helmet', 'gloves', 'necklace', 'ring', 'bracelet'],
     bonus2: { hp: 800, mp: 600, desc: '2件套：生命上限+800，魔法值+600' },
-    bonus4: { allSkillLv: 2, magicDmg: 30, desc: '4件套：全部技能+2级，魔法与破击伤害+30%' }
+    bonus4: { allSkillLv: 2, magicDmg: 30, desc: '4件套：全部技能+2级，魔法与破击伤害+30%' },
+    bonus7: { mp: 1500, magicDmg: 25, allSkillLv: 3, desc: '7件套：魔法值上限+1500，魔法伤害+25%，职业技能等级+3' }
   },
   wargod_set: {
     id: 'wargod_set',
@@ -125,8 +180,10 @@ export const OFFICIAL_SETS = {
     quality: 'purplegold',
     reqLevel: 70,
     source: '屠金龙产出',
+    slots: ['weapon', 'armor', 'pants', 'helmet', 'gloves', 'boots', 'belt'],
     bonus2: { def: 800, hp: 1500, desc: '2件套：附加防御+800，生命上限+1500' },
-    bonus4: { allSkillLv: 2, dmgResist: 25, desc: '4件套：所有技能提升2级，受伤害免伤+25%' }
+    bonus4: { allSkillLv: 2, dmgResist: 25, desc: '4件套：所有技能提升2级，受伤害免伤+25%' },
+    bonus7: { def: 800, hp: 2500, dmgResist: 15, desc: '7件套：防御值+800，生命上限+2500，减伤+15%' }
   },
   victory_goddess: {
     id: 'victory_goddess',
@@ -134,8 +191,10 @@ export const OFFICIAL_SETS = {
     quality: 'purplegold',
     reqLevel: 80,
     source: '屠金龙巅峰产出',
+    slots: ['weapon', 'armor', 'helmet', 'gloves', 'boots', 'cloak', 'mirror'],
     bonus2: { atk: 300, crit: 25, desc: '2件套：物理与魔法攻击力+300，暴击率+25%' },
-    bonus4: { allSkillLv: 3, finishDmg: 40, desc: '4件套：职业技能等级+3，对生命不高于30%的目标攻击伤害+40%' }
+    bonus4: { allSkillLv: 3, finishDmg: 40, desc: '4件套：职业技能等级+3，对生命不高于30%的目标攻击伤害+40%' },
+    bonus7: { atk: 450, crit: 15, finishDmg: 30, desc: '7件套：攻击力+450，暴击率+15%，对残血目标伤害+30%' }
   },
   karlis_set: {
     id: 'karlis_set',
@@ -143,8 +202,55 @@ export const OFFICIAL_SETS = {
     quality: 'purplegold',
     reqLevel: 70,
     source: '古堡探险100层 / 终极时空之门',
+    slots: ['weapon', 'armor', 'pants', 'cloak', 'helmet', 'belt', 'mirror'],
     bonus2: { def: 600, hp: 2000, desc: '2件套：防御值+600，生命上限+2000' },
-    bonus4: { allSkillLv: 2, magicAbsorb: 30, desc: '4件套：全部技能+2级，受到伤害的30%转化为自身法力' }
+    bonus4: { allSkillLv: 2, magicAbsorb: 30, desc: '4件套：全部技能+2级，受到伤害的30%转化为自身法力' },
+    bonus7: { def: 1000, hp: 3000, magicAbsorb: 20, allSkillLv: 3, desc: '7件套：防御值+1000，生命上限+3000，法力吸收+20%，职业技能等级+3' }
+  },
+  light_emissary: {
+    id: 'light_emissary',
+    name: '【光明圣使套装】',
+    quality: 'purplegold',
+    reqLevel: 90,
+    source: '屠夜煞龙产出',
+    slots: ['weapon', 'armor', 'pants', 'helmet', 'gloves', 'necklace', 'bracelet'],
+    bonus2: { atk: 260, hp: 2200, dmgResist: 8, desc: '2件套：攻击+260，生命上限+2200，减伤+8%' },
+    bonus4: { allSkillLv: 3, magicDmg: 25, crit: 12, desc: '4件套：职业技能等级+3，魔法伤害+25%，暴击+12%' },
+    bonus7: { atk: 500, hp: 3000, dmgResist: 15, allSkillLv: 4, desc: '7件套：攻击力+500，生命上限+3000，减伤+15%，职业技能等级+4' }
+  },
+  // —— C1 补齐的 3 套（非红框，原作可获取） ——
+  tower_hero: {
+    id: 'tower_hero',
+    name: '【魔塔英雄套装】',
+    quality: 'darkgold',
+    reqLevel: 60,
+    source: '古堡50/70/90层首通 / 古堡深层掉落',
+    slots: ['weapon', 'armor', 'helmet', 'gloves', 'boots', 'belt', 'mirror'],
+    bonus2: { atk: 180, hp: 800, desc: '2件套：攻击力+180，生命上限+800' },
+    bonus4: { def: 400, dmgResist: 10, desc: '4件套：防御值+400，减伤+10%' },
+    bonus7: { allSkillLv: 3, critDmg: 25, hp: 1500, desc: '7件套：职业技能等级+3，暴击伤害+25%，生命上限+1500' }
+  },
+  aden_heir: {
+    id: 'aden_heir',
+    name: '【亚诺后裔套装】',
+    quality: 'gold',
+    reqLevel: 40,
+    source: '王都主线 / 王室任务 / 俸禄试炼',
+    slots: ['weapon', 'armor', 'pants', 'helmet', 'necklace', 'ring', 'bracelet'],
+    bonus2: { atk: 120, hp: 600, desc: '2件套：攻击力+120，生命上限+600' },
+    bonus4: { dmgResist: 8, speed: 15, desc: '4件套：减伤+8%，攻击速度+15' },
+    bonus7: { allSkillLv: 2, crit: 10, hp: 1200, desc: '7件套：职业技能等级+2，暴击率+10%，生命上限+1200' }
+  },
+  dark_demon: {
+    id: 'dark_demon',
+    name: '【黑暗魔神套装】',
+    quality: 'purplegold',
+    reqLevel: 90,
+    source: '古堡100层终焉 / 夜煞龙 / 深渊时空门',
+    slots: ['weapon', 'armor', 'pants', 'cloak', 'helmet', 'mirror', 'bracelet'],
+    bonus2: { atk: 300, crit: 20, desc: '2件套：攻击力+300，暴击率+20%' },
+    bonus4: { magicDmg: 25, dmgResist: 12, desc: '4件套：魔法伤害+25%，减伤+12%' },
+    bonus7: { allSkillLv: 4, critDmg: 40, magicAbsorb: 20, desc: '7件套：职业技能等级+4，暴击伤害+40%，法力吸收+20%' }
   }
 };
 
@@ -306,7 +412,7 @@ export const SPECIAL_ITEMS = {
   },
   socket_crystal: {
     id: 'socket_crystal',
-    name: '开孔水晶',
+    name: '打孔水晶',
     icon: 'images/items/socket_crystal.svg',
     quality: 'blue',
     desc: '为装备开凿宝石孔洞，每件装备最多开启 4 孔。'
@@ -337,7 +443,28 @@ export const SPECIAL_ITEMS = {
     name: '魔能兽肉排',
     icon: 'images/items/pet_food.svg',
     quality: 'blue',
-    desc: '喂食神兽恢复 35 点体力值。神兽体力低于 60 时特性将失效，请保持充盈！'
+    desc: '喂食神兽恢复 35 点体力值。体力低于80时天赋失效，低于60时属性减半，低于40时属性无效。'
+  },
+  pet_food_basic: {
+    id: 'pet_food_basic',
+    name: '普通宠物口粮',
+    icon: 'images/items/pet_food.svg',
+    quality: 'white',
+    desc: '喂食神兽恢复 15 点体力值。日常巡逻与低阶悬赏可得。'
+  },
+  pet_food_luxury: {
+    id: 'pet_food_luxury',
+    name: '豪华宠物饼干',
+    icon: 'images/items/pet_food.svg',
+    quality: 'gold',
+    desc: '喂食神兽恢复 60 点体力值。屠龙与高阶悬赏可得。'
+  },
+  slave_sigil: {
+    id: 'slave_sigil',
+    name: '侍从契印',
+    icon: 'images/items/pet_egg.svg',
+    quality: 'purple',
+    desc: '在庄园牢房使用，可收押一名对应战俘侍从；每名战俘只能缔约一次。'
   },
   pill_reborn: {
     id: 'pill_reborn',
@@ -358,14 +485,14 @@ export const SPECIAL_ITEMS = {
     name: '普通鱼饵',
     icon: 'images/items/bait_normal.svg',
     quality: 'white',
-    desc: '杂货店购买的普通鱼饵，能在水域钓到【七鳃鳗】，可兑换大量魔晶石。'
+    desc: '酒馆悬赏提供的普通鱼饵，能在水域钓到【七鳃鳗】，可在鱼市兑换魔晶石。'
   },
   bait_luxury: {
     id: 'bait_luxury',
     name: '高级鱼饵',
     icon: 'images/items/bait_luxury.svg',
     quality: 'darkgold',
-    desc: '特制的秘制高级鱼饵，有极高概率钓上【金龙鱼】，可兑换稀有天命道具与高阶宝石！'
+    desc: '特制的秘制高级鱼饵，有极高概率钓上【金龙鱼】，可在鱼市兑换魔晶与宠物口粮。'
   },
   crystal_gold: {
     id: 'crystal_gold',
@@ -418,14 +545,16 @@ const EQUIP_NAMES = {
   boots: ['疾风战靴', '泰坦重靴', '凌波长靴', '秘银战履', '追踪者短靴'],
   belt: ['力量腰带', '龙筋革带', '秘法束带', '坚定重带', '荆棘束腰'],
   necklace: ['星辰项链', '巨龙心核', '翡翠吊坠', '守护者徽章', '圣灵护符'],
-  ring: ['誓约之戒', '龙眼宝石戒', '符文秘银戒', '荣耀指环', '破晓金戒']
+  ring: ['誓约之戒', '龙眼宝石戒', '符文秘银戒', '荣耀指环', '破晓金戒'],
+  mirror: ['精钢护心镜', '龙鳞护心镜', '秘银护心镜', '守护者胸镜', '战痕护心镜'],
+  bracelet: ['秘银手镯', '龙晶腕轮', '符文护腕', '荣耀手镯', '破晓臂环']
 };
 
 // 职业装备模板；首饰共用，其他部位按职业塑形并标明专精。
 export const CLASS_EQUIPMENT = {
-  warrior: { stat: 'str', weapon: '精钢长剑', armor: '骑士胸甲', pants: '精钢护腿', cloak: '卫士披风', helmet: '骑士战盔', gloves: '精钢护手', boots: '行军战靴', belt: '力量腰带', icon: 'wpn_sword' },
-  mage: { stat: 'int', weapon: '星辉法杖', armor: '织法长袍', pants: '织法长裤', cloak: '星纹斗篷', helmet: '秘法兜帽', gloves: '魔导手套', boots: '织法软靴', belt: '秘法束带', icon: 'wpn_staff' },
-  hunter: { stat: 'dex', weapon: '巡林长弓', armor: '游侠皮甲', pants: '游侠护腿', cloak: '巡林披风', helmet: '游侠兜帽', gloves: '弓手护手', boots: '追踪短靴', belt: '游侠革带', icon: 'wpn_bow' }
+  warrior: { stat: 'str', weapon: '精钢长剑', armor: '骑士胸甲', pants: '精钢护腿', cloak: '卫士披风', helmet: '骑士战盔', gloves: '精钢护手', boots: '行军战靴', belt: '力量腰带', mirror: '精钢护心镜', icon: 'wpn_sword' },
+  mage: { stat: 'int', weapon: '星辉法杖', armor: '织法长袍', pants: '织法长裤', cloak: '星纹斗篷', helmet: '秘法兜帽', gloves: '魔导手套', boots: '织法软靴', belt: '秘法束带', mirror: '秘银护心镜', icon: 'wpn_staff' },
+  hunter: { stat: 'dex', weapon: '巡林长弓', armor: '游侠皮甲', pants: '游侠护腿', cloak: '巡林披风', helmet: '游侠兜帽', gloves: '弓手护手', boots: '追踪短靴', belt: '游侠革带', mirror: '轻皮护心镜', icon: 'wpn_bow' }
 };
 
 export function specializeEquipment(item, classId) {
@@ -465,6 +594,15 @@ export function generateEquipment(slot, level = 1, quality = 'blue', setId = nul
   } else if (slot === 'cloak') {
     stats.def = Math.floor((6 + level * 2) * mult);
     stats.maxMp = Math.floor((20 + level * 3) * mult);
+  } else if (slot === 'mirror') {
+    stats.def = Math.floor((10 + level * 3) * mult);
+    stats.hp = Math.floor((60 + level * 12) * mult);
+    if (Math.random() > 0.6) stats.magicResist = Math.floor(3 + level * 0.3);
+  } else if (slot === 'bracelet') {
+    if (Math.random() > 0.4) stats.atk = Math.floor((8 + level * 2) * mult);
+    if (Math.random() > 0.4) stats.crit = Math.floor((2 + level * 0.3) * mult);
+    if (Math.random() > 0.5) stats.maxHp = Math.floor((50 + level * 15) * mult);
+    if (!Object.keys(stats).length) stats.maxHp = Math.floor((50 + level * 15) * mult);
   } else if (slot === 'necklace' || slot === 'ring') {
     if (Math.random() > 0.4) stats.atk = Math.floor((10 + level * 3) * mult);
     if (Math.random() > 0.4) stats.crit = Math.floor((3 + level * 0.4) * mult);
@@ -480,12 +618,13 @@ export function generateEquipment(slot, level = 1, quality = 'blue', setId = nul
     if (slot === 'gloves' && classId === 'hunter') stats.speed = Math.floor((3 + level * .3) * mult);
   }
 
-  // 宝石孔 (白装0，蓝装1，黄金1~2，暗金2~3，紫金3)
-  let maxSockets = 0;
-  if (quality === 'blue') maxSockets = 1;
-  else if (quality === 'gold') maxSockets = slot === 'weapon' ? 2 : 1;
-  else if (quality === 'darkgold') maxSockets = slot === 'weapon' ? 3 : 2;
-  else if (quality === 'purplegold') maxSockets = 3;
+  // 宝石孔：品质决定初始孔数，部位上限按原作（武器3 / 防具2 / 首饰1）
+  let qualitySockets = 0;
+  if (quality === 'blue') qualitySockets = 1;
+  else if (quality === 'gold') qualitySockets = slot === 'weapon' ? 2 : 1;
+  else if (quality === 'darkgold') qualitySockets = slot === 'weapon' ? 3 : 2;
+  else if (quality === 'purplegold') qualitySockets = 3;
+  const maxSockets = Math.min(qualitySockets, getSocketCap(slot));
 
   return specializeEquipment({
     id: `eq_${slot}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -493,8 +632,7 @@ export function generateEquipment(slot, level = 1, quality = 'blue', setId = nul
     slot,
     quality,
     reqLevel: Math.max(1, Math.floor(level / 5) * 5),
-    durability: 100,
-    maxDurability: 100,
+    ...(hasDurability(slot) ? { durability: 100, maxDurability: 100 } : {}),
     stars: 0,
     sockets: maxSockets,
     gems: [],

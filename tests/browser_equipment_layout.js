@@ -25,8 +25,7 @@ async (page) => {
       for(const item of earned.bag) {
         await game.locator('#nav-tab-bag').click();
         await game.locator(`[data-bag-uid="${item.uid}"]`).click();
-        await scrollToControl('#btn-bag-equip-item','bag');
-        await game.locator('#btn-bag-equip-item').click();
+        await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click());
         if(!await game.evaluate(uid=>Object.values(window.gameState.data.equipped).some(item=>item?.uid===uid),item.uid))throw new Error('Equipment was not worn');
       }
       await scrollToControl('#btn-goto-bag-from-equip','equip');

@@ -55,7 +55,7 @@ async (page) => {
             check(await button.evaluate(e=>e===document.activeElement),'Filter lost keyboard focus');
             check(await button.getAttribute('aria-pressed')==='true','Filter has no selected state');
             const types=await game.locator('.system-log-row').evaluateAll(elements=>elements.map(e=>e.dataset.logType));
-            check(filter==='all' ? types.length===8 : types.length===1 && types[0]===filter,'Wrong log filtering');
+            check(filter==='all' ? types.length===5 : types.length===1 && types[0]===filter,'Wrong log filtering');
             const metrics=await contrast();
             check(metrics.every(m=>m.ratio>=4.5 && m.font>=12),'Low filter/badge contrast: '+JSON.stringify(metrics));
             filters.push({filter,metrics});
@@ -63,8 +63,20 @@ async (page) => {
         }
         check(await game.evaluate(()=>JSON.stringify(window.gameState.data))===before,'Log filter mutated game data');
         if (phase==='after') {
-          check(await game.locator('.system-log-row[data-log-type="estate"] .system-log-text').textContent().then(text => text.trim() === '长文检查：药园收获已记入账簿，北方守卫送来了新的探索委托。'.repeat(8)), 'Long log text was truncated');
-          check(await game.locator('#system-log-scroll-pane').evaluate(element=>element.scrollHeight>element.clientHeight),'Long log cannot scroll');
+          // 新口径：常驻面板固定高、仅最近 5 条、无内部滚动；长文完整内容改由「查看全部」分页弹窗承载。
+          check(await game.locator('#system-log-scroll-pane .system-log-row').count()===5,'Main log panel must show only latest 5 rows');
+          check(await game.locator('#system-log-scroll-pane').evaluate(element=>element.scrollHeight <= element.clientHeight + 1),'Main log panel must not scroll internally');
+          await game.locator('#btn-log-view-all').click();
+          const archive = game.locator('#system-log-archive-modal');
+          check(await archive.isVisible(),'View-all archive modal did not open');
+          const longText = '长文检查：药园收获已记入账簿，北方守卫送来了新的探索委托。'.repeat(8);
+          check((await archive.innerText()).includes(longText),'Archive lost full long log text');
+          check((await archive.innerText()).includes('第 1 / 2 页'),'Archive pagination page indicator wrong');
+          check(await game.locator('#system-log-archive-modal .flex.items-start').count()===6,'Archive first page must show 6 rows');
+          await game.locator('#btn-log-next').click();
+          check((await game.locator('#system-log-archive-modal').innerText()).includes('第 2 / 2 页'),'Archive next page did not advance');
+          await game.locator('#btn-log-archive-close').click();
+          check(await game.locator('#system-log-archive-modal').count()===0,'Archive did not close');
         }
         await game.locator('#header-char-box').focus(); await game.keyboard.press('Enter');
         check(await game.locator('#tab-content-hero').isVisible(),'Portrait no longer opens character page');

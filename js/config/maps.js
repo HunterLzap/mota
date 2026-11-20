@@ -61,6 +61,37 @@ export const MAPS = [
     ]
   },
   {
+    id: 'ice_north',
+    name: '冰雪北境',
+    reqLevel: 30,
+    icon: 'map_ice_north',
+    bg: 'from-sky-950/85 to-slate-900',
+    description: '终年冰封的极北冻原，冰川裂隙间游荡着霜狼与冰霜亡魂，霜巨人王的王座矗立在暴雪深处。',
+    idleRate: { expPerMin: 620, goldPerMin: 400, crystalPerMin: 5 },
+    boss: {
+      id: 'boss_ice_north',
+      name: '极北霜巨人王·约顿',
+      title: '冰封王座之主',
+      icon: 'monster_ice_giant',
+      level: 40,
+      hp: 17000,
+      atk: 560,
+      def: 310,
+      speed: 26,
+      exp: 4200,
+      gold: 19000,
+      crystal: 90,
+      guaranteedDrop: { id: 'crystal_gold', name: '黄金晶石', count: 3, icon: 'images/items/crystal_gold.svg' },
+      dropQuality: 'gold',
+      setDrop: 'guardian_knight'
+    },
+    monsters: [
+      { name: '霜牙雪狼', icon: 'monster_ice_wolf', hp: 2600, atk: 200, def: 115, exp: 2900, gold: 560, dropRate: 0.22 },
+      { name: '冰霜食尸鬼', icon: 'monster_ice_ghoul', hp: 3200, atk: 245, def: 135, exp: 3400, gold: 680, dropRate: 0.26 },
+      { name: '极地霜巨人', icon: 'monster_ice_giant', hp: 4600, atk: 330, def: 185, exp: 4400, gold: 900, dropRate: 0.3 }
+    ]
+  },
+  {
     id: 'wasteland',
     name: '龙眠远古荒原',
     reqLevel: 40,
@@ -91,6 +122,37 @@ export const MAPS = [
     ]
   },
   {
+    id: 'desert',
+    name: '沙漠古城',
+    reqLevel: 50,
+    icon: 'map_desert_ancient',
+    bg: 'from-amber-900/80 to-yellow-950/85',
+    description: '黄沙掩埋的古代王朝遗迹，木乃伊与巨石蝎在残垣间徘徊，据说法老的金字塔仍守着不死的秘宝。',
+    idleRate: { expPerMin: 1500, goldPerMin: 1100, crystalPerMin: 10 },
+    boss: {
+      id: 'boss_desert',
+      name: '沙海法老·阿努比斯',
+      title: '不朽古城的守墓君王',
+      icon: 'monster_gargoyle',
+      level: 60,
+      hp: 42000,
+      atk: 1100,
+      def: 620,
+      speed: 31,
+      exp: 10000,
+      gold: 45000,
+      crystal: 170,
+      guaranteedDrop: { id: 'crystal_darkgold', name: '暗金晶石', count: 3, icon: 'images/items/crystal_darkgold.svg' },
+      dropQuality: 'darkgold',
+      setDrop: 'aden_set'
+    },
+    monsters: [
+      { name: '黄沙木乃伊', icon: 'monster_mummy', hp: 8000, atk: 560, def: 300, exp: 8200, gold: 1500, dropRate: 0.3 },
+      { name: '古城巨蝎', icon: 'monster_scorpion', hp: 9800, atk: 690, def: 340, exp: 10000, gold: 1800, dropRate: 0.33 },
+      { name: '守墓石像鬼', icon: 'monster_gargoyle', hp: 13500, atk: 830, def: 400, exp: 13200, gold: 2250, dropRate: 0.36 }
+    ]
+  },
+  {
     id: 'swamp',
     name: '悲伤毒瘴沼泽',
     reqLevel: 60,
@@ -118,6 +180,37 @@ export const MAPS = [
       { name: '深渊腐臭泥沼怪', icon: 'monster_slime', hp: 16000, atk: 880, def: 550, exp: 14250, gold: 2200, dropRate: 0.32 },
       { name: '暗影水妖射手', icon: 'monster_siren', hp: 14000, atk: 1150, def: 420, exp: 18000, gold: 2875, dropRate: 0.35 },
       { name: '沼泽九头巨蟒', icon: 'monster_hydra', hp: 28000, atk: 1550, def: 750, exp: 30000, gold: 3875, dropRate: 0.4 }
+    ]
+  },
+  {
+    id: 'dark_cave',
+    name: '幽暗地窟',
+    reqLevel: 70,
+    icon: 'map_dark_cave',
+    bg: 'from-lime-950/85 to-slate-950',
+    description: '深不见底的地下洞窟，幽绿磷光映着石肤魔与噬魂蛛网，地窟深处的深渊领主以亡魂为食。',
+    idleRate: { expPerMin: 4000, goldPerMin: 3000, crystalPerMin: 24 },
+    boss: {
+      id: 'boss_dark_cave',
+      name: '幽暗地窟主宰·涅赫斯',
+      title: '深渊亡魂之主',
+      icon: 'monster_abyss_lord',
+      level: 80,
+      hp: 100000,
+      atk: 2500,
+      def: 1350,
+      speed: 37,
+      exp: 25000,
+      gold: 100000,
+      crystal: 350,
+      guaranteedDrop: { id: 'crystal_darkgold', name: '暗金晶石', count: 4, icon: 'images/items/crystal_darkgold.svg' },
+      dropQuality: 'darkgold',
+      setDrop: 'tower_hero'
+    },
+    monsters: [
+      { name: '洞窟噬魂蛛', icon: 'monster_cave_spider', hp: 26000, atk: 1650, def: 950, exp: 20000, gold: 3200, dropRate: 0.34 },
+      { name: '幽影石魔', icon: 'monster_shadow_golem', hp: 32000, atk: 1950, def: 1100, exp: 25000, gold: 3800, dropRate: 0.37 },
+      { name: '地窟深渊领主', icon: 'monster_abyss_lord', hp: 42000, atk: 2350, def: 1350, exp: 34000, gold: 5000, dropRate: 0.42 }
     ]
   },
   {

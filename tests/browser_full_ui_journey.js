@@ -114,7 +114,7 @@ async (page) => {
         if (!item.slot || (item.reqLevel || 1) > current.level || score(item) <= score(current.equipped[item.slot])) continue;
         await selectBag(item.uid);
         const preview = await game.evaluate(uid => window.gameState.getEquipmentPreview(uid), item.uid);
-        await click('#btn-bag-equip-item');
+        await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); for (let i=0;i<4&&await game.evaluate(()=>window.gameModal?.isOpen);i++) await game.locator('#game-modal-btn-confirm').click();
         const actual = await game.evaluate(() => window.gameState.getEffectiveStats());
         check(actual.atk === preview.after.atk && actual.speed === preview.after.speed, 'Preview differs from real equipped stats');
         report.equipment++;
@@ -124,8 +124,7 @@ async (page) => {
         const current = await data();
         if (score(item) > score(current.equipped[item.slot])) continue;
         await selectBag(item.uid);
-        await click('[data-detail-tab="actions"]');
-        await click('#btn-bag-sell-equipment');
+        await game.evaluate(() => document.getElementById('btn-bag-sell-equipment')?.click()); for (let i=0;i<4&&await game.evaluate(()=>window.gameModal?.isOpen);i++) await game.locator('#game-modal-btn-confirm').click();
       }
       preparedSignature = JSON.stringify([(await data()).level, (await data()).freeStatPoints, (await data()).skillTraining,
         (await data()).bag.filter(i => i.slot).map(i => i.uid), Object.values((await data()).equipped).map(i => i?.uid)]);
@@ -303,7 +302,7 @@ async (page) => {
     const gear = after.bag.find(item => item.id === choice.id);
     check(gear, 'Natural UI side story equipment missing');
     await selectBag(gear.uid);
-    await click('#btn-bag-equip-item');
+    await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); for (let i=0;i<4&&await game.evaluate(()=>window.gameModal?.isOpen);i++) await game.locator('#game-modal-btn-confirm').click();
     check((await data()).equipped[gear.slot]?.id === choice.id, 'Natural UI side story reward could not be equipped');
     report.commissions.push({ id, choiceId: choice.id, level: after.level, battles: report.battles.length });
     await refresh(id);

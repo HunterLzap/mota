@@ -5,8 +5,10 @@ body { background: #121411 !important; font-family: var(--font-game-body) !impor
 .mota-client-shell.classic-client { display: flex; flex-direction: column; width: min(1392px,100%); height: min(900px,calc(100vh - 24px)); max-height: none; padding: 7px; overflow: hidden; border: 7px ridge #55574a; border-radius: 9px; background: #252820; box-shadow: 0 8px 35px #000b, inset 0 0 0 2px #11150f; }
 .classic-client .classic-topbar { display: flex; align-items: center; gap: 20px; flex: 0 0 29px; padding: 0 8px 4px; background: #181b16; color: #d9cda8; border-bottom: 1px solid #6f725c; }
 .classic-topbar h1 { font-size: 19px; font-weight: 900; letter-spacing: .14em; color: #e8d6a6; white-space: nowrap; }
-.classic-currencies { display: flex; gap: 21px; font-size: 12px; }
-.classic-currencies b { padding-left: 6px; font-family: var(--font-game-numeric); font-variant-numeric: lining-nums tabular-nums; color: #f2d998; }
+.classic-currencies { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.classic-currencies > span { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-left: 1px solid #484a3c; }
+.classic-currencies > span:first-child { border-left: 0; padding-left: 2px; }
+.classic-currencies b { min-width: 24px; font-family: var(--font-game-numeric); font-variant-numeric: lining-nums tabular-nums; color: #f2d998; }
 .classic-save-tools { margin-left: auto; display: flex; align-items: center; gap: 9px; font-size: 12px; }
 .classic-save-tools button { padding: 2px 8px; }
 .classic-client .classic-navigation { display: flex; align-items: end; gap: 5px; padding: 6px 14px 0; height: 39px; flex-shrink: 0; border-bottom: 4px ridge #807f67; background: #25291f; }
@@ -36,7 +38,9 @@ body { background: #121411 !important; font-family: var(--font-game-body) !impor
 .classic-interval { font-size: 12px; padding: 6px 0 9px; }
 .classic-interval strong { float: none; margin-left: 28px; }
 #classic-adventure-note { font-size: 12px; line-height: 1.7; margin-top: 6px; }
-.classic-sidebar-action { width: 100%; padding: 4px; margin-top: 8px; font-size: 12px; }
+.classic-sidebar-action { width: 100%; padding: 4px; margin-top: 5px; font-size: 12px; }
+.classic-client .classic-character-stats .classic-stat-secondary { display: none; }
+.classic-more-stats { width: 100%; margin-top: 3px; padding: 3px 4px; font-size: 11px; }
 .classic-stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .classic-client .journey-guide { flex: 0 0 auto; padding: 6px 10px !important; margin: 0 2px 5px; gap: 12px; color: #352a1a; background: #d1bb8b; border: 2px ridge #79775b; }
 .classic-client .journey-guide h2 { color: #4a3019 !important; font-size: 13px; }
@@ -86,12 +90,14 @@ body { background: #121411 !important; font-family: var(--font-game-body) !impor
 }
 .classic-client .classic-footer .btn-log-filter[aria-pressed="true"] { background: #3d4931 !important; color: #fff0c9 !important; border-color: #4f5b3d; }
 .classic-client .classic-footer .btn-log-filter:focus-visible { outline: 2px solid #65431d; outline-offset: 1px; }
-.journal-emblem { display: inline-flex; width: 24px; height: 24px; flex-shrink: 0; background: #171d14; border: 1px solid #9b8050; }
+.journal-emblem { display: inline-flex; width: 24px; height: 24px; flex-shrink: 0; padding: 1px; }
+.journal-emblem .painted-icon { width: 100%; height: 100%; }
 .system-log-row { display: grid; grid-template-columns: 62px 38px minmax(0,1fr); align-items: start; gap: 5px; padding: 3px 0; }
 .classic-client .classic-footer .system-log-time { font: 11px/20px var(--font-game-numeric); color: #655237; white-space: nowrap; }
 .classic-client .classic-footer .system-log-text { min-width: 0; overflow-wrap: anywhere; font-size: 12px; line-height: 20px; color: #3d2d19; }
-.classic-client .classic-navigation .nav-art { width: 18px; height: 18px; flex: 0 0 18px; }
-.painted-icon { flex-shrink: 0; vertical-align: middle; background-color: #151a12; }
+.classic-client .classic-navigation button { gap: 5px; }
+.classic-client .classic-navigation .nav-art { width: 20px; height: 20px; flex: 0 0 20px; object-fit: contain; }
+.painted-icon { flex-shrink: 0; vertical-align: middle; background-color: transparent; filter: drop-shadow(0 1px 1px #0009); }
 .classic-command-dock { position: relative; height: 100%; border: 3px ridge #626752; border-radius: 45% 45% 6px 6px; background: #20271c; }
 .classic-dock-links { position: absolute; bottom: 3px; left: 3px; right: 3px; display: flex; gap: 3px; justify-content: space-between; z-index: 4; }
 .classic-dock-links button { padding: 3px 8px; font-size: 12px; }
@@ -166,7 +172,10 @@ body { background: #121411 !important; font-family: var(--font-game-body) !impor
 .classic-client .equip-character-sheet { flex: 1; min-height: 0; overflow-y: auto; }
 .classic-client .classic-character-stats { gap: 3px; }
 .classic-client .classic-character-stats dd { padding-top: 1px; padding-bottom: 1px; }
-.classic-client .classic-vitals { margin: 6px 0 8px; }
+.classic-client .classic-vitals { margin: 3px 0 5px; }
+.classic-client .classic-vitals label { margin-top: 5px; }
+.classic-client .classic-section-title { padding: 3px 0; }
+.classic-client .classic-interval { padding: 3px 0 4px; }
 /* Nine-slice metalwork leaves all panel contents and controls live. */
 .mota-client-shell.classic-client { border: 12px solid transparent !important; border-image: url('../images/ui/classic-frame.png') 160 / 16px stretch !important; background: #252820 !important; }
 .mota-client-shell.classic-client::before,.mota-client-shell.classic-client::after { display: none; }
@@ -189,3 +198,10 @@ body:not(.in-battle) .classic-client:has(#tab-content-pets:not(.hidden)) .classi
 }
 .classic-client .classic-footer .mota-parchment-panel [class*="bg-black"],.classic-client .classic-footer #system-log-scroll-pane { background: #e4d2ad44 !important; }
 @media (max-height: 850px) { .classic-client .classic-footer { height: 155px !important; flex-basis: 155px; } .classic-dock-portrait { height: 112px; } .classic-workspace { grid-template-columns: 196px minmax(0,1fr); } }
+
+/* 底部系统战报：固定高、仅最近 5 条、单行省略（完整内容走「查看全部」分页弹窗），不产生内部滚动条 */
+.classic-client .classic-footer #system-log-scroll-pane { overflow: hidden !important; }
+.classic-client .classic-footer #system-log-scroll-pane .system-log-row { align-items: center; padding: 1px 0; }
+.classic-client .classic-footer #system-log-scroll-pane .system-log-time { font-size: 11px; line-height: 16px; }
+.classic-client .classic-footer #system-log-scroll-pane .system-log-text { line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.classic-client .classic-footer #system-log-scroll-pane .system-log-badge { line-height: 16px; }

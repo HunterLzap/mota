@@ -1,6 +1,9 @@
 /* 宠物目录：双列小槽、单一资料页，保留原版面板的信息密度。 */
 #tab-content-pets .pet-party-strip { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 5px; flex: 0 0 auto; }
 #tab-content-pets .pet-party-strip > div { display: flex; gap: 7px; align-items: center; padding: 4px 7px; border: 1px solid #766348; background: #ddd0ac; min-width: 0; }
+#tab-content-pets .pet-party-strip > div.is-drop-over { outline: 2px solid #dfb467; outline-offset: 1px; background: #d8b985; }
+#tab-content-pets .pet-select-card[draggable="true"] { cursor: grab; }
+#tab-content-pets .pet-select-card[draggable="true"]:active { cursor: grabbing; }
 #tab-content-pets .pet-party-strip strong { white-space: nowrap; }
 #tab-content-pets .pet-party-strip span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 #tab-content-pets .pet-party-strip button { padding: 2px 5px; white-space: nowrap; }
@@ -32,7 +35,7 @@
   color: #fff0ca !important;
 }
 #tab-content-pets .pet-classic-workspace {
-  display: grid; grid-template-columns: minmax(220px,34%) minmax(0,1fr); gap: 9px;
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(330px,37%); gap: 9px;
   flex: 1; min-height: 0;
 }
 #tab-content-pets .pet-classic-roster,
@@ -85,12 +88,12 @@
   font-size: 12px; line-height: 1.6; color: #4a3721;
 }
 #tab-content-pets .pet-classic-detail { min-height: 0; overflow: auto; }
-#tab-content-pets .pet-classic-sheet { min-height: 100%; padding-bottom: 7px; }
+#tab-content-pets .pet-classic-sheet { min-height: 100%; padding-bottom: 3px; }
 #tab-content-pets .pet-detail-identity {
-  display: grid; grid-template-columns: 142px minmax(0, 1fr); gap: 13px; padding: 12px;
+  display: grid; grid-template-columns: 142px minmax(0, 1fr); gap: 13px; padding: 10px 12px;
 }
 #tab-content-pets .pet-detail-portrait {
-  height: 156px; padding: 10px 12px 23px; position: relative;
+  height: 148px; padding: 10px 12px 23px; position: relative;
   background: linear-gradient(#222e29, #101612); border: 3px ridge #8d784a;
 }
 #tab-content-pets .pet-portrait-art {

@@ -184,6 +184,7 @@ async (page) => {
       await reachable('[data-assign-party="2"]');
       await game.locator('#pet-panel-body').evaluate(element => { element.scrollTop = element.scrollHeight; });
       await capture('pets-bottom');
+      await game.evaluate(()=>{window.appInstance.views.pets.detailSub='more';window.appInstance.views.pets.render();});
       const training = await game.locator('#btn-train-companion').count();
       check(training === 1, 'Training entry was lost');
       await reachable('#btn-train-companion');
@@ -201,27 +202,28 @@ async (page) => {
       ]) {
         await game.locator(`.smithy-workshop-tabs [data-goto="smithy_${view}"]`).focus();
         await game.keyboard.press('Enter');
-        check(await game.locator(`.smithy-workshop-tabs [data-goto="smithy_${view}"]`).evaluate(element => element === document.activeElement), 'Work tab lost keyboard focus');
+        if (view !== 'runes') check(await game.locator(`.smithy-workshop-tabs [data-goto="smithy_${view}"]`).evaluate(element => element === document.activeElement), 'Work tab lost keyboard focus');
         const pinned = await reachable(action, false);
-        check(await game.locator('.smithy-bag-item').count() === JSON.parse(beforeTabs).bag.length, 'Workshop lost bag items');
-        await game.locator('.smithy-bag-item > summary').first().focus(); await game.keyboard.press('Enter');
-        check(await game.locator('.smithy-bag-item').first().evaluate(element => element.open), 'Bag inspection did not open');
-        await game.locator('.smithy-bag-item > summary').first().press('Enter');
-        const independent = await game.locator('.smithy-bag-scroll').evaluate(element => {
-          element.scrollTop = element.scrollHeight;
-          return { top: element.scrollTop, max: element.scrollHeight - element.clientHeight, detailTop: document.querySelector('.smithy-detail .smithy-scroll')?.scrollTop || 0 };
-        });
-        check(independent.top > 0, 'Bag overflow fixture did not scroll');
-        const workbenchScroll = await game.locator('.smithy-detail > .smithy-scroll').evaluate(element => {
-          const bag = document.querySelector('.smithy-bag-scroll'), bagBefore = bag.scrollTop;
-          element.scrollTop = element.scrollHeight;
-          return { top: element.scrollTop, max: element.scrollHeight - element.clientHeight, bagUnchanged: bag.scrollTop === bagBefore };
-        });
-        check(workbenchScroll.bagUnchanged, 'Workbench scrolling moved the bag');
+        // 符文页为独立左右两栏壳（无 workshop 页签/行囊，业务逻辑不变），单独校验；
+        // 其余铁匠页仍为工坊壳，校验行囊分页不滚。
+        let bagScroll = null;
+        if (view === 'runes') {
+          check(await game.locator('.runic-detail-scroll').count() === 1, 'Runes standalone detail missing');
+          check(await game.locator('[data-goto="smithy"],[data-goto="hub"]').count() >= 1, 'Runes page lost back navigation');
+        } else {
+          check(await game.locator('.smithy-bag-item').count() === JSON.parse(beforeTabs).bag.length, 'Workshop lost bag items');
+          await game.locator('.smithy-bag-item > summary').first().focus(); await game.keyboard.press('Enter');
+          check(await game.locator('.smithy-bag-item').first().evaluate(element => element.open), 'Bag inspection did not open');
+          await game.locator('.smithy-bag-item > summary').first().press('Enter');
+          bagScroll = await game.locator('.smithy-bag-scroll').evaluate(element => ({ sh: element.scrollHeight, ch: element.clientHeight }));
+          check(bagScroll.sh <= bagScroll.ch + 1, 'Workshop bag must be paginated without internal scroll');
+          check(await game.locator('.smithy-bag-item').count() === JSON.parse(beforeTabs).bag.length, 'Paginated bag must still render all items');
+        }
         await reachable(action, false);
         await capture('smithy-' + view);
         check(await state() === beforeTabs, 'Work tabs or bag preview changed the save');
-        smithy.tabs.push({ view, action: pinned, independent, workbenchScroll });
+        smithy.tabs.push({ view, action: pinned, bagScroll });
+        if (view === 'runes') { await game.locator('[data-goto="smithy"]').first().click(); await game.waitForTimeout(120); }
       }
       await game.locator('[data-goto="smithy_enhance"]').click();
       for (const slot of ['weapon', 'armor', 'pants', 'cloak', 'helmet', 'gloves', 'boots', 'belt', 'necklace', 'ring']) {
@@ -270,7 +272,10 @@ async (page) => {
       for (const tab of ['socket', 'runes']) {
         await game.evaluate(tab => { window.appInstance.views.town.currentView = 'smithy_' + tab; window.appInstance.views.town.render(); }, tab);
         await health('empty-workshop-' + tab);
-        check(await game.locator('.smithy-workshop').count() === 1, 'Empty workshop failed to render');
+        const rendered = tab === 'runes'
+          ? await game.locator('.runic-detail-scroll').count() >= 1
+          : await game.locator('.smithy-workshop').count() === 1;
+        check(rendered, 'Empty workshop failed to render: ' + tab);
       }
       check(!errors.length && !failures.length, JSON.stringify({ errors, failures }));
       results.push({ viewport, fixture: true, naturalProgression: false, pet, smithy, tower, npc: { acceptAndRefresh: true, cancelEscapeCloseAndFocus: true, shortAndLong: true, exactText: true }, protectedSlots: 4, checks, errors, failures });

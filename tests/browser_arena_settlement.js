@@ -35,11 +35,11 @@ async (page) => {
     if((await data()).arena.challengesLeft!==0)throw new Error('Five attempts not consumed');
     await game.reload();await go();
     if(await game.evaluate(()=>window.gameState.startArenaChallenge('opp_1').success))throw new Error('Exhausted quota bypassed');
-    await game.clock.setFixedTime(new Date('2026-10-06T00:01:00+08:00'));
+    await game.evaluate(()=>{const state=window.gameState;state.addActionPoints(state.data.actionClock.pointsPerDay);});
     await game.reload();loaded=await data();
-    if(loaded.arena.challengesLeft!==5)throw new Error('Next day quota not restored');
+    if(loaded.arena.challengesLeft!==5)throw new Error('Next action-day quota not restored');
     await go();await enter();const midnight=await data();
-    await game.clock.setFixedTime(new Date('2026-10-07T00:01:00+08:00'));
+    await game.evaluate(()=>{const state=window.gameState;state.addActionPoints(state.data.actionClock.pointsPerDay);});
     await game.evaluate(()=>{const state=window.gameState,beforeGold=state.data.gold,id=window.oldArenaIdentity;if(state.settleArenaChallenge('opp_1',id.challengeId,true).success||state.data.gold!==beforeGold||state.data.arena.challengesLeft!==5)throw new Error('Expired cross-day callback settled');});
     await finish(true);await game.reload();loaded=await data();
     if(loaded.gold!==midnight.gold||loaded.arena.challengesLeft!==5)throw new Error('Expired reward persisted');

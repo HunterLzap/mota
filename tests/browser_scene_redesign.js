@@ -101,7 +101,10 @@ async (page) => {
           }
         }
         if (phase === 'after' && tab === 'town') {
-          check(await game.locator('.town-facility-directory button').count() === 6, 'Town directory missing real routes');
+          const hotspotCount = await game.locator('.classic-town-location').count();
+          const hasRoyalShop = await game.locator('.classic-town-location[data-goto="royal_shop"]').count();
+          const hasStable = await game.locator('.classic-town-location[data-goto="stable"]').count();
+          check(hotspotCount === 8 && hasRoyalShop === 1 && hasStable === 1, 'Town scene hotspots missing (count=' + hotspotCount + ', royal_shop=' + hasRoyalShop + ', stable=' + hasStable + ')');
         }
         if (phase === 'after' && tab === 'equip') {
           check(await game.locator('.equip-body-portrait').isVisible(), 'Equipment portrait missing');
@@ -117,20 +120,23 @@ async (page) => {
       if (phase === 'after') {
         await game.locator('#nav-tab-town').click();
         for (const route of ['smithy', 'palace', 'tavern', 'fishing', 'dragons', 'faction_war']) {
-          const button = game.locator(`[data-town-route="${route}"]`);
+          const button = game.locator(`.classic-town-location[data-goto="${route}"]`);
           await button.scrollIntoViewIfNeeded();
+          await game.waitForFunction(() => !window.gameModal?.isOpen).catch(() => {});
+          await game.waitForTimeout(80);
           check(await button.evaluate(element => {
             const r = element.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
             return r.width > 0 && element.contains(hit);
-          }), 'Directory button covered: ' + route);
+          }), 'Town hotspot covered: ' + route);
           const locked = await button.getAttribute('aria-disabled') === 'true';
           await button.focus(); await game.keyboard.press('Enter');
           if (locked) {
-            check(await game.evaluate(() => window.gameModal.isOpen), 'Locked directory did not explain access');
+            check(await game.evaluate(() => window.gameModal.isOpen), 'Locked hotspot did not explain access');
             await game.keyboard.press('Escape');
-            check(await button.evaluate(element => element === document.activeElement), 'Locked directory lost focus');
+            await game.waitForFunction(() => !window.gameModal?.isOpen).catch(() => {});
+            check(await button.evaluate(element => element === document.activeElement), 'Locked hotspot lost focus');
           } else {
-            check(await game.evaluate(route => window.appInstance.views.town.currentView === route, route), 'Directory route failed: ' + route);
+            check(await game.evaluate(route => window.appInstance.views.town.currentView === route, route), 'Town hotspot route failed: ' + route);
             await game.locator('#tab-content-town .btn-goto-subview[data-goto="hub"]').first().click();
           }
           cityRoutes.push({ route, locked, keyboardPassed: true });
@@ -141,10 +147,14 @@ async (page) => {
       await game.screenshot({ path: `output/ui-redesign-2026-10-28/${phase}-${viewport.width}-battle.png`, animations: 'disabled' });
       const battle = await game.locator('#battle-overlay').evaluate(root => ({
         overflow: root.scrollWidth > root.clientWidth + 1,
-        stageHeight: root.querySelector('.battle-stage')?.getBoundingClientRect().height || 0
+        stageHeight: root.querySelector('.battle-stage')?.getBoundingClientRect().height || 0,
+        allyPortrait: !!root.querySelector('.battle-ally .battle-portrait, .battle-ally .battle-stage-opponent'),
+        enemyPortrait: !!root.querySelector('.battle-enemy .battle-portrait, .battle-enemy .battle-stage-opponent, [data-enemy-portrait]')
       }));
       check(!battle.overflow, 'Battle overflow');
-      if (phase === 'after') check(battle.stageHeight >= 160, 'Battle scenery missing');
+      // 战斗页 P0–P2 已定稿为 13vh 横幅（≈135/150px），旧 160px 阈值过期；
+      // 语义改为「战斗舞台存在 + 敌我立绘都在」（现在真正的 scenery 是左右立绘）。
+      if (phase === 'after') check(battle.stageHeight > 0 && battle.allyPortrait && battle.enemyPortrait, 'Battle scenery missing');
       await game.locator('#btn-skip-battle').click();
       await game.locator('#btn-confirm-battle').click(); await dismiss();
       if (phase === 'after') {

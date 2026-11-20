@@ -23,7 +23,8 @@ async (page) => {
         const uid = await game.evaluate(id => window.gameState.data.bag.find(item => item.id === id).uid, itemId);
         await game.locator('#nav-tab-bag').click();
         await game.locator(`[data-bag-uid="${uid}"]`).click();
-        await game.locator('#btn-bag-equip-item').click();
+        await game.locator('#bag-action-menu').waitFor();
+        await game.locator('#bag-action-menu button').filter({ hasText: '穿戴' }).first().click();
         await dismiss();
       }
       const checkStats = async () => {
@@ -35,6 +36,7 @@ async (page) => {
         for (const [key, value] of Object.entries(actual)) require(await game.locator(`[data-effective-stat="${key}"]`).innerText() === value, `Displayed ${key} differs from effective stats`);
         return actual;
       };
+      await game.locator('#nav-tab-equip').click();
       const healthy = await checkStats();
       await game.screenshot({ path: `output/playwright/ui-readiness-${viewport.width}-equipment.png`, animations: 'disabled' });
       // Isolated damaged-set fixture exercises presentation against actual production calculations.
@@ -53,7 +55,8 @@ async (page) => {
       require(Number(broken.atk.replaceAll(',', '')) < Number(healthy.atk.replaceAll(',', '')), 'Broken weapon still contributes attack');
       await game.locator('#nav-tab-town').click();
       require((await game.locator('.town-readiness').innerText()).includes('1 件已损坏，属性失效'), 'Town preparation missed broken equipment');
-      require(await game.locator('.classic-town-location').count() === 6, 'Missing city facilities');
+      require(await game.locator('.classic-town-location').count() === 8, 'Missing city facilities');
+      require(await game.locator('.classic-town-location[data-goto="stable"]').count() === 1, 'Missing royal stable entrance');
       // Illustrated city entries replaced the gradient directory. Verify the real
       // status/lock text fits its live controls; raster contrast is reviewed visually.
       const layout = await game.evaluate(() => {

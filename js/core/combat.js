@@ -35,7 +35,7 @@ export function getPlayerSynergyStrike(data) {
   return getSynergyStrike(data.classId, merc?.id || '', main.active ? main.pet.id : '');
 }
 
-export function runCombat(playerStats, enemyStats, playerData, enemyData) {
+export function runCombat(playerStats, enemyStats, playerData, enemyData, options = {}) {
   const cls = CLASSES[playerData.classId] || CLASSES.warrior;
   const enemyClassId = enemyData.classId || enemyStats.classId || null;
   const skills = getClassSkills(cls.id, playerStats.skillLevelBonus || 0, playerData);
@@ -63,21 +63,26 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
   const activePetObj = party[0].pet;
   const petCfg = activePetObj ? PET_CONFIGS[activePetObj.id] : null;
   const petStamina = activePetObj ? (activePetObj.stamina !== undefined ? activePetObj.stamina : 100) : 100;
-  const isPetActive = party.some(member => member.active);
-  const petLearnedSkills = petCfg && petStamina >= 60 ? Object.values(PET_SKILL_BOOKS)
+  const isPetActive = party.some(member => member.traitActive);
+  const petLearnedSkills = petCfg && party[0].traitActive ? Object.values(PET_SKILL_BOOKS)
     .filter(book => (activePetObj.skills || []).some(id => id === book.id || id === book.skillId))
     .map(book => book.skillId) : [];
 
   // 国家阵营被动
   const nationCfg = playerData.nation ? NATIONS[playerData.nation] : null;
 
-  // 雇佣佣兵
-  const hiredMerc = playerData.estate && playerData.estate.hiredMercId
-    ? MERCENARIES.find(m => m.id === playerData.estate.hiredMercId)
-    : null;
+  // 出征同伴：auto 兼容旧流程；none/merc/slave 为副本三模式。
+  const companionMode = options.companionMode || 'auto';
+  const hiredMerc = companionMode === 'none' || companionMode === 'slave'
+    ? null
+    : (playerData.estate && playerData.estate.hiredMercId
+      ? MERCENARIES.find(m => m.id === playerData.estate.hiredMercId)
+      : null);
 
   // 助战侍从
-  const assistingSlave = playerData.assistingSlave || null;
+  const assistingSlave = companionMode === 'none' || companionMode === 'merc'
+    ? null
+    : (playerData.assistingSlave || null);
 
   // 战斗实体状态
   const p = {
@@ -188,11 +193,11 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
   }
 
   if (activePetObj && petCfg) {
-    if (petStamina < 60) {
+    if (petStamina < 80) {
       record({
         turn: 0,
         type: 'warning',
-        message: `【神兽乏力】出战神兽【${petCfg.name}】体力仅剩 ${petStamina}/100（低于60），神兽特性【${petCfg.traitName}】暂已失效！请及时喂食魔能兽肉排！`,
+        message: `【神兽乏力】出战神兽【${petCfg.name}】体力仅剩 ${petStamina}/100（低于80），神兽特性【${petCfg.traitName}】暂已失效！请及时喂食魔能兽肉排！`,
         playerHp: p.hp,
         enemyHp: e.hp
       });
@@ -208,7 +213,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
   }
   for (const member of party.slice(1).filter(member => member.pet)) {
     record({ turn: 0, type: member.active ? 'passive' : 'warning',
-      message: `【副宠${member.slot}】${member.config.name} · ${member.active ? '天赋【' + member.config.traitName + '】生效' : '疲劳，天赋暂停'}`,
+      message: `【副宠${member.slot}】${member.config.name} · ${member.active ? '天赋【' + member.config.traitName + '】生效' : '体力不足，天赋暂停'}`,
       playerHp: p.hp, enemyHp: e.hp });
   }
 
@@ -281,6 +286,9 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
     });
   }
 
+  // Immutable opening values for the battle panel, after aura/party/relic modifiers.
+  const panelStats = entity => Object.fromEntries(['hp', 'maxHp', 'mp', 'maxMp', 'atk', 'def', 'speed', 'hit', 'dodge', 'crit', 'counter'].map(key => [key, entity[key]]));
+  const initialStats = { player: { ...panelStats(p), dmgResist: playerStats.dmgResist || 0 }, enemy: { ...panelStats(e), dmgResist: 0 } };
   const initialIntervals = { player: getActionInterval(p.speed, cls.id), enemy: getActionInterval(e.speed, enemyClassId) };
 
   // 两条独立行动进度。中途减速保留已经积累的进度，只改变剩余时间。
@@ -414,6 +422,22 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       message: `【黑焰逆流】${source}实际恢复 ${healed} 点生命，压制 ${prevented} 点回复；控制或破魔可中断引导。`,
       playerHp: p.hp, enemyHp: e.hp });
     return healed;
+  }
+
+  // 圣光主教·艾莲娜：主角生命首次低于 40% 时回复 35% 最大生命，每场一次。
+  function tryClericHeal() {
+    if (hiredMerc?.id !== 'merc_cleric' || p.clericHealed || p.hp <= 0) return;
+    if (p.hp >= p.maxHp * 0.4) return;
+    p.clericHealed = true;
+    const amount = Math.floor(p.maxHp * 0.35);
+    const healed = restorePlayerHealth(amount, '圣光救赎');
+    record({
+      turn,
+      type: 'heal',
+      message: `【圣光救赎】${hiredMerc.name} 在生命垂危时施放圣光大治愈，恢复 ${healed} 点生命！`,
+      playerHp: p.hp,
+      enemyHp: e.hp
+    });
   }
 
   function checkEnemyRebirth() {
@@ -625,6 +649,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       echoMaxHpDamage: raw, damage: dealt, manaSpent: cost, enemyMp: e.mp, echoesLeft: echo.left,
       message: `【龙息余烬】${echo.ability.name} 在勇者行动后反噬 ${dealt} 点魔法伤害，剩余${echo.left}次；控制或破魔可熄灭，魔抗与减伤有效。`,
       playerHp: p.hp, enemyHp: e.hp });
+    tryClericHeal();
     if (dealt > 0 && p.hp > 0 && playerStats.magicAbsorb) {
       const restored = Math.min(p.maxMp - p.mp, Math.floor(dealt * playerStats.magicAbsorb / 100));
       if (restored > 0) {
@@ -987,6 +1012,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
       playerHp: p.hp,
       enemyHp: e.hp
     });
+    if (!isPlayer) tryClericHeal();
 
     if (!isPlayer && skillUsed?.echoes && e.hp > 0) {
       pendingPhaseEchoes.push({ ability: skillUsed, left: skillUsed.echoes.charges });
@@ -1250,5 +1276,5 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData) {
   });
 
   return { victory, logs, remainingHp: p.hp, remainingMp: p.mp, duration: elapsed, actionCounts,
-    initialIntervals, timedOut: p.hp > 0 && e.hp > 0 };
+    initialIntervals, initialStats, timedOut: p.hp > 0 && e.hp > 0 };
 }

@@ -12,6 +12,8 @@ const RANDOM_NAMES = [
   '加拉哈德·圣徒', '席尔瓦·银月', '奥斯汀·灭龙者', '戴安娜·疾风'
 ];
 
+const NATION_ART = { sagael: 'ui_rank', kester: 'ui_wild', aden: 'ui_town' };
+
 export class CharSelectModal {
   constructor(overlayId) {
     this.overlay = document.getElementById(overlayId);
@@ -71,8 +73,11 @@ export class CharSelectModal {
 
     const summaries = { warrior: '近战承伤，稳住阵线并反击。', mage: '施展法术，管理魔力与护盾。', hunter: '远程先手，用速度与控制压制敌人。' };
     this.overlay.innerHTML = `
-      <div role="dialog" aria-modal="true" aria-labelledby="character-dialog-title" class="w-full max-w-xl mota-parchment-panel rounded-xl border border-[#caa048] p-5 max-h-[95vh] overflow-y-auto">
-        <h2 id="character-dialog-title" class="text-lg text-amber-200 font-bold mb-4">创建冒险者</h2>
+      <div role="dialog" aria-modal="true" aria-labelledby="character-dialog-title" class="classic-creation-panel w-full max-w-xl max-h-[95vh] overflow-y-auto">
+        <header class="classic-creation-heading">
+          <span class="classic-creation-emblem" aria-hidden="true">${renderGameIcon('ui_rank', { size: 'w-full h-full' })}</span>
+          <span><h2 id="character-dialog-title">创建冒险者</h2><small>选择你的城邦与战斗之道</small></span>
+        </header>
         <label for="input-hero-name" class="text-xs text-amber-300">英雄名称</label>
         <div class="flex gap-2 mt-1 mb-4">
           <input id="input-hero-name" type="text" maxlength="12" value="${nameValue}" class="min-w-0 flex-1 bg-black/50 border border-[#b48c36] rounded p-2 text-amber-100">
@@ -81,13 +86,13 @@ export class CharSelectModal {
         <p class="text-xs text-amber-300 mb-2">城邦</p>
         <div class="grid grid-cols-3 gap-2 mb-4">
           ${Object.values(NATIONS).map(n => `<button data-nation-id="${n.id}" title="${n.buffDesc}" class="nation-card p-2 rounded border ${this.selectedNationId === n.id ? 'border-amber-400 bg-amber-950' : 'border-slate-700 bg-black/40'}">
-            <span class="block w-7 h-7 mx-auto mb-1">${renderGameIcon(n.id, { size: 'w-full h-full' })}</span><span class="text-xs text-amber-100">${n.name.split(' ')[0]}</span>
+            <span class="nation-art">${renderGameIcon(NATION_ART[n.id], { size: 'w-full h-full' })}</span><span class="text-xs text-amber-100">${n.name.split(' ')[0]}</span>
           </button>`).join('')}
         </div>
         <p class="text-xs text-amber-300 mb-2">职业</p>
         <div class="space-y-2 mb-4">
           ${Object.values(CLASSES).map(c => `<button data-class-id="${c.id}" class="char-class-card w-full flex items-center gap-3 p-3 rounded border text-left ${this.selectedClassId === c.id ? 'border-amber-400 bg-amber-950' : 'border-slate-700 bg-black/40'}">
-            <span class="w-8 h-8 flex-shrink-0">${renderGameIcon(c.id, { size: 'w-full h-full' })}</span>
+            <span class="class-art">${renderGameIcon(c.id, { size: 'w-full h-full' })}</span>
             <span><strong class="text-sm text-amber-100">${c.name}</strong><span class="block text-xs text-slate-300 mt-1">${summaries[c.id]}</span></span>
           </button>`).join('')}
         </div>

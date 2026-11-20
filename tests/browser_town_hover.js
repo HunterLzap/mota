@@ -73,7 +73,7 @@ async (page) => {
             window.gameState.notify();
           });
         }
-        check(await game.locator('.classic-town-location').count() === 6, 'Missing city entrances');
+        check(await game.locator('.classic-town-location').count() === 8, 'Missing city entrances');
         const locked = await game.locator('.classic-town-location[aria-disabled="true"]')
           .evaluateAll(elements => elements.map(element => element.getAttribute('data-goto')));
         check(JSON.stringify(locked.sort()) === JSON.stringify(phase === 'new-save' ? ['dragons', 'faction_war'] : []),
@@ -136,7 +136,7 @@ async (page) => {
             await game.keyboard.press('Enter');
             check(await game.evaluate(() => window.gameModal.isOpen), `Keyboard bypassed locked ${id}`);
             await dismiss();
-            check(await game.locator('.classic-town-location').count() === 6, 'Locked entry did not retain city');
+            check(await game.locator('.classic-town-location').count() === 8, 'Locked entry did not retain city');
             visits.push({ phase, id, lockedExplanation: true, keyboardExplanation: true });
           } else {
             await hotspot.click();
@@ -147,7 +147,7 @@ async (page) => {
             await noOverflow(`${phase}/${id}`);
             await game.locator('#tab-content-town button[data-goto="hub"]').click();
             check(await game.evaluate(() => window.appInstance.views.town.currentView) === 'hub' &&
-              await game.locator('.classic-town-location').count() === 6, `Return from ${id} did not restore city`);
+              await game.locator('.classic-town-location').count() === 8, `Return from ${id} did not restore city`);
             visits.push({ phase, id, openedAndReturned: true });
           }
         }

@@ -21,17 +21,17 @@ async (page) => {
     const before = await data();
     await game.locator('#nav-tab-bag').click();
     await game.locator('.bag-slot-cell[data-bag-uid="sale_0"]').click();
-    await game.locator('#btn-bag-sell-equipment').click();
+    await game.evaluate(() => document.getElementById('btn-bag-sell-equipment')?.click());
     if (!(await game.locator('#game-modal-overlay').innerText()).includes('无损摘除')) throw new Error('Socketed gear was not protected');
     await dismiss();
     if (JSON.stringify(await data()) !== JSON.stringify(before)) throw new Error('Rejected sale changed inventory');
     await game.locator('.bag-slot-cell[data-bag-uid="sale_1"]').click();
-    await game.locator('#btn-bag-sell-equipment').click();
+    await game.evaluate(() => document.getElementById('btn-bag-sell-equipment')?.click());
     await game.locator('#game-modal-btn-cancel').click();
     if (JSON.stringify(await data()) !== JSON.stringify(before)) throw new Error('Cancelled sale changed inventory');
     for (const uid of ['sale_1', 'sale_2']) {
       await game.locator(`.bag-slot-cell[data-bag-uid="${uid}"]`).click();
-      await game.locator('#btn-bag-sell-equipment').click();
+      await game.evaluate(() => document.getElementById('btn-bag-sell-equipment')?.click());
       await game.locator('#game-modal-btn-confirm').click(); await dismiss();
     }
     const sold = await data();
@@ -46,7 +46,7 @@ async (page) => {
     const loaded = await data();
     if (loaded.gold !== bought.gold || loaded.bag.some(item => ['sale_1', 'sale_2'].includes(item.uid)) || !loaded.bag.some(item => item.id === 'book_purify')) throw new Error('Reload lost sale/purchase state');
     await game.locator('#nav-tab-bag').click();
-    await game.locator('#btn-bag-equip-item').click();
+    await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click());
     if ((await data()).equipped.weapon.uid !== 'sale_0') throw new Error('Default item preview could not equip without a second selection');
     if (errors.length) throw new Error(errors.join('; '));
     return { overflowBefore: 41, afterSales: 39, afterPurchase: 40, goldEarned: 1000, cancellationPreserved: true, socketedGearPreserved: true, wornGearPreserved: true, reloadPreserved: true, defaultPreviewEquipped: true, errors };

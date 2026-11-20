@@ -18,6 +18,12 @@
   <link rel="stylesheet" href="./css/classic-materials.css">
   <link rel="stylesheet" href="./css/ui-refinements.css">
   <link rel="stylesheet" href="./css/scene-layout.css">
+  <link rel="stylesheet" href="./css/icon-consistency.css">
+  <link rel="stylesheet" href="./css/button-theme-sample.css">
+  <link rel="stylesheet" href="./css/bag-grid.css">
+  <link rel="stylesheet" href="./css/font-theme.css">
+  <link rel="stylesheet" href="./css/parchment-soft.css">
+  <link rel="stylesheet" href="./css/layout-1024-fix.css">
 </head>
 <body class="bg-[#0b0806] text-[#e5ded3] h-screen overflow-hidden select-none p-1 sm:p-2 flex flex-col items-center justify-center">
 
@@ -25,7 +31,7 @@
     <canvas id="atmosphere-canvas" class="hidden" aria-hidden="true"></canvas>
     <header class="classic-topbar">
       <h1>魔塔世界</h1>
-      <div class="classic-currencies"><span>金币 <b id="header-gold">0</b></span><span>魔晶 <b id="header-crystal">0</b></span><span>声望 <b id="header-prestige">0</b></span></div>
+      <div class="classic-currencies"><span>金币 <b id="header-gold">0</b></span><span>魔晶 <b id="header-crystal">0</b></span><span>声望 <b id="header-prestige">0</b></span><span id="header-action-day" class="header-action-day">第 1 行动日 · 行动点 30/30</span></div>
       <div class="classic-save-tools"><span id="header-active-slot-text">存档 1</span><button id="btn-open-archive" class="mota-btn-dark">存档管理</button><button id="btn-new-game-entry" class="mota-btn-dark">新开游戏</button></div>
     </header>
     <nav class="classic-navigation" aria-label="游戏功能"><button id="nav-tab-hero" class="mota-btn-dark">人物</button><button id="nav-tab-equip" class="mota-btn-dark">装备</button><button id="nav-tab-bag" class="mota-btn-dark">行囊</button><button id="nav-tab-pets" class="mota-btn-dark">神兽</button><button id="nav-tab-tower" class="mota-btn-dark">魔塔</button><button id="nav-tab-town" class="mota-btn-dark">王都</button><button id="nav-tab-wild" class="mota-btn-dark">野外</button><button id="nav-tab-estate" class="mota-btn-dark">庄园</button></nav>
@@ -41,7 +47,8 @@
           <label>经验 <span id="header-exp-sub">0%</span><i><b id="header-exp-bar"></b></i></label>
           <p id="header-exp-text">0 / 0</p>
         </div>
-        <h3 class="classic-section-title">战斗属性</h3><dl class="classic-character-stats"><div><dt>攻击</dt><dd id="classic-stat-atk">—</dd></div><div><dt>防御</dt><dd id="classic-stat-def">—</dd></div><div><dt>速度</dt><dd id="classic-stat-speed">—</dd></div><div><dt>暴击</dt><dd id="classic-stat-crit">—</dd></div><div><dt>命中</dt><dd id="classic-stat-hit">—</dd></div><div><dt>闪避</dt><dd id="classic-stat-dodge">—</dd></div><div><dt>反击</dt><dd id="classic-stat-counter">—</dd></div><div><dt>吸血</dt><dd id="classic-stat-lifesteal">—</dd></div><div><dt>魔抗</dt><dd id="classic-stat-magic-resist">—</dd></div><div><dt>减伤</dt><dd id="classic-stat-dmg-resist">—</dd></div></dl>
+        <h3 class="classic-section-title">战斗属性</h3><dl class="classic-character-stats"><div><dt>攻击</dt><dd id="classic-stat-atk">—</dd></div><div><dt>防御</dt><dd id="classic-stat-def">—</dd></div><div><dt>速度</dt><dd id="classic-stat-speed">—</dd></div><div><dt>命中</dt><dd id="classic-stat-hit">—</dd></div><div><dt>减伤</dt><dd id="classic-stat-dmg-resist">—</dd></div><div class="classic-stat-secondary"><dt>暴击</dt><dd id="classic-stat-crit">—</dd></div><div class="classic-stat-secondary"><dt>闪避</dt><dd id="classic-stat-dodge">—</dd></div><div class="classic-stat-secondary"><dt>反击</dt><dd id="classic-stat-counter">—</dd></div><div class="classic-stat-secondary"><dt>吸血</dt><dd id="classic-stat-lifesteal">—</dd></div><div class="classic-stat-secondary"><dt>魔抗</dt><dd id="classic-stat-magic-resist">—</dd></div></dl>
+        <button id="btn-more-stats" type="button" class="mota-btn-dark classic-more-stats">更多属性</button>
         <p class="classic-interval">野外出手 <strong id="classic-stat-interval">0</strong> 秒</p>
         <h3 class="classic-section-title">冒险手记</h3><p id="classic-adventure-note"></p>
         <button data-classic-tab="hero" class="mota-btn-dark classic-sidebar-action">角色成长与加点</button>

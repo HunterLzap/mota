@@ -1,9 +1,9 @@
 import { NATIONS } from './classes.js';
-import { SPECIAL_ITEMS, specializeEquipment } from './items.js';
+import { SPECIAL_ITEMS, specializeEquipment, hasDurability } from './items.js';
 
 // The first four entries have period name/level leads. Objectives, dialogue,
 // amounts and the later journey are single-player adaptations; see the audit.
-const darkgoldEgg = { ...SPECIAL_ITEMS.pet_egg, id: 'pet_egg_darkgold', name: '暗金神兽契约蛋', type: 'egg', quality: 'darkgold', count: 1 };
+const darkgoldEgg = { ...SPECIAL_ITEMS.pet_egg, id: 'pet_egg_darkgold', name: '暗金宠物蛋', type: 'egg', quality: 'darkgold', count: 1 };
 export const COMMISSIONS = [
   {
     id: 'oath_token', group: 'story_side', title: '誓言的信物', minLevel: 19,
@@ -101,7 +101,8 @@ export function getCommissionEquipment(config, choiceId, classId) {
   if (!chosen) return null;
   const item = specializeEquipment(chosen, classId);
   return { ...item, stats: { ...item.stats },
-    stars: 0, reqLevel: chosen.reqLevel || chosen.level || 1, sockets: 0, gems: [], durability: 100, maxDurability: 100 };
+    stars: 0, reqLevel: chosen.reqLevel || chosen.level || 1, sockets: 0, gems: [],
+    ...(hasDurability(chosen.slot) ? { durability: 100, maxDurability: 100 } : {}) };
 }
 
 export function getCommission(id, nation) {

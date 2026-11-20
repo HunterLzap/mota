@@ -9,6 +9,7 @@ async (page) => {
       await game.goto('http://127.0.0.1:8088', { timeout: 60000 });
       await game.locator(`[data-class-id="${classId}"]`).click();
       await game.locator('#btn-confirm-character').click();
+      for (let i = 0; i < 6 && await game.evaluate(() => window.gameModal && window.gameModal.isOpen); i++) await game.locator('#game-modal-btn-confirm').click();
       // Isolated gear fixture tests the real adapter and persistence, not natural balance.
       const before = await game.evaluate(async setId => {
         const { generateEquipment } = await import('/js/config/items.js');

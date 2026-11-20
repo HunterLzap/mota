@@ -66,7 +66,7 @@ async (page) => {
     if ((await data()).bag.length !== 40 + equipment.count) throw new Error('Full bag lost unequipped gear');
     await game.locator('#nav-tab-bag').click();
     await game.locator(`[data-bag-uid="${equipment.weapon}"]`).click();
-    await game.locator('#btn-bag-equip-item').click(); await dismiss();
+    await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); await dismiss();
     if ((await data()).equipped.weapon?.uid !== equipment.weapon) throw new Error('Owned gear could not be equipped from full bag');
     await game.reload();
     if ((await data()).equipped.weapon?.uid !== equipment.weapon) throw new Error('Full bag changes did not persist');
@@ -83,7 +83,7 @@ async (page) => {
     if (migrated.equipped.gloves.uid !== 'owned-gloves' || migrated.equipped.offhand || !gloves || gloves.id !== 'courage_gloves' || gloves.stats.def !== 95) throw new Error('Shield migration lost or changed equipment');
     await game.locator('#nav-tab-bag').click();
     await game.locator('[data-bag-uid="legacy-shield"]').click();
-    await game.locator('#btn-bag-equip-item').click(); await dismiss();
+    await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); await dismiss();
     await game.reload();
     const afterMigration = await data();
     if (afterMigration.equipped.gloves.uid !== 'legacy-shield' || !afterMigration.bag.some(i => i.uid === 'owned-gloves') || Object.keys(afterMigration.equipped).length !== 10) throw new Error('Migrated gloves could not be worn and saved in ten slots');

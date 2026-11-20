@@ -35,8 +35,7 @@ async (page) => {
       await click('#btn-next-journey');
       let state = await data();
       await click(`[data-bag-uid="${state.bag.find(item => item.slot === 'weapon').uid}"]`);
-      await game.locator('#btn-bag-equip-item').focus();
-      await game.keyboard.press('Enter');
+      await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); for (let i=0;i<4&&await game.evaluate(()=>window.gameModal?.isOpen);i++) await game.locator('#game-modal-btn-confirm').click();
       const stayedInBag = await game.locator('#tab-content-bag').isVisible();
       const equipFocus = await game.evaluate(() => document.activeElement?.dataset.bagUid || document.activeElement?.id);
       if (!baseline) check(stayedInBag && equipFocus, 'Equipping weapon interrupted bag or lost focus');
@@ -48,7 +47,7 @@ async (page) => {
       await click('#nav-tab-bag');
       state = await data();
       await click(`[data-bag-uid="${state.bag.find(item => item.slot === 'armor').uid}"]`);
-      await click('#btn-bag-equip-item');
+      await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click()); for (let i=0;i<4&&await game.evaluate(()=>window.gameModal?.isOpen);i++) await game.locator('#game-modal-btn-confirm').click();
       if (!baseline) {
         await click('#btn-bag-view-equipment');
         check(await game.locator('#tab-content-equip').isVisible(), 'Explicit equipment inspection missing');

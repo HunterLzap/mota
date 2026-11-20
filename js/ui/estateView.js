@@ -559,18 +559,10 @@ export class EstateView {
       const candidates = SLAVE_CANDIDATES;
       const uncaptured = candidates.filter(c => !gameState.data.slaves.list.some(s => s.id === c.id));
       const pick = uncaptured.length > 0 ? uncaptured[0] : candidates[Math.floor(Math.random() * candidates.length)];
-
-      gameState.data.slaves.list.push({
-        ...pick,
-        uid: 'sl_' + Date.now(),
-        isComforted: true,
-        comfortUntil: Date.now() + 3600000 * 2,
-        workedTimes: 0
-      });
-
+      const result = gameState.captureSlaveWithSigil(pick.id);
+      if (!result.success) return gameModal.alert(result.msg, '侍从契印');
       sound.playFanfare();
-      gameModal.alert(`激战得胜！成功俘获【${pick.name}】（${pick.title}）为家奴侍从！已押入牢房戴罪立功！`, '抓捕侍从成功');
-      gameState.notify();
+      gameModal.alert(`成功收押【${pick.name}】（${pick.title}）为侍从！已押入牢房戴罪立功！`, '侍从契印');
       this.render();
     };
 

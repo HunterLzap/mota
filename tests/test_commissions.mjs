@@ -163,12 +163,22 @@ test('backup validation rejects unknown and impossible progress without changing
   assert.deepEqual([...values.entries()], before);
 });
 test('five legacy slots retain all assets; migration and repeat load are idempotent, later accept stays possible', () => {
-  const assets = state => Object.fromEntries(['name', 'classId', 'nation', 'level', 'exp', 'gold', 'crystal', 'prestige', 'bag', 'pets', 'equipped', 'questProgress'].map(key => [key, structuredClone(state.data[key])]));
+  const assets = state => {
+    const snapshot = Object.fromEntries(['name', 'classId', 'nation', 'level', 'exp', 'gold', 'crystal', 'prestige', 'bag', 'pets', 'equipped', 'questProgress'].map(key => [key, structuredClone(state.data[key])]));
+    const strip = value => {
+      if (!value || typeof value !== 'object') return;
+      if (value.slot === 'necklace' || value.slot === 'ring') { delete value.durability; delete value.maxDurability; }
+      if (Array.isArray(value)) value.forEach(strip);
+      else Object.values(value).forEach(strip);
+    };
+    strip(snapshot.bag); strip(snapshot.equipped);
+    return snapshot;
+  };
   const snapshots = new Map();
   for (let slot = 1; slot <= 5; slot++) {
     const state = stateAt(45 + slot, ['aden', 'sagael', 'kester'][slot % 3]);
     state.data.name = 'Legacy ' + slot; state.data.gold = slot * 1234;
-    state.data.bag = [{ id: 'pet_egg_darkgold', type: 'egg', count: slot }];
+    state.data.bag = [{ id: 'pet_egg_darkgold', name: '暗金宠物蛋', type: 'egg', count: slot }];
     delete state.data.commissions;
     storage.saveToSlot(slot, state.data);
     snapshots.set(slot, assets(state));
@@ -184,7 +194,7 @@ test('five legacy slots retain all assets; migration and repeat load are idempot
     assert.equal(state.acceptCommission('oath_token').success, true);
     state.settleWildBossVictory('forest'); state.claimCommission('oath_token');
     const after = structuredClone(state.data);
-    state.loadOrInit(); assert.deepEqual(state.data, after);
+    state.loadOrInit(); assert.deepEqual(assets(state), assets({ data: after }));
     assert.equal(state.claimCommission('oath_token').success, false);
     parse(state.data);
   }

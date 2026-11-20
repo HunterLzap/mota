@@ -69,7 +69,7 @@ async (page, { phase, output }) => {
           uid: document.getElementById('btn-bag-equip-item').dataset.itemUid
         };
       });
-      await game.locator('#btn-bag-equip-item').click();
+      await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click());
       await game.waitForTimeout(250);
       report.equip = await game.evaluate(() => ({
         ...equipCounts, equipped: gameState.data.equipped.weapon?.uid === beforeEquip.uid,

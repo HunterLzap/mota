@@ -20,6 +20,7 @@
 - **项目实时状态**：[PROJECT_STATE.md](PROJECT_STATE.md)（里程碑、当前阶段、验证记录与下一步计划）
 - **架构与编码规范**：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（分层架构、状态流、西幻命名与矢量图标规范）
 - **测试矩阵与验证指南**：[docs/TESTING.md](docs/TESTING.md)（JSC 引擎语法测试、E2E 测试套件与验证命令）
+- **装备道具美术与官网名称基准**：[docs/OFFICIAL_ARTWORK.md](docs/OFFICIAL_ARTWORK.md)（2026-11-01 用户选定图集、部位映射、补绘与命名冲突边界）
 
 ## 项目标准命令 (Project Commands)
 
@@ -42,6 +43,7 @@
    - 全代码库（JS/HTML/CSS）与界面严禁使用任何 Unicode Emoji 符号。
    - 用户于 2026-10-29 明确要求装备、道具使用真正绘画贴图，覆盖历史“100% SVG”限制。此类内容统一经 `renderGameIcon()` 使用 `images/items/artwork/` 的 PNG 图集，禁止用 SVG 转位图冒充绘画。
    - 用户同日补充要求头像与常用界面徽记也使用绘画：统一由 `js/assets/paintedIcons.js` 供 `renderGameIcon()` 与兼容 `getVectorIcon()` 入口解析。保留旧路径兼容，不迁移存档字段；不要把未映射的旧符号宣称为已替换。
+   - 用户于 2026-11-01 选定 `images/items/artwork/official/` 本轮生成图为装备道具美术基准，同一物品优先使用本轮图片和官网叫法。按 `docs/OFFICIAL_ARTWORK.md` 匹配身份；不同规则的物品不得为了统一名称而合并，遇到冲突先沟通。
 3. **单存档职业唯一选定 (Single Class Choice Per Save)**：
    - 每个独立存档位在开局缔约创角时只需选择一次职业 (`hasChosenClass: true`)。
    - 游戏内彻底移除任何重新选择/切换职业的入口与弹窗，刷新或载入存档时严禁再次弹出创角选职弹窗。

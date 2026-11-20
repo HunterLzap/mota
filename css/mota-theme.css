@@ -292,8 +292,7 @@ body {
 }
 .bag-layout { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 .bag-inventory, .bag-detail { min-width: 0; min-height: 0; padding: 8px; overflow: hidden; }
-.bag-items { padding: 5px; gap: 5px; align-items: stretch; align-content: stretch; }
-.bag-items > div { height: auto; min-height: 0; max-height: 48px; }
+/* 行囊格子尺寸与对齐已统一到 css/bag-grid.css（唯一权威，最后加载），此处不再定义。 */
 .bag-pagination { display: flex; align-items: center; justify-content: space-between; gap: 5px; flex-shrink: 0; font-size: 10px; }
 .bag-pagination button { padding: 3px 8px; }
 .bag-pagination button:disabled { opacity: .4; cursor: default; }

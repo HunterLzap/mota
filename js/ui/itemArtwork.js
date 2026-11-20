@@ -1,4 +1,5 @@
 import { ITEM_ARTWORK } from './itemArtworkCatalog.js';
+import { OFFICIAL_ITEM_ARTWORK, OFFICIAL_SET_ARTWORK } from './officialItemArtwork.js';
 
 // Old saves keep their icon strings. Only the presentation resolves them to painted atlases.
 const token = value => typeof value === 'string'
@@ -8,7 +9,15 @@ export function getItemArtwork(itemOrKey, registry = {}) {
   if (!itemOrKey) return null;
   const item = typeof itemOrKey === 'object' ? itemOrKey : null;
   const key = item ? item.id || item.key || '' : itemOrKey;
-  const lookup = value => ITEM_ARTWORK[token(value)] || ITEM_ARTWORK[token(registry[value])];
+  const byToken = value => OFFICIAL_ITEM_ARTWORK[token(value)] || ITEM_ARTWORK[token(value)];
+  const lookup = value => byToken(value) || byToken(registry[value]);
+  const setId = item && (item.setId || item.set || (['novice_weapon', 'novice_armor'].includes(key) ? 'starter' : ''));
+  const set = OFFICIAL_SET_ARTWORK[setId];
+  if (set && item.slot) {
+    const part = item.slot === 'weapon'
+      ? ({ mage: 'staff', hunter: 'bow' }[item.reqClass] || 'weapon') : item.slot;
+    if (set[part]) return set[part];
+  }
   // Specific IDs distinguish rune stones and egg tiers which historically shared one SVG.
   let art = lookup(key);
   if (!art && item?.slot === 'weapon' && item.reqClass) {

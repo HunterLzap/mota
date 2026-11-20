@@ -5,9 +5,10 @@
 - Last meaningful progress (Asia/Shanghai): 2026-11-01 01:09:03 +08:00
 - Completed / actual progress: All scoped implementations and executable regressions complete; stages0-4 committed. Final report includes native OS visibility/freeze coverage limitation and preserved failure evidence.
 - Latest validation: Chrome three classes/two sizes, eight-page layouts, save/restart/load, thief/portraits/idle/equipment/Canvas; five required Python suites and runtime171/playability4/timing12/artwork all passed. Native hide/freeze partial, explicitly not claimed.
-- Current errors / blockers: See ERRORS.md; no active blocker.
+- Current errors / blockers: No unresolved reproduced game regression. Native OS-hidden/freeze events were not emitted by this environment; that coverage remains partial (ERRORS.md).
 - Next: No remaining authorized implementation work. Review report and local branch; no push/merge/deployment performed.
-- Latest stable Git commit: 36c10de376c2c7c138ebb358aa18104e23132b24
+- Latest stable Git commit: 5d8aba14a81c57f6e0d054fd2425e94a0001df1a
+- Last validated implementation commit: 36c10de376c2c7c138ebb358aa18104e23132b24
 - Branch: codex/overnight-game-ux
 - Implementation worktree: E:/mota-overnight
 - Original workspace / DSH evidence: E:/mota/output/overnight

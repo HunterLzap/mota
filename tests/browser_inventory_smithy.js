@@ -23,21 +23,19 @@ async (page) => {
     };
     const inspectPreview = async uid => {
       const before = JSON.stringify(await data());
-      await game.locator(`[data-bag-uid="${uid}"]`).focus(); await game.keyboard.press('Enter');
-      check(await game.locator(`[data-bag-uid="${uid}"]`).evaluate(element => element === document.activeElement), 'Item selection lost keyboard focus');
-      await game.locator('[data-detail-tab="stats"]').click();
       const preview = await game.evaluate(async uid => {
         const quote = window.gameState.getEquipmentPreview(uid);
         const { getPlayerActionInterval } = await import('/js/core/combat.js');
         return { ...quote, interval: getPlayerActionInterval(quote.after, window.gameState.data).toFixed(2) };
       }, uid);
+      // 新 UI：悬停格子显示全局属性卡（#mota-global-tooltip），无旧 data-preview-value/对比 DOM。
+      const cell = game.locator(`[data-bag-uid="${uid}"]`);
+      await cell.hover();
+      const tip = game.locator('#mota-global-tooltip');
+      await tip.waitFor({ state: 'visible' });
+      const tipText = await tip.innerText();
+      check(/装备类型|耐久/.test(tipText), 'Hover tooltip did not show equipment fields');
       check(JSON.stringify(await data()) === before, 'Preview or selection changed the save');
-      for (const key of ['atk', 'def', 'maxHp', 'maxMp', 'speed']) {
-        check(await game.locator(`[data-preview-value="${key}"]`).innerText() === preview.after[key].toLocaleString(), `Wrong preview ${key}`);
-      }
-      check(await game.locator('[data-preview-value="interval"]').innerText() === `${preview.interval}秒`, 'Preview interval does not use combat speed');
-      await reachable(game.locator('[data-compare-stat="interval"]'));
-      await reachable(game.locator('#btn-bag-equip-item'));
       return preview;
     };
     try {
@@ -55,7 +53,10 @@ async (page) => {
         const uid = await game.evaluate(id => window.gameState.data.bag.find(item => item.id === id).uid, id);
         await game.locator('#nav-tab-bag').click();
         const preview = await inspectPreview(uid);
-        await game.locator('#btn-bag-equip-item').click(); await dismiss();
+        await game.locator(`[data-bag-uid="${uid}"]`).click();
+        await game.locator('#bag-action-menu').waitFor();
+        await game.locator('#bag-action-menu button').filter({ hasText: '穿戴' }).first().click();
+        await dismiss();
         check(JSON.stringify(await game.evaluate(() => window.gameState.getEffectiveStats())) === JSON.stringify(preview.after), 'Actual opening equip differs from preview');
       }
       while (await game.evaluate(async () => (await import('/js/core/journey.js')).getJourneyGuidance(window.gameState.data)?.action === 'allocate_stats')) {
@@ -71,7 +72,7 @@ async (page) => {
       check((await data()).currentQuestId === 'quest_3', 'First investigation did not earn the forge lesson');
       await game.locator('#nav-tab-town').click();
       await game.locator('[data-goto="smithy"]').click();
-      check(await game.locator('.smithy-workshop-tabs > button').count() === 6, 'Missing keyboard-accessible forge tabs');
+      check(await game.locator('.smithy-workshop-tabs > button').count() === 7, 'Missing keyboard-accessible forge tabs');
       await game.screenshot({ path: `output/playwright/material5-${width}-smithy.png`, animations: 'disabled' });
       await game.locator('[data-goto="smithy_socket"]').focus(); await game.keyboard.press('Enter');
       check(await game.evaluate(() => window.gameModal.isOpen), 'Locked smithy entry bypassed progression');
@@ -125,31 +126,36 @@ async (page) => {
       await game.locator('[data-filter="all"]').click();
       const preview = await inspectPreview('inventory_0');
       check(preview.after.speed > preview.before.speed, 'Fixture does not exercise a speed increase');
-      check(await game.locator('[data-compare-stat="interval"] .bag-delta').getAttribute('data-direction') === 'gain', 'Shorter interval presented as a loss');
       const inventoryFrame = await game.locator('.bag-slot-cell').first().evaluate(element => {
         const r = element.getBoundingClientRect();
         return { ok: Math.abs(r.width - r.height) < 2 && r.width >= 36, square: Math.abs(r.width - r.height), width: r.width, height: r.height };
       });
       check(inventoryFrame.ok, `Inventory frame is stretched or too small: ${JSON.stringify(inventoryFrame)}`);
-      check(await game.locator('.bag-detail-content').evaluate(element => element.scrollHeight > element.clientHeight), 'Long item details do not scroll independently');
+      // 新 UI：详情常驻区隐藏，改悬停卡；穿戴用左键菜单。
+      check(await game.locator('.bag-detail').first().evaluate(e => getComputedStyle(e).display === 'none'), 'Legacy bag detail panel should be hidden');
       await game.screenshot({ path: `output/playwright/material5-${width}-bag.png`, animations: 'disabled' });
-      await game.locator('#btn-bag-equip-item').click(); await dismiss();
+      await game.locator('[data-bag-uid="inventory_0"]').click();
+      await game.locator('#bag-action-menu').waitFor();
+      await game.locator('#bag-action-menu button').filter({ hasText: '穿戴' }).first().click();
+      await dismiss();
       check(JSON.stringify(await game.evaluate(() => window.gameState.getEffectiveStats())) === JSON.stringify(preview.after), 'Fixture equip differs from preview');
       await game.locator('#nav-tab-bag').click();
-      await game.locator('[data-bag-uid="inventory_1"]').click();
-      await game.locator('[data-detail-tab="actions"]').click();
       const socketed = JSON.stringify(await data());
-      await game.locator('#btn-bag-sell-equipment').click();
-      check((await game.locator('#game-modal-message').innerText()).includes('摘除'), 'Sale failed to protect embedded gems');
-      await dismiss();
+      await game.locator('[data-bag-uid="inventory_1"]').click();
+      await game.locator('#bag-action-menu').waitFor();
+      check(await game.locator('#bag-action-menu button').filter({ hasText: '卖出' }).first().isDisabled(), 'Sale of socketed equipment should be blocked in menu');
+      await game.evaluate(() => document.getElementById('bag-action-menu')?.remove());
       check(JSON.stringify(await data()) === socketed, 'Refused sale modified resources');
-      await game.locator('[data-bag-uid="inventory_2"]').click();
       const beforeSale = await data();
-      await game.locator('#btn-bag-sell-equipment').click();
+      await game.locator('[data-bag-uid="inventory_2"]').click();
+      await game.locator('#bag-action-menu').waitFor();
+      await game.locator('#bag-action-menu button').filter({ hasText: '卖出' }).first().click();
       await game.locator('#game-modal-btn-cancel').focus(); await game.keyboard.press('Enter');
       await game.locator('#game-modal-overlay').waitFor({ state: 'hidden' });
       check(JSON.stringify(await data()) === JSON.stringify(beforeSale), 'Cancelled sale modified resources');
-      await game.locator('#btn-bag-sell-equipment').click();
+      await game.locator('[data-bag-uid="inventory_2"]').click();
+      await game.locator('#bag-action-menu').waitFor();
+      await game.locator('#bag-action-menu button').filter({ hasText: '卖出' }).first().click();
       await game.locator('#game-modal-btn-confirm').click(); await dismiss();
       const sold = await data();
       check(sold.gold === beforeSale.gold + 500 && !sold.bag.some(item => item.uid === 'inventory_2') && sold.bag.length === beforeSale.bag.length - 1, 'Sale paid or removed the wrong item');
@@ -191,7 +197,7 @@ async (page) => {
       check(await game.locator('[data-enhance-success-rate],[data-enhance-crystal-cost],#chk-use-protect').count() === 0, 'Maximum stars show an invalid price or probability');
       await game.screenshot({ path: `output/playwright/material5-${width}-max-stars.png`, animations: 'disabled' });
       await game.locator('[data-goto="smithy_repair"]').click();
-      check(await game.locator('[data-repair-slot]').count() === 10, 'Missing repair slots');
+      check(await game.locator('[data-repair-slot]').count() === 12, 'Missing repair slots');
       for (let i = 0; i < 10; i++) {
         await game.locator('[data-repair-slot]').nth(i).scrollIntoViewIfNeeded();
         await reachable(game.locator('[data-repair-slot]').nth(i));

@@ -9,6 +9,13 @@ const portraits = ['warrior','mage','hunter','merc_cleric','merc_paladin','merc_
 export const PAINTED_ICONS = {};
 emblems.forEach((key,index) => { PAINTED_ICONS[key] = { key, atlas:'images/ui/interface-emblems-v1.png', row:Math.floor(index/4), col:index%4, columns:4, rows:4 }; });
 portraits.forEach((key,index) => { PAINTED_ICONS[key] = { key, atlas:'images/portraits/character-heads-v1.png', row:Math.floor(index/3), col:index%3, columns:3, rows:2 }; });
+// Boss 龙立绘（屠龙圣殿/酒馆悬赏）：dragon_* 与 boss_dragon_* 同图，供 getVectorIcon 优先取绘画。
+const bossDragons = [
+  ['dragon_red', 0], ['boss_dragon_red', 0],
+  ['dragon_silver', 1], ['boss_dragon_silver', 1],
+  ['dragon_golden', 2], ['boss_dragon_golden', 2]
+];
+for (const [key, col] of bossDragons) PAINTED_ICONS[key] = { key, atlas:'images/portraits/boss-dragons-v1.png', row:0, col, columns:3, rows:2 };
 const aliases = {
   avatar_warrior:'warrior',hero_warrior:'warrior',avatar_mage:'mage',hero_mage:'mage',avatar_hunter:'hunter',hero_hunter:'hunter',
   bld_palace:'ui_town',bld_tower:'ui_town',bld_tavern:'ui_journal',bld_smithy:'ui_equip',

@@ -20,6 +20,7 @@ async (page) => {
   try {
     await game.goto('http://127.0.0.1:8088');
     await game.locator('[data-class-id="warrior"]').click(); await game.locator('#btn-confirm-character').click();
+    for (let i = 0; i < 6 && await game.evaluate(() => window.gameModal && window.gameModal.isOpen); i++) await game.locator('#game-modal-btn-confirm').click();
     await game.evaluate(() => {
       const d = window.gameState.data;
       d.level = 80; d.gold = 1000000;

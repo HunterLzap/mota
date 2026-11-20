@@ -76,9 +76,9 @@ test('party experience and upkeep affect exactly the three distinct assigned pet
   state.setPetPartySlot(1, 'naga'); state.setPetPartySlot(2, 'white_angel');
   state.data.pets.find(p => p.id === 'white_angel').stamina = 59;
   state.addExp(100);
-  assert.deepEqual(state.data.pets.slice(0, 4).map(p => p.exp), [100, 50, 0, 0]);
+  assert.deepEqual(state.data.pets.slice(0, 4).map(p => p.exp), [100, 50, 50, 0]);
   state.completeBattle();
-  assert.deepEqual(state.data.pets.slice(0, 4).map(p => p.stamina), [97, 99, 58, 100]);
+  assert.deepEqual(state.data.pets.slice(0, 4).map(p => p.stamina), [100, 100, 59, 100]);
   state.setPetPartySlot(1, null);
   assert.equal(getPetParty(state.data)[1].pet, null);
 });

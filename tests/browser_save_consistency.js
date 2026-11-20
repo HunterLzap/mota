@@ -28,7 +28,7 @@ async (page, { phase = 'after', output = 'output/save-consistency-2026-10-31' } 
       await game.locator('#nav-tab-bag').click();
       for (const item of (await data(game)).bag.filter(item => item.slot)) {
         await game.locator(`[data-bag-uid="${item.uid}"]`).click();
-        await game.locator('#btn-bag-equip-item').click();
+        await game.evaluate(() => document.getElementById('btn-bag-equip-item')?.click());
       }
     };
     const fight = async game => {
@@ -93,7 +93,7 @@ async (page, { phase = 'after', output = 'output/save-consistency-2026-10-31' } 
         check(JSON.parse(external).data.name === 'External Hunter', 'External slot write was not established');
         await second.locator('[data-bag-uid]').first().click();
         await second.waitForTimeout(400);
-        await second.locator('#btn-bag-equip-item').click();
+        await second.evaluate(() => document.getElementById('btn-bag-equip-item')?.click());
         await second.locator('#game-modal-overlay').waitFor({ state: 'visible' });
         result.conflictNotice = await second.locator('#game-modal-message').innerText();
         check(result.conflictNotice.includes('存档已发生变化'), 'Stale old tab was not stopped and explained');

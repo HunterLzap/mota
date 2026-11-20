@@ -110,7 +110,7 @@ async (page) => {
       await game.locator('#nav-tab-equip').click();
       await game.locator('#btn-view-sets-compendium').click();
       await capture('sets');
-      if (phase === 'after') check(await game.locator('#modal-sets-compendium [data-item-art]').count() === 13, 'Set catalog missing paintings');
+      if (phase === 'after') check(await game.locator('#modal-sets-compendium [data-item-art]').count() === 17, 'Set catalog missing paintings');
       await game.locator('#btn-close-sets-compendium').click();
       await game.locator('#nav-tab-estate').click();
       for (const route of ['alchemy', 'resources']) {

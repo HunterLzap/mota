@@ -8,6 +8,8 @@ import { renderGameIcon, renderSlotWatermark } from './iconHelper.js';
 import { tooltip } from './tooltip.js';
 import { gameModal } from './modal.js';
 
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
 // ==========================================
 // 1. 【人物面板】(Hero Profile View)
 // ==========================================
@@ -28,11 +30,10 @@ export class HeroView {
     const nextSkill = getClassSkills(data.classId).filter(skill => skill.unlockLevel > data.level).sort((a, b) => a.unlockLevel - b.unlockLevel)[0];
 
     const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-    const ledger = [
-      ['行动速度', stats.speed], ['出手间隔', `${getPlayerActionInterval(stats, data).toFixed(2)} 秒`],
-      ['精准命中', `${stats.hit}%`], ['敏捷闪避', `${stats.dodge}%`],
-      ['致命暴击', `${stats.crit}%`], ['正统反击', `${stats.counter}%`],
-      ['战阵吸血', `${stats.lifesteal || 0}%`], ['魔法抗性', stats.magicResist || 0]
+    const combatStats = [
+      ['攻击力', stats.atk], ['防御力', stats.def], ['速度', stats.speed],
+      ['减伤率', `${stats.dmgResist}%`], ['命中率', `${stats.hit}%`],
+      ['闪避率', `${stats.dodge}%`], ['暴击率', `${stats.crit}%`]
     ];
     this.container.innerHTML = `
       <section class="hero-profile hero-dossier">
@@ -40,32 +41,34 @@ export class HeroView {
           <button id="btn-open-class-skills" class="mota-btn-dark">职业技能 · 可用${getSkillTraining(data).available}点</button>
         </header>
         <div class="hero-dossier-body">
-          <section class="hero-identity-scene" aria-label="勇者身份">
-            <div class="class-portrait hero-body-portrait" role="img" aria-label="${esc(cls.name)}全身立绘"></div>
-            <div class="hero-identity-plaque"><span>${esc(nation.name.split(' ')[0])} · ${esc(data.royalTrials?.currentTitle || data.title)}</span>
-              <h3>${esc(data.name)} <small>Lv.${data.level}</small></h3><p>${esc(gameState.getPromotedClassName())}</p>
-            </div>
-            <div class="hero-experience"><span>历练经验 <b>${expPercent}%</b></span>
-              <div class="hero-experience-track"><i style="width:${expPercent}%"></i></div><small>${data.exp} / ${nextExp}</small>
-            </div>
-          </section>
-          <div class="hero-ledgers">
-            <section class="hero-vital-ledger" aria-label="有效战斗属性">
-              <h3 class="dossier-section-heading">战斗属性</h3>
-              <dl>${[['生命', stats.maxHp], ['魔力', stats.maxMp], ['攻击', stats.atk], ['防御', stats.def]].map(([label, value]) => `<div><dt>${label}</dt><dd>${value.toLocaleString()}</dd></div>`).join('')}</dl>
-              <dl class="hero-derived-ledger">${ledger.map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>
-            </section>
-            <section class="hero-potential-ledger" aria-label="核心潜能分配" tabindex="-1">
-              <h3 class="dossier-section-heading">核心潜能 <span>剩余 <b>${data.freeStatPoints}</b> 点</span></h3>
-              <div class="hero-potential-rows">${[['str', '力量'], ['dex', '敏捷'], ['int', '智力'], ['con', '体质']].map(([key, label]) => `<div><span>${label}</span><strong>${stats[key]}</strong><small>已分配 +${data.allocatedStats[key]}</small><button data-stat="${key}" aria-label="增加${label}" class="btn-add-stat mota-btn-gold" ${data.freeStatPoints > 0 ? '' : 'disabled'}>+</button></div>`).join('')}</div>
-              ${data.freeStatPoints > 0 ? '<button id="btn-recommended-stats" class="mota-btn-dark">按职业建议分配：主属性与体魄</button><p class="hero-allocation-hint">约七成主属性，三成体魄；也可逐项分配。</p>' : '<p class="hero-allocation-hint">当前潜能已分配，升级后可继续分配。</p>'}
+          <aside class="hero-info-column" aria-label="角色信息">
+            <div class="hero-info-caption"><span>角色成长</span><small>潜能与战力</small></div>
+            <h4 class="hero-info-block">潜能 <span>剩余 <b>${data.freeStatPoints}</b> 点</span></h4>
+            <div class="hero-potential-rows">${[['str', '力量'], ['dex', '敏捷'], ['int', '智力'], ['con', '体质']].map(([key, label]) => `<div><span>${label}</span><strong>${stats[key]}</strong><small>已分配 +${data.allocatedStats[key]}</small><button data-stat="${key}" aria-label="增加${label}" class="btn-add-stat mota-btn-gold" ${data.freeStatPoints > 0 ? '' : 'disabled'}>+</button></div>`).join('')}</div>
+            ${data.freeStatPoints > 0 ? '<button id="btn-recommended-stats" class="mota-btn-dark">按职业建议分配：主属性与体魄</button><p class="hero-allocation-hint">约七成主属性，三成体魄；也可逐项分配。</p>' : '<p class="hero-allocation-hint">当前潜能已分配，升级后可继续分配。</p>'}
+            <h4 class="hero-info-block">战斗力</h4>
+            <div class="hero-combat-grid">${combatStats.map(([label, value]) => `<div><span>${label}</span><b>${value}</b></div>`).join('')}</div>
+            <h4 class="hero-info-block">其它信息</h4>
+            <dl class="hero-info-lines">
+              <div><dt>国家</dt><dd>${esc(nation.name)}</dd></div>
+            </dl>
+          </aside>
+          <div class="hero-stage-column">
+            <section class="hero-identity-scene" aria-label="勇者身份">
+              <div class="class-portrait hero-body-portrait" role="img" aria-label="${esc(cls.name)}全身立绘"></div>
+              <div class="hero-identity-plaque"><span>${esc(nation.name.split(' ')[0])} · ${esc(data.achievements?.activeTitle || data.royalTrials?.currentTitle || data.title)}</span>
+                <h3>${esc(data.name)} <small>Lv.${data.level}</small></h3><p>${esc(gameState.getPromotedClassName())}</p>
+              </div>
+              <div class="hero-experience"><span>历练经验 <b>${expPercent}%</b></span>
+                <div class="hero-experience-track"><i style="width:${expPercent}%"></i></div><small>${data.exp} / ${nextExp}</small>
+              </div>
             </section>
             <section class="hero-lore-ledger"><p><b>${esc(nation.name)}：</b>${esc(nation.buffDesc)}</p><p><b>${esc(cls.name)}奥义：</b>${esc(cls.description)}</p>
               ${data.onboardingVersion === 2 && nextSkill ? `<p>下一个成长目标：${nextSkill.unlockLevel}级掌握【${esc(nextSkill.name)}】。</p>` : ''}
             </section>
+            <footer class="hero-dossier-actions"><span>装备与常驻加成已计入属性</span><button id="btn-quick-goto-equip" class="mota-btn-dark">前往装备</button><button id="btn-quick-to-bag" class="mota-btn-dark">打开背包</button></footer>
           </div>
         </div>
-        <footer class="hero-dossier-actions"><span>装备与常驻加成已计入属性</span><button id="btn-quick-goto-equip" class="mota-btn-dark">前往装备</button><button id="btn-quick-to-bag" class="mota-btn-dark">打开背包</button></footer>
       </section>`;
 
     this.bindEvents();
@@ -152,6 +155,7 @@ export class HeroView {
 export class EquipView {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
+    this.setTab = null;
   }
 
   render() {
@@ -169,21 +173,23 @@ export class EquipView {
       }
     });
 
-    // 左右各 5 槽位布局
+    // 十二部位纸娃娃：左 6 / 右 6
     const leftSlots = [
       { key: 'helmet', name: '头盔' },
       { key: 'necklace', name: '项链' },
-      { key: 'weapon', name: '武器' },
-      { key: 'gloves', name: '护手' },
-      { key: 'ring', name: '戒指' }
+      { key: 'cloak', name: '披风' },
+      { key: 'armor', name: '护胸' },
+      { key: 'belt', name: '腰带' },
+      { key: 'pants', name: '护腿' }
     ];
 
     const rightSlots = [
-      { key: 'armor', name: '护胸' },
-      { key: 'cloak', name: '披风' },
-      { key: 'belt', name: '腰带' },
-      { key: 'pants', name: '护腿' },
-      { key: 'boots', name: '战靴' }
+      { key: 'weapon', name: '武器' },
+      { key: 'gloves', name: '护手' },
+      { key: 'boots', name: '护靴' },
+      { key: 'ring', name: '戒指' },
+      { key: 'mirror', name: '护心镜' },
+      { key: 'bracelet', name: '手镯' }
     ];
 
     const renderSlot = (slot) => {
@@ -213,7 +219,7 @@ export class EquipView {
 
           <div class="equip-slot-copy min-w-0 flex-1 leading-tight">
             <span class="equip-part-label">${slot.name}${item ? ` · ${QUALITIES[item.quality]?.name || '装备'}` : ' · 空位'}</span>
-            <button type="button" data-browse-slot="${slot.key}" class="equip-slot-name" title="${item ? item.name : `选择${slot.name}`}">
+            <button type="button" data-browse-slot="${slot.key}" class="equip-slot-name" aria-label="${escapeHtml(item ? item.name : `选择${slot.name}`)}">
               ${item ? item.name : '从行囊选择'}
             </button>
             ${item ? `
@@ -242,7 +248,7 @@ export class EquipView {
         <div class="mota-breadcrumb px-3 py-1.5 rounded-xl flex items-center justify-between shadow mb-2 flex-shrink-0">
           <div class="flex items-center gap-2 text-xs">
             <span class="text-amber-200 font-bold text-xs">【装备】</span>
-            <span class="text-slate-400 text-[11px] font-mono">已穿戴: <b class="text-amber-300">${equippedCount}</b> / 10</span>
+            <span class="text-slate-400 text-[11px] font-mono">已穿戴: <b class="text-amber-300">${equippedCount}</b> / 12</span>
           </div>
           <div class="flex items-center gap-2">
             <button id="btn-auto-equip-strongest" class="mota-btn-gold px-2.5 py-1 rounded-lg text-xs font-bold shadow flex items-center gap-1">
@@ -254,14 +260,14 @@ export class EquipView {
           </div>
         </div>
 
-        <!-- 主体：三列宏伟纸娃娃殿堂 (左5槽 + 中间纸娃娃身姿 + 右5槽，开阔通透) -->
+        <!-- 主体：三列十二部位纸娃娃 (左6槽 + 中间立绘/属性 + 右6槽) -->
         <div class="equip-equipment-columns flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3">
           
           <!-- 左侧 5 大装备槽位 (3列) -->
           <div class="md:col-span-3 mota-parchment-panel p-3 rounded-xl flex flex-col justify-between border border-[#caa048]">
             <div class="equip-column-heading text-xs font-bold text-amber-300 pb-1.5 border-b border-[#4a3520]/70 flex items-center justify-between">
-              <span>武器与饰品</span>
-              <span class="text-[10px] text-slate-400 font-mono">${leftSlots.filter(slot => equipped[slot.key]).length} / 5</span>
+              <span>防具与饰品</span>
+              <span class="text-[10px] text-slate-400 font-mono">${leftSlots.filter(slot => equipped[slot.key]).length} / 6</span>
             </div>
             <div class="equip-slot-list">
               ${leftSlots.map(s => renderSlot(s)).join('')}
@@ -287,34 +293,19 @@ export class EquipView {
               <p>已计入有效装备与常驻加成；战中光环、控制会改变实际出手间隔。</p>
             </section></div>
 
-            <!-- 套装羁绊激活一览 (开阔精致) -->
+            <!-- 套装羁绊激活一览 -->
             <div class="equip-set-summary p-2.5 rounded-xl bg-black/40 border border-[#4a3520]/70 space-y-1 text-xs">
               <div class="font-bold text-purple-300 flex items-center justify-between text-[11px]">
                 <span>有效套装共鸣</span>
                 <button id="btn-view-sets-compendium" class="text-[10px] text-amber-300 hover:text-amber-100 underline decoration-amber-500 cursor-pointer">
-                  查看13远古套装全景图鉴
+                  查看${Object.keys(OFFICIAL_SETS).length}远古套装全景图鉴
                 </button>
               </div>
-              ${Object.keys(setCounts).length === 0 ? `
-                <div class="text-[11px] text-slate-500 italic py-1 text-center">
-                  尚无有效套装部件；在魔塔与地下城获取，损坏的装备不计入共鸣。
-                </div>
-              ` : `
-                <div class="space-y-1 max-h-24 overflow-y-auto custom-scrollbar">
-                  ${Object.entries(setCounts).map(([setId, cnt]) => {
-                    const setCfg = OFFICIAL_SETS[setId];
-                    if (!setCfg) return '';
-                    return `
-                      <div class="flex items-center justify-between text-[11px] p-1.5 rounded bg-black/40 border border-purple-900/40">
-                        <span class="font-bold text-amber-200">【${setCfg.name}】(${cnt}件有效)</span>
-                        <span class="text-emerald-400 font-mono">
-                          ${cnt >= 4 ? (setCfg.bonus4?.desc || setCfg.bonus4Desc) : cnt >= 2 ? (setCfg.bonus2?.desc || setCfg.bonus2Desc) : '未激活 (需2件)'}
-                        </span>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              `}
+              ${(() => {
+                const activeSets = Object.entries(setCounts).filter(([, cnt]) => cnt >= 1).map(([setId, cnt]) => ({ setCfg: OFFICIAL_SETS[setId], cnt })).filter(x => x.setCfg);
+                if (!activeSets.length) return `<div class="text-[11px] text-slate-500 italic py-1 text-center">尚无有效套装部件（有效件 ≥ 2 才共鸣）；损坏装备不计入。</div>`;
+                return `<div class="space-y-1">${activeSets.map(({ setCfg, cnt }) => `<div class="flex items-center justify-between text-[11px] p-1.5 rounded bg-black/40 border border-purple-900/40"><span class="font-bold text-amber-200">${setCfg.name}（${cnt}件有效）</span><span class="text-emerald-400 font-mono">${cnt >= 7 ? (setCfg.bonus7?.desc || setCfg.bonus7Desc) : cnt >= 4 ? (setCfg.bonus4?.desc || setCfg.bonus4Desc) : cnt >= 2 ? (setCfg.bonus2?.desc || setCfg.bonus2Desc) : '未激活（需2件）'}</span></div>`).join('')}</div>`;
+              })()}
             </div>
 
             <!-- 底部操作导航 -->
@@ -332,8 +323,8 @@ export class EquipView {
           <!-- 右侧 5 大防具槽位 (3列) -->
           <div class="md:col-span-3 mota-parchment-panel p-3 rounded-xl flex flex-col justify-between border border-[#caa048]">
             <div class="equip-column-heading text-xs font-bold text-amber-300 pb-1.5 border-b border-[#4a3520]/70 flex items-center justify-between">
-              <span>战甲与护具</span>
-              <span class="text-[10px] text-slate-400 font-mono">${rightSlots.filter(slot => equipped[slot.key]).length} / 5</span>
+              <span>武器与饰物</span>
+              <span class="text-[10px] text-slate-400 font-mono">${rightSlots.filter(slot => equipped[slot.key]).length} / 6</span>
             </div>
             <div class="equip-slot-list">
               ${rightSlots.map(s => renderSlot(s)).join('')}
@@ -349,6 +340,10 @@ export class EquipView {
   }
 
   bindEvents() {
+    this.container.querySelectorAll('[data-equip-slot]').forEach(el => {
+      const key = el.dataset.equipSlot;
+      tooltip.attach(el, () => gameState.data.equipped?.[key]);
+    });
     this.container.querySelectorAll('[data-browse-slot]').forEach(button => {
       button.onclick = () => {
         const bag = window.appInstance?.views?.bag;
@@ -443,17 +438,22 @@ export class EquipView {
       document.body.appendChild(modal);
     }
 
+    // 穿戴件数 vs 有效件数：损坏（耐久为 0）的部件不计入套装激活。
     const equippedSetCounts = {};
+    const effectiveSetCounts = {};
     Object.values(gameState.data.equipped).forEach(item => {
       if (item && item.setId) {
         equippedSetCounts[item.setId] = (equippedSetCounts[item.setId] || 0) + 1;
+        if (item.durability === undefined || item.durability > 0) {
+          effectiveSetCounts[item.setId] = (effectiveSetCounts[item.setId] || 0) + 1;
+        }
       }
     });
 
     const setsList = Object.values(OFFICIAL_SETS);
 
     modal.innerHTML = `
-      <div class="w-full max-w-2xl max-h-[85vh] mota-parchment-panel border-2 border-[#caa048] rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-fade-in">
+      <div class="w-full max-w-6xl max-h-[85vh] mota-parchment-panel border-2 border-[#caa048] rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-fade-in">
         <!-- 弹窗标题 -->
         <div class="p-3.5 border-b border-[#4a3520] flex items-center justify-between bg-black/40 flex-shrink-0">
           <div class="flex items-center gap-2">
@@ -465,49 +465,41 @@ export class EquipView {
           </button>
         </div>
 
-        <!-- 套装列表 -->
-        <div class="p-3 overflow-y-auto space-y-2.5 flex-1 custom-scrollbar">
+        <!-- 套装列表：三栏网格，一屏不内滚 -->
+        <div class="p-3 flex-1 min-h-0 overflow-hidden">
+          <div class="grid grid-cols-2 lg:grid-cols-3 gap-2 content-start">
           ${setsList.map(s => {
-            const count = equippedSetCounts[s.id] || 0;
-            const isFull = count >= 4;
+            const worn = equippedSetCounts[s.id] || 0;
+            const count = effectiveSetCounts[s.id] || 0;
+            const isFull = count >= 7;
+            const isMid = count >= 4;
             const isHalf = count >= 2;
             const qualityColor = s.quality === 'purplegold' ? 'text-purple-300 border-purple-500 bg-purple-950/40' : s.quality === 'darkgold' ? 'text-amber-400 border-amber-600 bg-amber-950/40' : 'text-yellow-300 border-yellow-600 bg-yellow-950/40';
 
             return `
-              <div class="p-2.5 rounded-xl border ${count > 0 ? 'bg-amber-950/30 border-amber-400/80 shadow' : 'bg-black/40 border-[#4a3520]/60'} space-y-1.5 text-xs">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    ${renderGameIcon(s.id, { size: 'w-10 h-10', className: 'flex-shrink-0' })}
-                    <span class="font-black text-sm ${count > 0 ? 'text-amber-200' : 'text-slate-200'}">${s.name}</span>
-                    <span class="text-[10px] px-1.5 py-0.2 rounded border font-mono ${qualityColor}">
-                      ${s.quality === 'purplegold' ? '紫金神圣' : s.quality === 'darkgold' ? '暗金史诗' : '黄金远古'}
-                    </span>
-                    <span class="text-[10px] text-slate-400 font-mono">门槛: Lv.${s.reqLevel}</span>
+              <div class="p-1.5 rounded-lg border ${count > 0 ? 'bg-amber-950/30 border-amber-400/80' : 'bg-black/40 border-[#4a3520]/60'} flex flex-col gap-0.5 text-[11px]">
+                <div class="flex items-center justify-between gap-1">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    ${renderGameIcon(s.id, { size: 'w-6 h-6', className: 'flex-shrink-0' })}
+                    <span class="font-black text-[12px] truncate ${count > 0 ? 'text-amber-200' : 'text-slate-200'}">${s.name}</span>
+                    <span class="text-[9px] px-1 py-0.2 rounded border font-mono whitespace-nowrap ${qualityColor}">${s.quality === 'purplegold' ? '紫金神圣' : s.quality === 'darkgold' ? '暗金史诗' : '黄金远古'}</span>
                   </div>
-                  <span class="text-[10px] font-mono px-2 py-0.5 rounded-full ${isFull ? 'bg-emerald-900 text-emerald-300 font-bold border border-emerald-600' : isHalf ? 'bg-amber-900 text-amber-300 font-bold border border-amber-600' : 'bg-slate-800 text-slate-400'}">
-                    已装备: ${count}/4 件
-                  </span>
+                  <span class="text-[9px] font-mono px-1.5 py-0.2 rounded-full whitespace-nowrap ${isFull ? 'bg-emerald-900 text-emerald-300 font-bold border border-emerald-600' : isHalf ? 'bg-amber-900 text-amber-300 font-bold border border-amber-600' : 'bg-slate-800 text-slate-400'}">已装备: ${worn}/7 件${worn !== count ? ` · 有效 ${count}` : ''}</span>
                 </div>
-
-                <div class="text-[11px] text-slate-400">
-                  获取途径：<span class="text-amber-300/90">${s.source}</span>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 border-t border-slate-800/80 text-[11px]">
-                  <div class="p-1.5 rounded bg-black/30 border border-slate-800 ${isHalf ? 'border-amber-500/60 bg-amber-950/20 text-amber-200' : 'text-slate-400'}">
-                    <span class="font-bold text-amber-300">2件羁绊:</span> ${s.bonus2?.desc || '属性提升'}
-                  </div>
-                  <div class="p-1.5 rounded bg-black/30 border border-slate-800 ${isFull ? 'border-emerald-500/60 bg-emerald-950/20 text-emerald-200' : 'text-slate-400'}">
-                    <span class="font-bold text-amber-300">4件奥义:</span> ${s.bonus4?.desc || '强力被动'}
-                  </div>
+                <div class="text-[10px] text-slate-400 truncate">获取途径：<span class="text-amber-300/90">${s.source}</span> · 门槛 Lv.${s.reqLevel}</div>
+                <div class="grid grid-cols-3 gap-1 pt-1 border-t border-slate-800/80 text-[9px] leading-tight">
+                  <div class="p-1 rounded bg-black/30 border ${isHalf ? 'border-amber-500/60 text-amber-200' : 'border-slate-800 text-slate-400'}" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"><span class="font-bold text-amber-300">2件</span> ${s.bonus2?.desc || '属性提升'}</div>
+                  <div class="p-1 rounded bg-black/30 border ${isMid ? 'border-emerald-500/60 text-emerald-200' : 'border-slate-800 text-slate-400'}" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"><span class="font-bold text-amber-300">4件</span> ${s.bonus4?.desc || '强力被动'}</div>
+                  <div class="p-1 rounded bg-black/30 border ${isFull ? 'border-purple-500/60 text-purple-200' : 'border-slate-800 text-slate-400'}" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"><span class="font-bold text-amber-300">7件</span> ${s.bonus7?.desc || '终极奥义'}</div>
                 </div>
               </div>
             `;
           }).join('')}
+          </div>
         </div>
 
         <div class="p-2.5 bg-black/50 border-t border-[#4a3520] flex items-center justify-between text-[11px] text-slate-400 flex-shrink-0">
-          <span>共 13 套远古史诗套装 · 穿戴 2 件与 4 件激活强力羁绊</span>
+          <span>共 ${setsList.length} 套远古史诗套装 · 穿戴 2 / 4 / 7 件激活强力羁绊</span>
           <button id="btn-close-sets-compendium-bottom" class="mota-btn-gold px-4 py-1 rounded-lg text-xs font-bold text-black">
             已知晓
           </button>

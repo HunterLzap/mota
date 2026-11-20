@@ -25,11 +25,21 @@ async (page) => {
       await game.locator('[data-class-id="warrior"]').click();
       await game.locator('#btn-confirm-character').click(); await dismiss();
       const maps = await game.evaluate(async () => {
-        for (const file of ['scenes/wild-regions.png', 'portraits/forest-enemies.png', 'portraits/canyon-wasteland-enemies.png', 'portraits/swamp-volcano-enemies.png']) {
+        for (const file of ['scenes/wild-regions-8.png', 'portraits/forest-enemies.png', 'portraits/canyon-wasteland-enemies.png', 'portraits/swamp-volcano-enemies.png']) {
           const image = new Image(); image.src = '/images/' + file; await image.decode();
           if (!image.naturalWidth) throw new Error('Missing asset: ' + file);
         }
-        return (await import('/js/config/maps.js')).MAPS;
+        const MAPS = (await import('/js/config/maps.js')).MAPS;
+        const NEW = ['ice_north', 'desert', 'dark_cave'];
+        for (const map of MAPS.filter(m => NEW.includes(m.id))) {
+          for (const m of [...map.monsters, map.boss]) {
+            const key = map.boss === m ? m.id : m.icon;
+            const src = '/images/portraits/individual/' + key + '.png';
+            const image = new Image(); image.src = src; await image.decode();
+            if (!image.naturalWidth) throw new Error('Missing individual portrait: ' + src);
+          }
+        }
+        return MAPS;
       });
       await game.locator('#nav-tab-wild').click();
       const opening = await snapshot();
@@ -45,10 +55,21 @@ async (page) => {
           return document.body.scrollWidth <= innerWidth && panel.scrollWidth <= panel.clientWidth + 1;
         }), 'Region detail overflow');
         await game.locator('.wild-map-detail').evaluate(element => { element.scrollTop = 0; });
-        check(await game.evaluate(() => {
-          const panel = document.querySelector('.wild-map-detail').getBoundingClientRect();
-          return [...document.querySelectorAll('.btn-fight-mob')].every(button => button.getBoundingClientRect().bottom <= panel.bottom - 2);
-        }), 'Ordinary battle actions start below the visible detail panel');
+        // 新布局（大立绘卡 + 详情区内滚动）：不再要求所有讨伐按钮首屏同列可见，
+        // 改为逐个滚动到可见区，断言按钮完整落在 .wild-map-detail 可视范围内且可命中。
+        const mobButtons = game.locator('.btn-fight-mob');
+        const mobCount = await mobButtons.count();
+        for (let i = 0; i < mobCount; i++) {
+          const button = mobButtons.nth(i);
+          await button.scrollIntoViewIfNeeded();
+          check(await button.evaluate(element => {
+            const panel = document.querySelector('.wild-map-detail').getBoundingClientRect();
+            const r = element.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+            return r.bottom <= panel.bottom + 1 && r.top >= panel.top - 1 && (element === hit || element.contains(hit));
+          }), 'Ordinary battle action not visible after scrolling within detail');
+        }
+        await game.locator('.wild-map-detail').evaluate(element => { element.scrollTop = 0; });
         await game.screenshot({ path: `output/playwright/material3-${width}-${map.id}.png`, animations: 'disabled' });
       }
       await game.locator('#btn-set-patrol').click();
@@ -81,15 +102,16 @@ async (page) => {
           await game.locator('#btn-set-patrol').click(); await dismiss();
           check((await snapshot()).camp === map.id, 'Camp deployment did not persist');
         }
-        const atlas = map.id === 'forest' ? 'forest-enemies.png' : ['canyon', 'wasteland'].includes(map.id) ? 'canyon-wasteland-enemies.png' : 'swamp-volcano-enemies.png';
+        const NEW_MAPS = ['ice_north', 'desert', 'dark_cave'];
         for (const [index, mob] of [...map.monsters, map.boss].entries()) {
           const boss = index === 3, key = boss ? mob.id : mob.icon;
+          const expectedFile = NEW_MAPS.includes(map.id) ? 'individual/' + key + '.png' : (map.id === 'forest' ? 'forest-enemies.png' : ['canyon', 'wasteland'].includes(map.id) ? 'canyon-wasteland-enemies.png' : 'swamp-volcano-enemies.png');
           const before = await snapshot();
           await game.locator(boss ? '#btn-fight-wild-boss' : `.btn-fight-mob[data-mob-idx="${index}"]`).click();
           const portrait = game.locator('.battle-enemy [data-enemy-portrait]');
           check(await portrait.getAttribute('data-enemy-portrait') === key, 'Wrong enemy identity: ' + key);
           check((await portrait.getAttribute('aria-label')).includes(mob.name), 'Wrong portrait accessible name');
-          check(await portrait.evaluate((element, file) => getComputedStyle(element).backgroundImage.includes(file), atlas), 'Wrong portrait atlas');
+          check(await portrait.evaluate((element, file) => getComputedStyle(element).backgroundImage.includes(file), expectedFile), 'Wrong portrait atlas');
           const timing = await game.evaluate(() => window.appInstance.battleView.currentCombat.initialIntervals.enemy);
           const expected = 10 / Math.sqrt(1 + (boss ? mob.speed : 18) / 100);
           check(Math.abs(timing - expected) < .00001, 'Boss configured speed was not used: ' + key);
@@ -108,7 +130,7 @@ async (page) => {
       }
       // An unpainted encounter must still render a usable vector portrait.
       await game.evaluate(() => window.appInstance.battleView.start({
-        enemyData: { name: 'Vector fallback fixture', portraitKey: 'unmapped-fixture', icon: 'monster_wolf' },
+        enemyData: { name: 'Vector fallback fixture', portraitKey: '', icon: 'monster_wolf' },
         enemyStats: { hp: 1, atk: 1, def: 0, speed: 18 }
       }));
       check(await game.locator('.battle-enemy [data-enemy-portrait]').count() === 0, 'Unknown enemy used unrelated artwork');
@@ -122,7 +144,7 @@ async (page) => {
       await game.waitForFunction(() => Boolean(window.gameState?.data.hasChosenClass));
       check(JSON.stringify(await snapshot()) === JSON.stringify(saved), 'Reload lost rewards or patrol camp');
       check(errors.length === 0, errors.join('; '));
-      results.push({ width, height, previews: 5, battles, lockedEntryRejected: true, vectorFallback: true, saved: true, errors });
+      results.push({ width, height, previews: maps.length, battles, lockedEntryRejected: true, vectorFallback: true, saved: true, errors });
     } finally { await context.close(); }
   }
   return { results, fixture: 'High-level unlock and temporary guaranteed-win stats; tests UI/settlement, not natural balance' };

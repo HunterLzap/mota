@@ -6,6 +6,7 @@ import { CLASSES } from '../config/classes.js';
 import { RUNIC_WORDS } from '../config/runes.js';
 import { getPlayerActionInterval } from '../core/combat.js';
 import { renderGameIcon } from './iconHelper.js';
+import { tooltip } from './tooltip.js';
 import { gameModal } from './modal.js';
 
 const STAT_NAMES = {
@@ -55,6 +56,7 @@ export class BagView {
     this.selectedItemUid = null;
     this.page = 0;
     this.detailTab = 'stats';
+    this.statSub = 'compare'; // 'compare' | 'base'
     this.bagSort = 'default';
     this.bagSlot = 'all';
     this.wearableOnly = false;
@@ -71,13 +73,36 @@ export class BagView {
     }
   }
 
+  // 每页格数 = 实际格区可用宽高能排下的 54px 方格数（与 css/bag-grid.css 的
+  // auto-fill 列一致）。返回 {columns, rows}，无量测时退回上次缓存或保守默认。
+  pageGrid() {
+    return this.measureGridCapacity() || this._pageGrid || { columns: 12, rows: 3 };
+  }
+
+  measureGridCapacity() {
+    const box = this.container?.querySelector('.bag-items');
+    if (!box || box.clientWidth <= 0 || box.clientHeight <= 0) return null;
+    const style = getComputedStyle(box);
+    const cell = parseFloat(style.getPropertyValue('--bag-cell')) || 64;
+    const gap = parseFloat(style.rowGap) || parseFloat(style.gap) || 0;
+    const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+    const padY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+    const innerW = box.clientWidth - padX, innerH = box.clientHeight - padY;
+    if (innerW <= 0 || innerH <= 0 || cell <= 0) return null;
+    return {
+      columns: Math.max(1, Math.floor((innerW + gap) / (cell + gap))),
+      rows: Math.max(1, Math.floor((innerH + gap) / (cell + gap)))
+    };
+  }
+
   render() {
     if (!this.container) return;
+    if (!['compare', 'base'].includes(this.statSub)) this.statSub = 'compare';
     const data = gameState.data;
     const totalSlots = gameState.getBagCapacity();
     const expansionQuote = gameState.getBagExpansionQuote();
     const active = this.container.contains(document.activeElement) ? document.activeElement : null;
-    const focus = active ? { id: active.id, uid: active.dataset.bagUid, filter: active.dataset.filter, tab: active.dataset.detailTab } : null;
+    const focus = active ? { id: active.id, uid: active.dataset.bagUid, filter: active.dataset.filter, tab: active.dataset.detailTab, statSub: active.dataset.statSub } : null;
     const entries = data.bag.filter(Boolean).map(item => ({ item }));
     const filters = [
       { id: 'all', name: '全部', list: entries },
@@ -86,14 +111,14 @@ export class BagView {
       { id: 'material', name: '材料', list: entries.filter(({ item }) => !item.slot && !isSupply(item)) }
     ];
     const filteredList = selectBagItems(data, { filter: this.bagFilter, sort: this.bagSort, slot: this.bagSlot, wearable: this.wearableOnly }).map(item => ({ item }));
-    const height = this.container.clientHeight || 360, width = this.container.clientWidth || 1000;
-    // Use the stable view size; measuring a newly mounted child can change
-    // page boundaries between the first click and ResizeObserver's redraw.
-    const columns = width < 600 ? 3 : width < 850 ? 6 : width < 1100 ? 8 : 10;
-    const rows = Math.max(1, Math.min(6, Math.floor((height - 205) / 62)));
+    // 每页格数按“格区实际可用宽高 / 54px 方格”实时计算（与 css/bag-grid.css 的
+    // auto-fill 列保持一致）。旧写法固定 12 列/推算行，窄窗(如1024×768)下格区只
+    // 容 11×2=22 格却仍按 36 塞一页，会被 overflow:hidden 裁掉丢内容。
+    const { columns, rows } = this.pageGrid();
     const pageSize = columns * rows;
     const displaySlots = this.bagFilter === 'all' && this.bagSlot === 'all' && !this.wearableOnly ? Math.max(totalSlots, filteredList.length) : filteredList.length;
-    const pages = Math.max(1, Math.ceil(displaySlots / pageSize));
+    // 页数按「实际物品数」计；空格只填当前页，避免格子变大后每页格数<容量时多出一个全空尾页。
+    const pages = Math.max(1, Math.ceil(filteredList.length / pageSize));
     this.page = Math.max(0, Math.min(this.page, pages - 1));
     const visibleList = filteredList.slice(this.page * pageSize, (this.page + 1) * pageSize);
     const emptyCount = Math.min(pageSize - visibleList.length, Math.max(0, displaySlots - this.page * pageSize - visibleList.length));
@@ -168,13 +193,11 @@ export class BagView {
               <label>部位 <select id="bag-slot-filter"><option value="all">全部部位</option>${ITEM_SLOTS.map(part => `<option value="${part.id}" ${this.bagSlot === part.id ? 'selected' : ''}>${part.name}</option>`).join('')}</select></label>
               <label><input id="bag-wearable" type="checkbox" ${this.wearableOnly ? 'checked' : ''}>只看可穿戴</label>
             </div>
-            <div class="bag-items" style="grid-template-columns:repeat(${columns},minmax(0,1fr));grid-template-rows:repeat(${rows},minmax(0,1fr))" role="group" aria-label="行囊物品，第 ${this.page + 1} 页">
+            <div class="bag-items" role="group" aria-label="行囊物品，第 ${this.page + 1} 页">
               ${visibleList.map(({ item }) => `
-                <button type="button" data-bag-uid="${escapeText(item.uid || item.id)}" class="bag-slot-cell" aria-label="${escapeText(item.name)}${item.stars ? `，强化 ${item.stars} 星` : ''}${item.count > 1 ? `，${item.count} 件` : ''}" title="${escapeText(item.name)}" aria-pressed="${item === selectedEntry}" style="--item-quality:${QUALITIES[item.quality]?.color || '#a7a18b'}">
+                <button type="button" data-bag-uid="${escapeText(item.uid || item.id)}" class="bag-slot-cell" aria-label="${escapeText(item.name)}${item.stars ? `，强化 ${item.stars} 星` : ''}${item.count > 1 ? `，${item.count} 件` : ''}" aria-pressed="${item === selectedEntry}" style="--item-quality:${QUALITIES[item.quality]?.color || '#a7a18b'}">
                   <span class="bag-slot-art">${renderGameIcon(item, { size: 'w-full h-full' })}</span>
-                  <span class="bag-slot-name">${escapeText(item.name)}</span>
-                  ${item.count > 1 ? `<span class="bag-slot-count">${item.count}</span>` : ''}
-                  ${item.stars > 0 ? `<span class="bag-slot-stars">+${item.stars}</span>` : ''}
+                  <span class="bag-slot-meta"><span class="bag-slot-name">${escapeText(item.name)}</span>${item.count > 1 ? `<span class="bag-slot-count">${item.count}</span>` : ''}${item.stars > 0 ? `<span class="bag-slot-stars">+${item.stars}</span>` : ''}</span>
                 </button>`).join('')}
               ${Array.from({ length: emptyCount }, () => '<span class="bag-slot-empty" aria-hidden="true"></span>').join('')}
               ${displaySlots === 0 ? '<p class="bag-filter-empty">此分类暂无物品</p>' : ''}
@@ -182,7 +205,7 @@ export class BagView {
             <div class="bag-pagination"><button id="btn-bag-page-prev" class="mota-btn-dark" ${this.page === 0 ? 'disabled' : ''}>上一页</button><span aria-live="polite">第 ${this.page + 1} / ${pages} 页</span><button id="btn-bag-page-next" class="mota-btn-dark" ${this.page + 1 >= pages ? 'disabled' : ''}>下一页</button></div>
             <p class="bag-capacity-note">${data.bag.length > totalSlots ? '已超出购买容量，请出售闲置装备或扩容。' : '战利品与卸下的装备始终保留；购买新物品需有空位。'}</p>
           </section>
-          <section class="bag-detail mota-parchment-panel">
+          <section class="bag-detail mota-parchment-panel hidden">
             ${selectedEntry ? `
               <div class="bag-item-title">
                 <div class="bag-item-icon" style="--item-quality:${QUALITIES[selectedEntry.quality]?.color || '#a7a18b'}">${renderGameIcon(selectedEntry, { size: 'w-full h-full' })}</div>
@@ -192,18 +215,40 @@ export class BagView {
                 <button data-detail-tab="stats" aria-pressed="${this.detailTab === 'stats'}" class="${this.detailTab === 'stats' ? 'mota-btn-gold' : 'mota-btn-dark'}">${selectedEntry.slot ? '属性与对比' : '物品说明'}</button>
                 <button data-detail-tab="actions" aria-pressed="${this.detailTab === 'actions'}" class="${this.detailTab === 'actions' ? 'mota-btn-gold' : 'mota-btn-dark'}">其他操作</button>
               </div>
-              <div class="bag-detail-content" tabindex="0" aria-label="${this.detailTab === 'stats' ? '物品属性详情，可滚动' : '物品操作'}">${this.detailTab === 'stats' ? `${comparison}${selectedEntry.slot ? '<h4 class="bag-section-heading">装备基础词条</h4>' : ''}${detailLines.join('')}` : secondaryActions.join('')}</div>
+              ${this.detailTab === 'stats' && selectedEntry.slot ? `<div class="bag-detail-subtabs" role="group" aria-label="属性详情切换">
+                <button data-stat-sub="compare" aria-pressed="${this.statSub === 'compare'}" class="${this.statSub === 'compare' ? 'mota-btn-gold' : 'mota-btn-dark'}">属性对比</button>
+                <button data-stat-sub="base" aria-pressed="${this.statSub === 'base'}" class="${this.statSub === 'base' ? 'mota-btn-gold' : 'mota-btn-dark'}">基础词条</button>
+              </div>` : ''}
+              <div class="bag-detail-content" tabindex="0" aria-label="${this.detailTab === 'stats' ? '物品属性详情' : '物品操作'}">${this.detailTab === 'stats'
+                ? (selectedEntry.slot
+                  ? (this.statSub === 'base'
+                    ? `<h4 class="bag-section-heading">装备基础词条</h4>${detailLines.join('')}`
+                    : comparison)
+                  : detailLines.join(''))
+                : secondaryActions.join('')}</div>
               ${primaryAction ? `<div class="bag-primary-action">${!selectedEntry.slot && destination ? `<p class="bag-action-hint">使用地点：${escapeText(destination.label.replace(/^前往/, ''))}</p>` : ''}${primaryAction}</div>` : ''}
             ` : `<div class="bag-empty-detail"><h3>${data.bag.length ? '当前页暂无物品' : '行囊暂无物品'}</h3><p>${data.bag.length ? '切换分类或翻页，选择要查看的物品。' : getJourneyGuidance(data)?.title ? `下一步：${escapeText(getJourneyGuidance(data).title)}。按上方指引前往。` : '可通过野外讨伐、王都悬赏获得装备与补给。'}</p></div>`}
           </section>
         </div>
       </div>
     `;
+    // 首屏/尺寸变化后按真实格区测量一次；如每页格数与实测不符则重绘一次，
+    // 保证分页容量始终等于实际能排下的 54px 方格数（窄窗不再裁切丢格）。
+    const measuredGrid = this.measureGridCapacity();
+    if (!this._refining && measuredGrid && (measuredGrid.columns !== columns || measuredGrid.rows !== rows)) {
+      this._pageGrid = measuredGrid;
+      this._refining = true;
+      this.render();
+      this._refining = false;
+      return;
+    }
+    if (measuredGrid) this._pageGrid = measuredGrid;
     this.bindEvents(selectedEntry, inheritanceQuote);
     if (focus) {
       const target = [...this.container.querySelectorAll('button, select, input')].find(button =>
         (focus.id && button.id === focus.id) || (focus.uid && button.dataset.bagUid === focus.uid) ||
-        (focus.filter && button.dataset.filter === focus.filter) || (focus.tab && button.dataset.detailTab === focus.tab));
+        (focus.filter && button.dataset.filter === focus.filter) || (focus.tab && button.dataset.detailTab === focus.tab) ||
+        (focus.statSub && button.dataset.statSub === focus.statSub));
       if (target && !target.disabled) target.focus({ preventScroll: true });
     }
   }
@@ -229,6 +274,9 @@ export class BagView {
     }
     this.container.querySelectorAll('[data-detail-tab]').forEach(button => {
       button.onclick = () => { this.detailTab = button.dataset.detailTab; this.render(); };
+    });
+    this.container.querySelectorAll('[data-stat-sub]').forEach(button => {
+      button.onclick = () => { this.statSub = button.dataset.statSub; this.render(); };
     });
     const inheritButton = this.container.querySelector('#btn-bag-inherit-upgrade');
     if (inheritButton) inheritButton.onclick = () => {
@@ -265,16 +313,20 @@ export class BagView {
         this.page = 0;
         this.selectedItemUid = null;
         this.detailTab = 'stats';
+        this.statSub = 'compare';
         this.render();
       });
     });
 
     // 点击选择物品
     this.container.querySelectorAll('.bag-slot-cell').forEach(cell => {
-      cell.addEventListener('click', () => {
-        const uid = cell.getAttribute('data-bag-uid');
+      const uid = cell.getAttribute('data-bag-uid');
+      const item = gameState.data.bag.find(i => (i.uid || i.id) === uid);
+      if (item) tooltip.attach(cell, () => gameState.data.bag.find(i => (i.uid || i.id) === uid));
+      cell.addEventListener('click', (e) => {
+        e.stopPropagation();
         this.selectedItemUid = uid;
-        this.render();
+        if (item) this.showBagMenu(item, e);
       });
     });
 
@@ -345,5 +397,73 @@ export class BagView {
         }
       });
     }
+  }
+
+  // 左键点击物品：直接弹出操作菜单（穿戴/使用·维修·卖出·拆解·丢弃）
+  showBagMenu(item, e) {
+    this.hideBagMenu();
+    tooltip.hide();
+    const quote = item.slot ? gameState.getEquipmentSaleQuote(item.uid || item.id) : null;
+    const canSell = Boolean(item.slot && quote?.success);
+    const menu = document.createElement('div');
+    menu.id = 'bag-action-menu';
+    menu.className = 'fixed z-[80] min-w-[148px] p-1 rounded-lg border-2 border-[#caa048] bg-[#e8d4a8] shadow-2xl text-xs text-[#3a2b19]';
+    const btn = (act, label, enabled = true) => `<button data-act="${act}" ${enabled ? '' : 'disabled'} class="block w-full text-left px-2 py-1 rounded ${enabled ? 'hover:bg-[#6a5a3a] hover:text-[#fff1c9]' : 'opacity-40 cursor-default'}">${label}</button>`;
+    menu.innerHTML = `${btn('use', item.slot ? '穿戴' : '使用')}${btn('repair', '维修（需在铁匠铺）', false)}<div class="h-px bg-[#a99068] my-1"></div>${btn('sell', canSell ? `卖出 · ${quote.gold} 金币` : '卖出', canSell)}${btn('dismantle', '拆解（需已穿戴至铁匠铺）', false)}${btn('discard', '丢弃')}`;
+    document.body.appendChild(menu);
+    let x = e.clientX, y = e.clientY; const w = menu.offsetWidth, h = menu.offsetHeight;
+    if (x + w > innerWidth - 6) x = e.clientX - w;
+    if (y + h > innerHeight - 6) y = e.clientY - h;
+    menu.style.left = Math.max(4, x) + 'px'; menu.style.top = Math.max(4, y) + 'px';
+    menu.querySelectorAll('button').forEach(b => b.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const act = b.dataset.act;
+      this.hideBagMenu();
+      if (act === 'use') this.bagUse(item);
+      else if (act === 'sell') this.bagSell(item);
+      else if (act === 'discard') this.bagDiscard(item);
+    }));
+    setTimeout(() => document.addEventListener('click', ev => { if (!menu.contains(ev.target)) this.hideBagMenu(); }, { once: true }), 0);
+  }
+
+  hideBagMenu() { document.getElementById('bag-action-menu')?.remove(); }
+
+  bagUse(item) {
+    if (item.slot) {
+      const res = gameState.equipItem(item.uid || item.id);
+      gameModal.toast(res.msg);
+    } else if (item.type === 'egg') {
+      window.switchMainTab?.('pets');
+      window.appInstance?.views?.pets && (window.appInstance.views.pets.currentSubTab = 'overview', window.appInstance.views.pets.render());
+    } else if (item.id === 'pill_reborn') {
+      window.switchMainTab?.('pets');
+      window.appInstance?.views?.pets && (window.appInstance.views.pets.currentSubTab = 'wash', window.appInstance.views.pets.render());
+    } else {
+      const dest = getBagItemDestination(item);
+      if (dest) window.appInstance?.handleQuestNavigation?.(dest.tab, dest.action);
+      else gameModal.toast('该物品暂无可作用途');
+    }
+    this.render();
+  }
+
+  bagSell(item) {
+    if (!item.slot) return gameModal.alert('该物品不可出售', '装备回收');
+    const quote = gameState.getEquipmentSaleQuote(item.uid || item.id);
+    if (!quote.success) return gameModal.alert(quote.msg, '装备回收');
+    gameModal.confirm(`出售【${quote.name}】可获得 ${quote.gold} 金币，并释放一格行囊。\n装备出售后无法取回，请确认。`, () => {
+      const result = gameState.sellEquipment(item.uid || item.id, quote.gold);
+      gameModal.alert(result.msg, '装备回收');
+      this.render();
+    }, () => {}, '出售闲置装备');
+  }
+
+  bagDiscard(item) {
+    gameModal.confirm(`确定丢弃【${item.name}】？丢弃后无法取回。`, () => {
+      const idx = gameState.data.bag.indexOf(item);
+      if (idx >= 0) gameState.data.bag.splice(idx, 1);
+      gameState.addSystemLog(`【丢弃】丢弃了【${item.name}】。`, 'system');
+      gameState.notify();
+      this.render();
+    }, () => {}, '丢弃物品');
   }
 }

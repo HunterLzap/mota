@@ -82,17 +82,12 @@
 #tab-content-pets .pet-detail-portrait { overflow: hidden; }
 #tab-content-pets .pet-detail-identity { padding: 8px 10px; gap: 10px; }
 #tab-content-pets .pet-detail-portrait { height: 146px; }
-#tab-content-pets .pet-overview-actions { margin: 0 12px 8px; }
+#tab-content-pets .pet-overview-actions { margin: 0 12px 4px; }
 #tab-content-pets .pet-classic-slots,
 #tab-content-pets .pet-classic-detail { overflow-anchor: none; scrollbar-gutter: stable; }
 
 /* Bigger vector artwork, a readable name, and a consistent quality edge. */
-.classic-client .bag-items { gap: 7px; padding: 9px; align-items: stretch; justify-items: stretch; }
-.classic-client #tab-content-bag :is(.bag-slot-cell,.bag-slot-empty) {
-  width: 100%; height: auto; max-height: 78px; max-width: 78px; min-width: 0;
-  aspect-ratio: 1; margin: auto; padding: 4px 3px 7px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-}
+/* 行囊格子的容器/尺寸已统一到 css/bag-grid.css（唯一权威，最后加载），此处不再定义。 */
 .classic-client #tab-content-bag .bag-slot-art {
   display: block; width: min(100%,44px); flex: 1; min-height: 0; max-height: 44px;
 }
@@ -189,7 +184,7 @@
 .classic-client main .smithy-workshop-heading p { color: #d1c3a3 !important; font-size: 12px; }
 .classic-client .smithy-workshop-heading > button { margin-left: auto; padding: 4px 12px; flex-shrink: 0; }
 .classic-client .smithy-npc-portrait { width: 42px; height: 48px; flex-shrink: 0; border: 1px solid #94805c; background-color: #171d17; background-size: 900% auto; background-position: 12.5% -8px; }
-.classic-client .smithy-workshop-tabs { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 4px; flex-shrink: 0; }
+.classic-client .smithy-workshop-tabs { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 4px; flex-shrink: 0; }
 .classic-client .smithy-workshop-tabs button { padding: 4px 7px; font-size: 13px; }
 .classic-client .smithy-workshop-tabs [aria-pressed="true"] { outline: 2px solid #9e783a; outline-offset: -2px; }
 .classic-client .smithy-workshop-tabs .feature-lock-hint { font-size: 10px; white-space: normal; }
@@ -198,30 +193,127 @@
 .classic-client .smithy-workshop-body > .smithy-detail > .smithy-scroll { overflow-y: auto; overflow-x: hidden; }
 .classic-client .smithy-workshop .smithy-action-bar { flex: 0 0 auto; margin-top: 6px; padding-top: 6px; }
 .classic-client .smithy-workshop .smithy-action-bar > button { padding-top: 7px; padding-bottom: 7px; }
-.classic-client .smithy-workshop .smithy-workshop-inventory { display: flex; flex-direction: column; gap: 7px; min-width: 0; min-height: 0; }
-.classic-client .smithy-workshop-inventory .smithy-slot-panel { flex: 0 1 46%; overflow: hidden; padding: 6px; }
-.classic-client .smithy-workshop-inventory .smithy-slot-grid { grid-template-rows: none; grid-auto-rows: minmax(46px,auto); margin: 5px 0; gap: 4px; }
-.classic-client .smithy-workshop-inventory .smithy-slot-note { font-size: 11px; }
-.classic-client .smithy-workshop-inventory .smithy-slot-button { padding: 3px; gap: 5px; }
-.classic-client .smithy-workshop-inventory .smithy-slot-item { font-size: 11px; }
-.classic-client .smithy-workshop-inventory .smithy-item-icon { width: 28px; height: 28px; }
+.classic-client .smithy-workshop .smithy-workshop-inventory { display: flex; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; }
+.classic-client .smithy-workshop-inventory .smithy-slot-panel { flex: 0 0 auto; overflow: hidden; padding: 5px; }
+.classic-client .smithy-workshop-inventory .smithy-slot-grid { grid-template-columns: repeat(5,minmax(0,1fr)) !important; grid-template-rows: none; grid-auto-rows: auto; margin: 4px 0; gap: 3px; overflow: visible !important; }
+.classic-client .smithy-workshop-inventory .smithy-slot-note { font-size: 10px; margin-top: 2px; }
+.classic-client .smithy-workshop-inventory .smithy-slot-button { flex-direction: column; align-items: center; text-align: center; padding: 2px 1px; gap: 0; }
+.classic-client .smithy-workshop-inventory .smithy-slot-name { font-size: 10px; line-height: 1.15; }
+.classic-client .smithy-workshop-inventory .smithy-slot-item { display: none; }
+.classic-client .smithy-workshop-inventory .smithy-item-icon { width: 22px; height: 22px; }
 .classic-client .smithy-workshop .smithy-heading { padding: 5px 8px; font-size: 12px; }
 .classic-client .smithy-workshop-bag { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; padding: 6px; }
 .classic-client .smithy-workshop-bag > .smithy-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .classic-client .smithy-workshop-bag > .smithy-heading button { font-size: 11px; padding: 2px 7px; }
-.classic-client .smithy-bag-scroll { flex: 1; overflow-y: auto; min-height: 0; scrollbar-gutter: stable; padding: 5px 2px; }
+.classic-client .smithy-bag-heading { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.classic-client .smithy-bag-pager { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+.classic-client .smithy-bag-pager button { padding: 2px 6px; font-size: 11px; }
+.classic-client .smithy-bag-pager span { font-family: var(--font-game-numeric); font-size: 11px; }
+.classic-client .smithy-bag-page-hidden { display: none !important; }
+.classic-client .smithy-bag-scroll { flex: 1; overflow: visible; min-height: 0; padding: 4px 2px; }
 .classic-client .smithy-bag-note { padding-top: 3px; font-size: 11px; color: #635035; }
-.classic-client .smithy-bag-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); align-items: start; gap: 5px; }
+.classic-client .smithy-bag-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); align-items: start; gap: 4px; }
 .classic-client .smithy-bag-item { min-width: 0; background: #c3a77744; border: 1px solid #a0885d; font-size: 11px; }
-.classic-client .smithy-bag-item summary { cursor: pointer; display: flex; flex-direction: column; align-items: center; padding: 4px 2px; list-style: none; text-align: center; overflow-wrap: anywhere; }
+.classic-client .smithy-bag-item summary { cursor: pointer; display: flex; flex-direction: row; align-items: center; gap: 3px; padding: 2px 3px; list-style: none; text-align: left; overflow-wrap: anywhere; }
 .classic-client .smithy-bag-item summary::-webkit-details-marker { display: none; }
-.classic-client .smithy-bag-item summary .smithy-item-icon { width: 34px; height: 34px; }
-.classic-client .smithy-bag-item summary b { font-family: var(--font-game-numeric); font-variant-numeric: lining-nums tabular-nums; }
+.classic-client .smithy-bag-item summary .smithy-item-icon { width: 22px; height: 22px; flex-shrink: 0; }
+.classic-client .smithy-bag-item summary .smithy-bag-item-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.classic-client .smithy-bag-item summary b { font-family: var(--font-game-numeric); font-variant-numeric: lining-nums tabular-nums; font-size: 10px; flex-shrink: 0; }
 .classic-client .smithy-bag-item p { padding: 4px; border-top: 1px solid #a0885d; overflow-wrap: anywhere; }
 .classic-client .smithy-workshop .smithy-material-panel { margin-bottom: 8px; padding: 5px; max-height: 150px; }
 .classic-client .smithy-workshop .smithy-rune-recipes { overflow-y: auto; grid-template-columns: repeat(2,minmax(0,1fr)); }
-.classic-client .smithy-workshop .smithy-repair-grid { grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: none; flex: 1; }
-.classic-client .smithy-workshop .smithy-repair-cell { min-height: 115px; }
+.classic-client .smithy-workshop .smithy-repair-grid { grid-template-columns: repeat(5,minmax(0,1fr)); grid-template-rows: none; flex: 1; overflow: visible; gap: 6px; }
+.classic-client .smithy-workshop .smithy-repair-cell { min-height: 0; padding: 3px 4px; gap: 2px; }
+.classic-client .smithy-workshop .smithy-repair-cell .smithy-item-icon { width: 20px; height: 20px; }
+.classic-client .smithy-workshop .smithy-smelt-preview { margin: 2px 0; padding: 6px; }
+.classic-client .smithy-workshop .smithy-smelt-preview .smithy-item-icon { width: 44px; height: 44px; }
+.classic-client .smithy-workshop .smithy-smelt-quote { margin-top: 4px; padding: 6px; }
+.classic-client .smithy-workshop .smithy-crystal-button { padding: 4px; }
+.classic-client .smithy-workshop .smithy-affix-catalog summary.smithy-section-label { padding: 2px 0; }
+.classic-client .smithy-page-smelt_set .smithy-scroll { font-size: 11px; line-height: 1.2; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; align-content: start; }
+.classic-client .smithy-page-smelt_set .smithy-smelt-elig-hidden { display: none !important; }
+.classic-client .smithy-page-smelt_set .smithy-scroll h4 { margin-bottom: 0; }
+.classic-client .smithy-page-smelt_set .smithy-scroll > div { margin-bottom: 0; }
+.classic-client .smithy-page-smelt_set .smithy-smelt-mat { min-height: 28px; }
+.classic-client .smithy-page-smelt_set .smithy-scroll .p-2 { padding: 3px 4px; }
+.classic-client .smithy-page-smelt_set .smithy-smelt-mat .smithy-item-icon { width: 24px; height: 24px; }
+.classic-client .smithy-page-smelt_set .smithy-scroll .grid { gap: 4px; }
+.classic-client .smithy-page-smelt_set .smithy-scroll .mt-1 { margin-top: 1px; }
+.classic-client .smithy-workshop .runic-action-bar { padding-top: 4px; margin-top: 4px; }
+.classic-client .smithy-page-runes .smithy-layout { grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 8px; }
+.classic-client .smithy-page-runes .smithy-rune-inventory { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: hidden; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .smithy-slot-panel { flex: 0 0 auto; overflow: hidden; padding: 5px; max-height: 166px; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .smithy-slot-grid { grid-template-columns: repeat(5,minmax(0,1fr)) !important; grid-template-rows: none !important; grid-auto-rows: auto !important; overflow: hidden !important; gap: 2px; margin: 3px 0; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .smithy-slot-button { flex-direction: column; align-items: center; text-align: center; padding: 2px 1px; gap: 0; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .smithy-slot-name { font-size: 10px; line-height: 1.15; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .smithy-slot-item { display: none; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .smithy-item-icon { width: 22px; height: 22px; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .smithy-material-panel { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 5px; max-height: none !important; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .smithy-rune-recipes { grid-template-columns: repeat(4,minmax(0,1fr)) !important; overflow: hidden !important; gap: 2px; align-content: start; grid-auto-rows: min-content; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .smithy-material-panel { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 5px; max-height: none !important; display: flex; flex-direction: column; }
+.classic-client .smithy-page-runes .smithy-rune-inventory .runic-recipe-choice { padding: 2px; font-size: 9px; }
+.classic-client .smithy-page-runes .runic-recipe-detail { font-size: 10px; line-height: 1.25; }
+.classic-client .smithy-page-runes .runic-recipe-order li { line-height: 1.2; }
+.classic-client .smithy-page-runes .smithy-rule-note { font-size: 9.5px; line-height: 1.2; }
+.classic-client .smithy-page-runes .runic-detail-scroll { display: block; overflow: visible; }
+.classic-client .smithy-page-runes .runic-detail-scroll .runic-recipe-detail { font-size: 9.5px; line-height: 1.2; }
+.classic-client .smithy-page-runes .runic-recipe-order li { line-height: 1.15; }
+.classic-client .smithy-page-runes .smithy-rune-state { margin: 2px 0; font-size: 10px; }
+.classic-client .smithy-page-runes .smithy-rune-sockets .smithy-socket-cell { padding: 3px; gap: 2px; }
+.classic-client .smithy-page-runes .smithy-socket-description .smithy-item-icon { width: 20px; height: 20px; }
+.classic-client .smithy-page-runes .smithy-socket-description strong { font-size: 10px; }
+.classic-client .smithy-page-runes .smithy-socket-bonus { font-size: 9px; }
+.classic-client .smithy-page-runes .smithy-rule-note { font-size: 9px; line-height: 1.15; }
+.classic-client .smithy-page-runes .runic-action-bar { padding-top: 3px; }
+.classic-client .smithy-page-runes .smithy-rune-sockets { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 4px; }
+.classic-client .smithy-page-runes .smithy-socket-cell { padding: 2px; gap: 1px; }
+.classic-client .smithy-page-runes .smithy-socket-description { gap: 3px; }
+.classic-client .smithy-page-runes .smithy-socket-description .smithy-item-icon { width: 18px; height: 18px; }
+.classic-client .smithy-page-runes .smithy-socket-description strong { font-size: 9.5px; line-height: 1.1; }
+.classic-client .smithy-page-runes .smithy-socket-bonus { font-size: 8.5px; line-height: 1.1; }
+.classic-client .smithy-page-socket .smithy-material-panel { padding: 4px !important; }
+.classic-client .smithy-page-socket .smithy-empty { padding: 4px !important; }
+.classic-client .smithy-page-socket .smithy-empty button { margin-top: 2px !important; }
+.classic-client .smithy-page-socket .smithy-material-panel .smithy-scroll { overflow: visible !important; }
+.classic-client .smithy-page-socket .smithy-detail > .smithy-scroll { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px; align-content: start; overflow: visible; }
+.classic-client .smithy-page-socket .socket-right { min-width: 0; }
+.classic-client .smithy-page-socket .smithy-socket-cell { padding: 3px; gap: 2px; }
+.classic-client .smithy-page-socket .smithy-socket-grid { gap: 4px; }
+.classic-client .smithy-page-socket .smithy-socket-description { gap: 4px; }
+.classic-client .smithy-page-socket .smithy-socket-description .smithy-item-icon { width: 22px; height: 22px; }
+.classic-client .smithy-page-socket .smithy-socket-description strong { font-size: 10px; line-height: 1.2; }
+.classic-client .smithy-page-socket .smithy-socket-bonus { font-size: 9px; line-height: 1.2; }
+.classic-client .smithy-page-socket .smithy-socket-cell button { padding: 2px 4px; font-size: 10px; }
+.classic-client .smithy-page-socket .smithy-detail > .smithy-scroll { margin-top: 2px; }
+.classic-client .smithy-page-socket .smithy-action-bar { padding-top: 3px; margin-top: 3px; }
+.classic-client .smithy-page-socket .smithy-action-bar .smithy-quote { font-size: 10px; line-height: 1.2; }
+.classic-client .smithy-page-socket .smithy-action-bar button { padding-top: 4px; padding-bottom: 4px; }
+.classic-client .smithy-page-socket .socket-gem-hidden { display: none !important; }
+.classic-client .smithy-page-socket .socket-gem-pager { font-size: 10px; }
+.classic-client .smithy-page-socket .smithy-gem-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 3px; }
+.classic-client .smithy-page-socket .smithy-gem-button { padding: 3px; gap: 4px; }
+.classic-client .smithy-page-socket .smithy-gem-button strong { font-size: 10px; }
+.classic-client .smithy-page-socket .smithy-gem-bonus { font-size: 9px; line-height: 1.2; }
+.classic-client .smithy-page-socket .smithy-gem-count { font-size: 9px; }
+.classic-client .town-bounty .town-bounty-list { overflow: visible !important; }
+.classic-client .town-bounty .bounty-hidden { display: none !important; }
+.classic-client .smithy-page-runes .rune-mat-hidden { display: none !important; }
+.classic-client .smithy-page-runes .smithy-gem-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; }
+.classic-client .smithy-page-runes .smithy-gem-button { padding: 3px; }
+.classic-client .smithy-page-runes .smithy-gem-button strong { font-size: 10px; }
+.classic-client .smithy-page-runes .smithy-gem-bonus { font-size: 9px; line-height: 1.2; }
+.classic-client .smithy-page-enhance .smithy-scroll > * + * { margin-top: 4px !important; }
+.classic-client .smithy-page-enhance .smithy-enhance-preview { margin: 2px 0 !important; padding: 5px !important; }
+.classic-client .smithy-page-enhance .smithy-enhance-preview .text-2xl { font-size: 15px !important; }
+.classic-client .smithy-page-enhance .smithy-enhance-preview .mt-3 { margin-top: 4px !important; }
+.classic-client .smithy-page-enhance .smithy-enhance-cost,
+.classic-client .smithy-page-enhance .smithy-protect-option { padding: 5px !important; }
+.classic-client .smithy-page-enhance .smithy-protect-option { margin-top: 3px !important; }
+.classic-client .smithy-page-enhance .smithy-rule-note { margin-top: 4px !important; font-size: 10px !important; line-height: 1.25 !important; }
+.classic-client .smithy-page-enhance .smithy-heading .w-14 { width: 40px !important; height: 40px !important; }
+.classic-client .smithy-workshop .smithy-repair-item,
+.classic-client .smithy-workshop .smithy-repair-status,
+.classic-client .smithy-workshop .smithy-repair-cost { font-size: 10px; line-height: 1.2; }
 .classic-client .smithy-workshop button:focus-visible,
 .classic-client .smithy-workshop summary:focus-visible,
 .classic-client .smithy-bag-scroll:focus-visible { outline: 2px solid #984522; outline-offset: -2px; }

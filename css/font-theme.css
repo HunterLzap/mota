@@ -1,0 +1,47 @@
+/* =========================================================================
+ * 全站字体清晰度主题（最后加载；删除 index.html 中唯一一条 font-theme.css link 即整轮回退）
+ * 目标：标题保留描金衬线味；正文/标签/数值改用清晰无衬线、字号下限 12px、对比提升、数字等宽对齐。
+ * 只改字体/字号/字色/行高，不改布局结构、玩法、数值、存档。
+ * 若某密集页被顶出，用文件末尾「密集页局部收敛」段单独压低该页字号。
+ * ========================================================================= */
+
+:root {
+  --font-game-body: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Segoe UI", system-ui, sans-serif;
+  --font-game-numeric: "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+}
+
+/* 正文字体：无衬线，抗锯齿更清晰 */
+body { font-family: var(--font-game-body) !important; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+/* 数字统一等宽对齐（属性/价格/耐久/战力等） */
+.classic-client :is(dd, b, strong, .font-mono) { font-variant-numeric: lining-nums tabular-nums; }
+
+/* 标题保留描金衬线味（面包屑主标题 / 页内主标题 / 分节标题） */
+.classic-client main .mota-breadcrumb :is(h1, h2),
+.classic-client .hero-dossier-heading h2,
+.classic-client .estate-hub > header h2,
+.classic-client main .dossier-section-heading { font-family: "Iowan Old Style", "Palatino Linotype", "Palatino", "Noto Serif SC", "Source Han Serif SC", serif !important; }
+
+/* 小号说明 / 锁定提示 / 次要文字：最小 12px + 对比下限 */
+.classic-client :is(.feature-lock-hint, .hero-allocation-hint, .estate-ledger-intro) {
+  font-size: 12px !important; line-height: 1.42 !important; font-weight: 600 !important;
+}
+/* 深底场景（庄园卡 / 野外卡）上的提示 -> 浅金；羊皮纸底（王都）上的提示 -> 深棕 */
+.classic-client #tab-content-estate .feature-lock-hint,
+.classic-client #tab-content-wild .feature-lock-hint { color: #f2dfab !important; text-shadow: 0 1px 2px #000a !important; }
+.classic-client #tab-content-town .feature-lock-hint { color: #5a3a1c !important; }
+.classic-client main :is(.hero-allocation-hint, .estate-ledger-intro) { color: #4a3018 !important; }
+
+/* 极小工具字（9/10px）统一抬到 12px 下限，正文/标签不再发虚（密集表格内的更小字由末尾局部收敛兜底） */
+.classic-client :is(.text-\[9px\], .text-\[10px\]) { font-size: 12px !important; line-height: 1.4 !important; }
+
+/* 提高羊皮纸面板上常见的偏浅棕正文/次要字的对比（不改变深底上的浅字） */
+.classic-client main .mota-parchment-panel :is(p, span, small, dt, li):not([class*="text-"]) { color: #4a3721; }
+
+/* 左侧角色栏：无衬线略高，收一点行距/间距，保证 1280 高度下仍零滚动（实测溢出 2px） */
+.classic-client .classic-sidebar .classic-character-stats { margin: 4px 0 !important; row-gap: 3px !important; }
+
+/* -------------------------------------------------------------------------
+ * 密集页局部收敛：若整页被字体抬升顶出，单独把这几个页面回到更紧凑字号，避免撑破版。
+ * （按 1280×900 / 1440×1000 审计结果补充；以下为安全默认，后续可再微调）
+ * ------------------------------------------------------------------------- */

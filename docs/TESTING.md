@@ -1,5 +1,11 @@
 # 《魔塔世界》测试矩阵与自动化验证指南 (Testing Guide)
 
+## 官方重绘与名称兼容（2026-11-01）
+
+当前装备道具图像与名称以 [OFFICIAL_ARTWORK.md](OFFICIAL_ARTWORK.md) 为准。`test_item_artwork.mjs` 覆盖 229 项生产输入、14 张新旧图集、同套不同部位／职业武器、三职业新手任务武器、已确认旧名称归一及不修改输入。`audit_official_artwork.py` 检查 7 套格位和 21 项道具有效性；`export_official_artwork.py` 输出 105 张单件 PNG 与来源／补绘清单。
+
+此前已运行 `browser_official_item_artwork.js`，在两桌面尺寸明确的展示夹具中检查七套、新手任务装、图鉴与道具，保存于 `output/official-item-reference-2026-11-01/`。这些是图片呈现证据，不是自然获取或真实玩家存档证据；不将隔离夹具、截图或全量历史套件作为之后每次改图的默认前置要求。
+
 ## 底栏与头像专项（2026-10-29）
 
 `node tests/test_painted_icons.mjs` 验证40个界面/头像键、旧avatar路径、兼容getVectorIcon及战斗嵌套传递，校验PNG单格为正方形。`node output/ui-legibility-2026-10-29/run.cjs tests/browser_shell_legibility.js` 在三职业×两尺寸的新context中验证两任务状态与七类日志/筛选的计算色对比度至少4.5:1、字号至少12px（实测最低7.49:1）、筛选与焦点恢复、职业头像打开人物页及刷新、三佣兵绘画、底栏205px、四槽哨兵保护、零错误/失败请求/溢出/破图。运行前基线及最终日志保存在同目录。
@@ -406,7 +412,7 @@ npx --yes --package @playwright/cli playwright-cli -s=mota run-code --filename=t
   - 解法：将其替换为 `gameModal.alert(...)` 或 `gameModal.confirm(...)`。
 - **出现 `Unicode Emoji 违规`**：
   - 原因：文案中不慎写入了类似 🗡️、💰 等表情字符。
-  - 解法：查阅 `js/ui/iconHelper.js`（`renderGameIcon`）或 `js/assets/vectorIcons.js`（`getVectorIcon`），改为使用矢量图标方法动态渲染 SVG 图标。
+  - 解法：装备道具先查阅 `docs/OFFICIAL_ARTWORK.md`、`js/ui/officialItemArtwork.js` 和 `renderGameIcon`，匹配透明 PNG 绘画；`getVectorIcon` 只是旧调用的兼容入口，不应把已选定的绘画改回 SVG。
 - **出现 `Node.js 语法检查失败`**：
   - 原因：ES6 语法错误（如缺少闭合括号、拼写错误或模板字符串未闭合）。
   - 解法：根据输出的脚本名称与行号直接修正。

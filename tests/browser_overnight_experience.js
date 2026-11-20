@@ -81,7 +81,7 @@ async (page, { phase, output }) => {
           gameState.data.lastIdleClaimTime = Date.now() - 601 * 60000;
           appInstance.views.wild.render();
         });
-        check((await summary()).includes('600分') && await game.evaluate(() => appInstance.views.wild.idleTimer === null), 'Capped income still schedules redundant updates');
+        check((await summary()).includes('10分') && await game.evaluate(() => appInstance.views.wild.idleTimer === null), 'Capped income still schedules redundant updates');
         await game.reload();
         await game.waitForFunction(() => window.gameState?.data?.hasChosenClass);
         await dismiss();

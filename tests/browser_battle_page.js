@@ -15,7 +15,7 @@ async (page) => {
       const dismiss=async()=>{for(let i=0;i<4&&await game.evaluate(()=>window.gameModal.isOpen);i++)await game.locator('#game-modal-btn-confirm').click();};
       for(const id of ['novice_weapon','novice_armor']) {
         const gear=await game.evaluate(id=>window.gameState.data.bag.find(i=>i.id===id),id);
-        await game.locator('#nav-tab-bag').click();await game.locator(`[data-bag-uid="${gear.uid}"]`).click();await game.locator('#btn-bag-equip-item').click();await dismiss();
+        await game.locator('#nav-tab-bag').click();await game.locator(`[data-bag-uid="${gear.uid}"]`).click();await game.locator('#bag-action-menu').waitFor();await game.locator('#bag-action-menu button').filter({hasText:'穿戴'}).first().click();await dismiss();
       }
       await assertPlayerCopy(game);
       await game.locator('#nav-tab-pets').click(); if(await game.locator('#pet-subtab-compendium').count()) await game.locator('#pet-subtab-compendium').click(); await assertPlayerCopy(game);
@@ -28,7 +28,7 @@ async (page) => {
       const layout = await game.evaluate(() => ({position:getComputedStyle(document.getElementById('battle-overlay')).position,parent:document.getElementById('battle-overlay').parentElement.tagName,footer:getComputedStyle(document.querySelector('footer')).display,bodyWidth:document.body.scrollWidth,viewport:innerWidth}));
       if (layout.position === 'fixed' || layout.parent !== 'MAIN' || layout.footer !== 'none') throw new Error('Battle remained a modal');
       if (layout.bodyWidth > layout.viewport) throw new Error('Battle page overflowed horizontally');
-      for (const label of ['我方阵容','对手阵容','穿戴装备 · 十个部位','当前职业技能','对手技能与机制']) if (!await game.getByText(label,{exact:true}).isVisible()) throw new Error('Missing lineup detail: '+label);
+      for (const label of ['我方阵容','对手阵容','穿戴装备 · 十二个部位','当前职业技能','对手技能与机制']) if (!await game.getByText(label,{exact:true}).isVisible()) throw new Error('Missing lineup detail: '+label);
       await game.locator('#btn-spd-3').click(); await game.locator('#btn-skip-battle').click();
       await game.screenshot({path:`output/playwright/battle-page-${viewport.width}.png`});
       await assertPlayerCopy(game);

@@ -1,0 +1,23 @@
+/* =========================================================================
+ * 羊皮纸边缘压淡（可回退：删除 index.html 中唯一一条 parchment-soft.css 的 link 即整轮回退）
+ * 深边来自 images/ui/classic-parchment.png 自带的深棕焦边，被 background-size:100% 100% 整张拉伸露在四边。
+ * 做法：把这组同贴图容器的背景放大并居中，裁掉最外圈深焦边；纸面主体纹理与暖色调不变。
+ * 只改背景取景，不动布局结构、边框、玩法、数据、存档。
+ * ========================================================================= */
+.classic-client .classic-sidebar,
+.classic-client main.classic-main,
+.classic-client main .mota-parchment-panel,
+.classic-client .classic-footer .mota-parchment-panel,
+.classic-client .battle-roster,
+.classic-client .battle-report,
+.classic-client #tab-content-pets .pet-classic-roster,
+.classic-client #tab-content-pets .pet-classic-sheet {
+  background-size: 110% 110% !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* 中间档：内阴影取原版(#805b2f66/77)与过淡版(#805b2f26)之间，保留纸面贴合与厚重感，只减最外圈焦黑。 */
+.classic-client main.classic-main { box-shadow: inset 0 0 10px #805b2f52 !important; }
+.classic-client .classic-sidebar { box-shadow: inset 0 0 12px #805b2f52 !important; }
+
