@@ -16,13 +16,20 @@ import { getBossTactics } from '../config/bossTactics.js';
 import { MERCENARIES } from '../config/estate.js';
 
 export class TowerView {
-  constructor(containerId, onStartBattle) {
+  constructor(containerId, onStartBattle, onSwitchTab) {
     this.container = document.getElementById(containerId);
+    this.onSwitchTab = onSwitchTab;
     this.onStartBattle = onStartBattle;
     this.subTab = 'castle'; // 'castle' | 'dungeons' | 'relics'
     this.selectedGateId = 'trial_gate';
     this.selectedFloor = 1;
     this.selectedCompanion = 'none'; // 'none' | 'merc' | 'slave'
+  }
+
+  navigate({ section, gateId, floor } = {}) {
+    if (section !== undefined) this.subTab = section;
+    if (gateId !== undefined) this.selectedGateId = gateId;
+    if (floor !== undefined) this.selectedFloor = floor;
   }
 
   render() {
@@ -742,7 +749,7 @@ export class TowerView {
                   () => {
                     gameState.claimQuestReward('quest_6');
                     gameModal.alert('职业护手已存入行囊！已为你开启下一阶段主线【领地开拓 · 炼金魔药】，前往城郊领地庄园调配魔药吧！', '主线推进', () => {
-                      if (window.switchMainTab) window.switchMainTab('estate');
+                      this.onSwitchTab?.('estate');
                     });
                   },
                   () => this.render(),

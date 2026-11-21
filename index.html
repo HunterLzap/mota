@@ -106,7 +106,7 @@
   </div>
 
   <!-- 玩家异常提示；技术详情仅记录到控制台 -->
-  <div id="runtime-error-display" role="alert" class="mota-parchment-panel" style="display:none;position:fixed;bottom:12px;right:12px;padding:12px 16px;font-size:12px;z-index:999999;box-shadow:0 10px 25px rgba(0,0,0,0.85);max-width:min(550px,calc(100vw - 24px));max-height:240px;overflow:auto;border:1px solid #9c8257;"></div>
+  <div id="runtime-error-display" role="alert" class="mota-parchment-panel" style="display:none;position:fixed;bottom:12px;right:12px;padding:12px 16px;font-size:12px;z-index:999999;box-shadow:0 10px 25px rgba(0,0,0,0.85);max-width:min(550px,calc(100vw - 24px));max-height:240px;overflow:auto;border:1px solid #9c8257;"><span data-error-message></span></div>
   <script>
     var gameStartupFinished = false;
     var gameStartupTimer = setTimeout(function() { showStartupNotice(); }, 8000);
@@ -116,7 +116,7 @@
       if (!el || el.dataset.startup === 'true') return;
       el.dataset.startup = 'true';
       el.style.display = 'block';
-      el.textContent = '游戏尚未启动完成。可以继续等待，或重新载入页面后继续冒险。';
+      (el.querySelector('[data-error-message]') || el).textContent = '游戏尚未启动完成。可以继续等待，或重新载入页面后继续冒险。';
       var retry = document.createElement('button');
       retry.id = 'btn-retry-startup';
       retry.className = 'mota-btn-gold';
@@ -133,7 +133,8 @@
       if (!el || el.dataset.startup !== 'true') return;
       var restoreFocus = el.contains(document.activeElement);
       el.style.display = 'none';
-      el.textContent = '';
+      (el.querySelector('[data-error-message]') || el).textContent = '';
+      el.querySelector('#btn-retry-startup')?.remove();
       delete el.dataset.startup;
       if (restoreFocus) {
         var target = document.querySelector('#char-select-overlay:not(.hidden) [data-class-id]') ||
@@ -146,7 +147,7 @@
       var el = document.getElementById('runtime-error-display');
       if (el) {
         el.style.display = 'block';
-        el.textContent = '游戏遇到异常，请刷新页面后重试。若问题持续，请反馈发生前的操作。';
+        (el.querySelector('[data-error-message]') || el).textContent = '游戏遇到异常，请刷新页面后重试。若问题持续，请反馈发生前的操作。';
       }
     }
     window.addEventListener('error', function(e) {

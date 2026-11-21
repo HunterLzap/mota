@@ -17,12 +17,18 @@ import { MERCENARIES } from '../config/estate.js';
 import { renderPetPortrait } from './petPortrait.js';
 
 export class PetView {
-  constructor(containerId) {
+  constructor(containerId, onSwitchTab) {
     this.container = document.getElementById(containerId);
+    this.onSwitchTab = onSwitchTab;
     this.selectedPetId = null;
     this.currentSubTab = 'overview'; // 'overview' | 'wash' | 'skills'
     this.detailSub = 'main'; // 'main' | 'more'（详情内折叠页）
     this.rosterScroll = {};
+  }
+
+  navigate({ section, petId } = {}) {
+    if (section !== undefined) this.currentSubTab = section;
+    if (petId !== undefined) this.selectedPetId = petId;
   }
 
   render() {
@@ -363,7 +369,7 @@ export class PetView {
       };
     });
     const mercenaryButton = this.container.querySelector('#btn-party-mercenary');
-    if (mercenaryButton) mercenaryButton.onclick = () => window.switchMainTab('estate');
+    if (mercenaryButton) mercenaryButton.onclick = () => this.onSwitchTab?.('estate');
     this.container.querySelectorAll('[data-assign-party], [data-clear-party]').forEach(button => {
       button.onclick = () => {
         const clear = button.hasAttribute('data-clear-party');
@@ -594,7 +600,7 @@ export class PetView {
             () => {
               gameState.claimQuestReward('quest_5');
               gameModal.alert('大量珍贵草药已存入行囊！已为你开启下一阶段主线【初试锋芒 · 踏入魔塔】，向着魔塔第 1 层进军吧！', '主线推进', () => {
-                if (window.switchMainTab) window.switchMainTab('tower');
+                this.onSwitchTab?.('tower');
               });
             },
             () => this.render(),

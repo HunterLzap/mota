@@ -7,14 +7,83 @@ import { COMMISSIONS, validCommissionProgress } from '../config/commissions.js';
 const LEGACY_SAVE_KEY = 'MOTA_WORLD_REBIRTH_SAVE';
 const ACTIVE_SLOT_KEY = 'MOTA_WORLD_ACTIVE_SLOT_ID';
 const SLOT_KEY_PREFIX = 'MOTA_WORLD_SAVE_SLOT_';
+const SLOT_LOCK_PREFIX = 'MOTA_WORLD_SLOT_LOCK_';
+const LEASE_DURATION = 15000;
+const LEASE_HEARTBEAT = 5000;
 export const TOTAL_SLOTS = 5;
 const slotLocks = new Map();
+const leasedSlots = new Set();
 const slotSnapshots = new Map();
 let protectedSession = false;
 let pageSlotId = null;
+let leaseOwnerId = null;
+let slotWatcher = null;
+
+function readLease(key) {
+  const value = localStorage.getItem(key);
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function hasSlotLock(slotId) {
+  if (!slotLocks.has(slotId)) return false;
+  if (!leasedSlots.has(slotId)) return true;
+  const lease = readLease(`${SLOT_LOCK_PREFIX}${slotId}`);
+  return lease?.ownerId === leaseOwnerId && lease.expiresAt >= Date.now();
+}
+
+function acquireSlotLease(slotId) {
+  leaseOwnerId ??= globalThis.crypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const key = `${SLOT_LOCK_PREFIX}${slotId}`;
+  const lease = readLease(key);
+  if (lease?.ownerId && lease.ownerId !== leaseOwnerId && lease.expiresAt >= Date.now()) return false;
+
+  const renew = () => localStorage.setItem(key, JSON.stringify({
+    ownerId: leaseOwnerId,
+    expiresAt: Date.now() + LEASE_DURATION
+  }));
+  renew();
+  if (readLease(key)?.ownerId !== leaseOwnerId) return false;
+
+  const unload = () => releaseSlotLock(slotId);
+  const heartbeat = setInterval(() => {
+    try {
+      if (hasSlotLock(slotId)) {
+        renew();
+        return;
+      }
+    } catch {
+      // Treat a storage failure as loss of the lease.
+    }
+    releaseSlotLock(slotId);
+    if (pageSlotId === slotId) {
+      storage.lastError = '当前存档锁已失效，请重新载入最新进度，或选择其他存档。';
+      storage.onConflict?.();
+    }
+  }, LEASE_HEARTBEAT);
+  window.addEventListener('beforeunload', unload);
+  leasedSlots.add(slotId);
+  slotLocks.set(slotId, () => {
+    clearInterval(heartbeat);
+    window.removeEventListener('beforeunload', unload);
+    try {
+      if (readLease(key)?.ownerId === leaseOwnerId) localStorage.removeItem(key);
+    } catch {
+      // The lease expires if storage is unavailable during cleanup.
+    }
+    leasedSlots.delete(slotId);
+  });
+  return true;
+}
 
 function acquireSlotLock(slotId) {
-  if (slotLocks.has(slotId)) return Promise.resolve(true);
+  if (hasSlotLock(slotId)) return Promise.resolve(true);
+  if (leasedSlots.has(slotId)) releaseSlotLock(slotId);
+  if (!globalThis.navigator?.locks?.request) return Promise.resolve(acquireSlotLease(slotId));
   return new Promise((resolve, reject) => {
     navigator.locks.request(`MOTA_WORLD_SLOT_${slotId}`, { ifAvailable: true }, lock => {
       if (!lock) { resolve(false); return; }
@@ -37,11 +106,19 @@ export const storage = {
   onConflict: null,
 
   watchSlot() {
-    if (!protectedSession) return;
-    window.addEventListener('storage', event => {
+    if (slotWatcher) window.removeEventListener('storage', slotWatcher);
+    const handler = event => {
+      if (!protectedSession) return;
       const key = `${SLOT_KEY_PREFIX}${pageSlotId}`;
       if (event.key === key && event.newValue !== slotSnapshots.get(pageSlotId)) this.onConflict?.();
-    });
+    };
+    slotWatcher = handler;
+    window.addEventListener('storage', handler);
+    return () => {
+      if (slotWatcher !== handler) return;
+      window.removeEventListener('storage', handler);
+      slotWatcher = null;
+    };
   },
 
   getSlotSnapshot(slotId) {
@@ -49,19 +126,15 @@ export const storage = {
   },
 
   hasActiveSlot() {
-    return !protectedSession || (pageSlotId !== null && slotLocks.has(pageSlotId));
+    return !protectedSession || (pageSlotId !== null && hasSlotLock(pageSlotId));
   },
 
   // Keep one writer per slot without changing synchronous game-state mutations.
   async activateSlot(slotId, expectedSnapshot) {
     const id = Math.max(1, Math.min(TOTAL_SLOTS, parseInt(slotId, 10) || 1));
     protectedSession = true;
-    if (!globalThis.navigator?.locks?.request) {
-      this.lastError = '当前浏览器不支持安全的多页面存档，请使用支持 Web Locks 的浏览器打开游戏。';
-      return false;
-    }
-    if (pageSlotId === id && slotLocks.has(id)) return this.canWriteSlot(id);
     try {
+      if (pageSlotId === id && hasSlotLock(id)) return this.canWriteSlot(id);
       if (!await acquireSlotLock(id)) {
         this.lastError = `存档 ${id} 正在其他页面中使用。请关闭对应页面后重新载入，或选择其他存档。`;
         return false;
@@ -88,7 +161,7 @@ export const storage = {
 
   canWriteSlot(slotId) {
     if (!protectedSession) return true;
-    if (slotLocks.has(slotId) && slotSnapshots.get(slotId) === this.getSlotSnapshot(slotId)) return true;
+    if (hasSlotLock(slotId) && slotSnapshots.get(slotId) === this.getSlotSnapshot(slotId)) return true;
     this.lastError = '存档已发生变化，本页已停止保存。请重新载入最新进度，或选择其他存档。';
     this.onConflict?.();
     return false;
@@ -130,7 +203,7 @@ export const storage = {
   setActiveSlotId(slotId) {
     try {
       const num = Math.max(1, Math.min(TOTAL_SLOTS, parseInt(slotId, 10) || 1));
-      if (protectedSession && !slotLocks.has(num)) return false;
+      if (protectedSession && !hasSlotLock(num)) return false;
       localStorage.setItem(ACTIVE_SLOT_KEY, String(num));
       if (protectedSession) pageSlotId = num;
       return num;
@@ -153,7 +226,7 @@ export const storage = {
           const parsed = JSON.parse(legacyRaw);
           const data = parsed.data || parsed;
           raw = legacyRaw;
-          if (!protectedSession || slotLocks.has(1)) {
+          if (!protectedSession || hasSlotLock(1)) {
             this.saveToSlot(1, data);
             raw = localStorage.getItem(key) || legacyRaw;
           }

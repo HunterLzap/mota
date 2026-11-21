@@ -11,8 +11,9 @@ import { getWildRegionStyle } from './wildArtwork.js';
 const THIEF_STATS = { hp: 8000, atk: 380, def: 180, speed: 30 };
 
 export class WildView {
-  constructor(containerId, onStartBattle) {
+  constructor(containerId, onStartBattle, onSwitchTab) {
     this.container = document.getElementById(containerId);
+    this.onSwitchTab = onSwitchTab;
     this.onStartBattle = onStartBattle;
     this.selectedMapId = gameState.data.currentMapId || 'forest';
     this.active = false;
@@ -42,6 +43,14 @@ export class WildView {
     const since = Number.isFinite(gameState.data.lastIdleClaimTime) ? gameState.data.lastIdleClaimTime : now;
     this.idleTimer = setTimeout(() => this.updateIdleSummary(),
       Math.max(1, since + (reward.minutes + 1) * 60000 - now));
+  }
+
+  navigate({ mapId, highestUnlocked } = {}) {
+    if (highestUnlocked) {
+      this.selectedMapId = MAPS.filter(map => map.reqLevel <= gameState.data.level).at(-1)?.id || MAPS[0].id;
+    } else if (mapId !== undefined) {
+      this.selectedMapId = mapId;
+    }
   }
 
   render() {
@@ -187,7 +196,7 @@ export class WildView {
                   () => {
                     gameState.claimQuestReward('quest_18');
                     gameModal.alert('犒赏已发放！新主线【极地裁决 · 讨伐银龙】已开启，前往圣光王都远古屠龙圣殿讨伐耀光秘银巨龙吧！', '主线推进', () => {
-                      if (window.switchMainTab) window.switchMainTab('town');
+                      this.onSwitchTab?.('town');
                     });
                   },
                   () => this.render(),

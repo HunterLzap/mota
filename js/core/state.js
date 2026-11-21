@@ -1,22 +1,16 @@
 // 全局状态管理器与深度单机属性计算 (100% 贴合《魔塔世界》百度百科原著)
-import { CLASSES, NATIONS, getClassSkills, getSkillTraining } from '../config/classes.js';
+import { CLASSES, getClassSkills, getSkillTraining } from '../config/classes.js';
 import { getPetParty } from './petParty.js';
-import { PET_CONFIGS, PET_TIERS } from '../config/pets.js';
-import { PET_SKILL_BOOKS } from '../config/petSkills.js';
-import { ITEM_SLOTS, QUALITIES, OFFICIAL_SETS, SPECIAL_ITEMS, REFORGE_AFFIXES, GEMS_CONFIG, generateEquipment, specializeEquipment, applyCanonicalItemName, getSocketCap, hasDurability } from '../config/items.js';
+import { ITEM_SLOTS, QUALITIES, OFFICIAL_SETS, SPECIAL_ITEMS, REFORGE_AFFIXES, generateEquipment, specializeEquipment, applyCanonicalItemName, getSocketCap, hasDurability } from '../config/items.js';
 import { DUNGEON_GATES, DUNGEON_CLEAR_SUPPLIES, DUNGEON_FIRST_CLEAR_STORIES, getDungeonFloorGuard, generateDungeonDrop } from '../config/dungeons.js';
-import { DRAGON_TRIALS } from '../config/dragonSlaying.js';
 import { ROYAL_TRIALS } from '../config/trials.js';
-import { SLAVE_CANDIDATES } from '../config/slaves.js';
-import { ALCHEMY_RECIPES, MERCENARIES } from '../config/estate.js';
-import { ARENA_RANKS, ARENA_OPPONENTS, PRESTIGE_SHOP_ITEMS } from '../config/arena.js';
 import { QUEST_LIST, getQuestList } from '../config/quests.js';
 import { levelExperience, getRegionalStory, getInvestigationSteps, getInvestigationEarnedExperience } from '../config/story.js';
-import { TAVERN_BOUNTIES, TAVERN_DRINKS } from '../config/tavern.js';
-import { COMMISSIONS, getCommission, normalizeCommissions, getCommissionEquipment } from '../config/commissions.js';
-import { RUNES, RUNIC_WORDS, checkRunicWord } from '../config/runes.js';
-import { MILITARY_RANKS, STRONGHOLDS, FACTION_REWARDS } from '../config/factionWar.js';
-import { HOLY_RELICS, getUnlockedRelics, getRelicsTotalStats, getRelicById } from '../config/relics.js';
+import { TAVERN_BOUNTIES } from '../config/tavern.js';
+import { normalizeCommissions } from '../config/commissions.js';
+import { RUNES } from '../config/runes.js';
+import { MILITARY_RANKS } from '../config/factionWar.js';
+import { getUnlockedRelics } from '../config/relics.js';
 import { CITY_SHOPS, SHOP_PRESTIGE_TIERS, SHOP_CATEGORIES, ENABLE_CITY_SHOPS, prestigeTierOf } from '../config/shops.js';
 import { CITIES, CITY_ORDER, CITY_SPECIAL_REWARDS, ENABLE_CITIES } from '../config/cities.js';
 import { ACHIEVEMENTS, ACHIEVEMENT_CATEGORIES } from '../config/achievements.js';
@@ -25,6 +19,10 @@ import { MAPS } from '../config/maps.js';
 import { getTowerFloorData, LANDMARK_BOSSES } from '../config/towerLevels.js';
 import { canRetryFinale } from './journey.js';
 import { createActionClock, actionDayKey, ACTION_POINTS } from './actionClock.js';
+import * as heroStatsDomain from './domains/heroStatsDomain.js';
+import * as petDomain from './domains/petDomain.js';
+import * as estateDomain from './domains/estateDomain.js';
+import * as activityDomain from './domains/activityDomain.js';
 
 export class GameState {
   constructor() {
@@ -43,7 +41,7 @@ export class GameState {
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     const logItem = {
-      id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
       time: timeStr,
       type, // 'obtain' | 'battle' | 'quest' | 'forge' | 'pet' | 'estate' | 'system'
       text
@@ -172,7 +170,7 @@ export class GameState {
 
       // 每日活动记录（旧字段保留兼容，不再作为判定依据）
       lastSalaryDate: null,
-      dailyResetDate: actionDayKey(1),
+      dailyResetDate: this.getResetDayKey(1),
 
       // 王国角斗场与天梯对决
       arena: {
@@ -180,7 +178,7 @@ export class GameState {
         points: 1000,
         rankTitle: '青铜角斗士',
         challengesLeft: 5,
-        lastResetDate: new Date().toDateString()
+        lastResetDate: this.getResetDayKey(1)
       },
 
       // 皇家酒馆与赏金悬赏榜
@@ -192,7 +190,7 @@ export class GameState {
           { id: 'bounty_canyon_wyvern', status: 'available' }
         ],
         drinkBuff: null,
-        lastResetDate: new Date().toDateString()
+        lastResetDate: this.getResetDayKey(1)
       },
 
       // 三大阵营边境要塞争夺战
@@ -255,21 +253,12 @@ export class GameState {
 
   // 检查本行动日是否已领俸禄
   canClaimSalary() {
-    return this.data.lastSalaryDay !== this.getActionDay();
+    return activityDomain.canClaimSalary(this);
   }
 
   // 领取本行动日俸禄
   claimSalary() {
-    const day = this.getActionDay();
-    if (this.data.lastSalaryDay === day) {
-      return { success: false, msg: '本行动日俸禄已全额领受！完成更多行动进入下一行动日后可再度面圣领赏！' };
-    }
-    this.data.lastSalaryDay = day;
-    this.gainCurrency(1500, 20, 0);
-    this.triggerQuestAction('claim_salary');
-    this.addSystemLog('【王宫】恭敬晋谒圣王，成功领受今日骑士俸禄：1,500 金币、20 魔晶！', 'estate');
-    this.notify();
-    return { success: true, msg: '恭敬晋谒圣王！成功领受今日王国俸禄：金币 +1500，魔晶 +20！' };
+    return activityDomain.claimSalary(this);
   }
 
   loadOrInit() {
@@ -341,6 +330,12 @@ export class GameState {
       this.data.arena.activeChallenge = null;
       this.data.actionClock = { ...createActionClock(), ...(saved.actionClock || {}) };
       this.data.dailyResetDay = Number.isSafeInteger(saved.dailyResetDay) ? saved.dailyResetDay : 1;
+      const hasLegacyResetDate = saved.actionClock && /^\w{3} \w{3} \d{2} \d{4}$/.test(saved.dailyResetDate);
+      if (hasLegacyResetDate) {
+        if (!Number.isSafeInteger(saved.dailyResetDay)) this.data.dailyResetDay = this.getActionDay();
+        this.data.dailyResetDate = this.getResetDayKey(this.data.dailyResetDay);
+      }
+      const savedResetKey = this.getResetDayKey(this.data.dailyResetDay);
       this.data.lastSalaryDay = Number.isSafeInteger(saved.lastSalaryDay) ? saved.lastSalaryDay : 0;
       this.data.lastIdleClaimDay = Number.isSafeInteger(saved.lastIdleClaimDay) ? saved.lastIdleClaimDay : 0;
       this.data.idleMinutesClaimed = Number.isSafeInteger(saved.idleMinutesClaimed) ? saved.idleMinutesClaimed : 0;
@@ -348,7 +343,7 @@ export class GameState {
       // 旧档首次迁移：建立第 1 行动日并刷新每日配额；不追溯宠物体力，也不发放额外资源。
       if (!saved.actionClock) {
         this.data.dailyResetDay = 1;
-        this.data.dailyResetDate = actionDayKey(1);
+        this.data.dailyResetDate = this.getResetDayKey(1);
         this.data.castle.entriesLeft = 3;
         this.data.dungeon.entriesLeft = 5;
         this.data.dragon.trialsLeft = 4;
@@ -358,6 +353,11 @@ export class GameState {
 
       // 皇家酒馆数据迁移
       this.data.tavern = { ...defaults.tavern, ...(saved.tavern || {}) };
+      for (const activity of ['arena', 'tavern']) {
+        const savedKey = saved[activity]?.lastResetDate;
+        this.data[activity].lastResetDate = saved.actionClock && /^action-day-\d+$/.test(savedKey)
+          ? savedKey : savedResetKey;
+      }
       if (!Array.isArray(this.data.tavern.bounties) || this.data.tavern.bounties.length === 0) {
         this.data.tavern.bounties = defaults.tavern.bounties;
       }
@@ -466,6 +466,10 @@ export class GameState {
     return Number.isSafeInteger(day) && day > 0 ? day : 1;
   }
 
+  getResetDayKey(day = this.getActionDay()) {
+    return actionDayKey(day);
+  }
+
   // 当前行动日进度（0 ~ pointsPerDay-1）
   getActionPoints() {
     const points = this.data.actionClock?.points;
@@ -498,16 +502,17 @@ export class GameState {
     const currentDay = this.getActionDay();
     const forcedByLegacy = typeof target === 'string' && !/^action-day-\d+$/.test(target);
     const targetDay = Number.isSafeInteger(target) && target > 0 ? target : currentDay;
-    const legacyDateMismatch = typeof this.data.dailyResetDate === 'string' && this.data.dailyResetDate !== actionDayKey(currentDay);
+    const legacyDateMismatch = typeof this.data.dailyResetDate === 'string' && this.data.dailyResetDate !== this.getResetDayKey();
     if (!forcedByLegacy && !legacyDateMismatch && this.data.dailyResetDay === targetDay) return false;
     this.data.dailyResetDay = targetDay;
-    this.data.dailyResetDate = actionDayKey(targetDay);
+    const resetKey = this.getResetDayKey(targetDay);
+    this.data.dailyResetDate = resetKey;
     this.data.castle.entriesLeft = 3;
     this.data.dungeon.entriesLeft = 5;
     this.data.dragon.trialsLeft = 4;
     this.data.arena.challengesLeft = 5;
     this.data.arena.activeChallenge = null;
-    this.data.arena.lastResetDate = actionDayKey(targetDay);
+    this.data.arena.lastResetDate = resetKey;
     const previousBounties = Array.isArray(this.data.tavern.bounties) ? this.data.tavern.bounties : [];
     this.data.tavern.bounties = TAVERN_BOUNTIES.map(bounty => {
       const previous = previousBounties.find(entry => entry.id === bounty.id);
@@ -516,9 +521,9 @@ export class GameState {
       return { id: bounty.id, status: 'available' };
     });
     this.data.tavern.drinkBuff = null;
-    this.data.tavern.lastResetDate = actionDayKey(targetDay);
+    this.data.tavern.lastResetDate = resetKey;
     this.data.factionWar.dailyClaimed = false;
-    this.data.factionWar.lastResetDate = actionDayKey(targetDay);
+    this.data.factionWar.lastResetDate = resetKey;
     this.data.estate.harvestedToday = 0;
     this.data.lastIdleClaimDay = 0;
     this.data.idleMinutesClaimed = 0;
@@ -545,12 +550,7 @@ export class GameState {
   }
 
   addPetExperience(pet, amount) {
-    if (!pet || !Number.isFinite(amount) || amount <= 0) return;
-    pet.exp = (pet.exp || 0) + amount;
-    while (pet.level < 100 && pet.exp >= this.getNextLevelExp(pet.level)) {
-      pet.exp -= this.getNextLevelExp(pet.level);
-      pet.level++;
-    }
+    return petDomain.addPetExperience(this, pet, amount);
   }
 
   addExp(amount, publish = true, grantPets = true) {
@@ -622,20 +622,7 @@ export class GameState {
   }
 
   completeRoyalTrial(stage) {
-    const current = this.data.royalTrials.completedStage || 0;
-    const trial = ROYAL_TRIALS[stage];
-    if (!Number.isInteger(stage) || stage !== current || !trial) return { success: false, msg: '试炼阶位已变化或已完成。' };
-    if (this.data.level < trial.level || this.data.prestige < trial.fameReq) return { success: false, msg: '等级或声望尚未达到册封要求。' };
-    this.data.royalTrials.completedStage = stage + 1;
-    this.data.royalTrials.currentTitle = trial.title;
-    this.data.title = trial.title;
-    this.addExp(trial.level * 200);
-    this.gainCurrency(trial.level * 100, 50, 0);
-    this.reconcileQuestMilestones();
-    this.triggerQuestAction('royal_trials', 1);
-    this.addActionPoints(ACTION_POINTS.trial);
-    this.notify();
-    return { success: true, title: this.getPromotedClassName() };
+    return activityDomain.completeRoyalTrial(this, stage);
   }
 
   // 获取转职阶位详细描述与晋升境界
@@ -663,379 +650,24 @@ export class GameState {
 
   // 综合有效战斗属性计算
   getEffectiveStats(equipped = this.data.equipped) {
-    const cls = CLASSES[this.data.classId] || CLASSES.warrior;
-    const lvl = this.data.level;
-    const alloc = this.data.allocatedStats;
-    const nation = NATIONS[this.data.nation] || NATIONS.aden;
-    const intAttack = cls.primaryStat === 'int' ? 2.6 : 2;
-    const dexterity = cls.dexterityScaling || { atk: 0, speed: 1.3, crit: 0.22, dodge: 0.16 };
-
-    let hp = cls.baseStats.hp + (lvl - 1) * cls.growth.hp + alloc.con * 16;
-    let mp = cls.baseStats.mp + (lvl - 1) * cls.growth.mp + alloc.int * 8;
-    let atk = cls.baseStats.atk + (lvl - 1) * cls.growth.atk + alloc.str * 2.6 + alloc.int * intAttack;
-    let def = cls.baseStats.def + (lvl - 1) * cls.growth.def + alloc.con * 1.5;
-    let speed = cls.baseStats.speed + (lvl - 1) * cls.growth.speed + alloc.dex * dexterity.speed;
-
-    let crit = cls.baseStats.crit + alloc.dex * dexterity.crit;
-    let dodge = cls.baseStats.dodge + alloc.dex * dexterity.dodge;
-    let hit = cls.baseStats.hit;
-    let counter = cls.baseStats.counter;
-    let lifesteal = cls.baseStats.lifesteal;
-    let magicResist = cls.baseStats.magicResist;
-    let critDmg = 0;
-    let dmgResist = 0;
-    let dmgBonus = 0;
-    const activeSetCounts = {};
-    for (const item of Object.values(equipped)) {
-      if (item?.setId && (item.durability === undefined || item.durability > 0)) activeSetCounts[item.setId] = (activeSetCounts[item.setId] || 0) + 1;
-    }
-    const setBonuses = Object.entries(activeSetCounts).flatMap(([id, count]) => {
-      const set = OFFICIAL_SETS[id];
-      return set ? [...(count >= 2 ? [set.bonus2] : []), ...(count >= 4 ? [set.bonus4] : []), ...(count >= 7 ? [set.bonus7] : [])] : [];
-    });
-    const sumSet = key => setBonuses.reduce((sum, bonus) => sum + (bonus[key] || 0), 0);
-    const skillLevelBonus = sumSet('allSkillLv');
-    const bonusAttributes = { str: 0, int: 0, dex: 0, con: 0 };
-    const applyAttributes = attributes => {
-      const all = attributes.allStats || 0;
-      const str = (attributes.str || 0) + all;
-      const int = (attributes.int || 0) + all;
-      const dex = (attributes.dex ?? attributes.agi ?? 0) + all;
-      const con = (attributes.con || 0) + all;
-      for (const [key, value] of Object.entries({ str, int, dex, con })) bonusAttributes[key] += value;
-      atk += str * 2.6 + int * intAttack + dex * dexterity.atk;
-      hp += con * 16;
-      mp += int * 8;
-      def += con * 1.5;
-      speed += dex * dexterity.speed;
-      crit += dex * dexterity.crit;
-      dodge += dex * dexterity.dodge;
-    };
-
-    // 职业被动进入属性计算，光环在战斗内区分 PVE/PVP。
-    const passiveEffects = getClassSkills(cls.id, skillLevelBonus, this.data).filter(skill => skill.category === 'passive').map(skill => skill.effect || {});
-    for (const effect of passiveEffects) {
-      atk += (effect.atkBonus || 0) + (effect.strBonus || 0) * 2.6 + (effect.intBonus || 0) * intAttack + (effect.dexBonus || 0) * dexterity.atk;
-      hp += effect.maxHpBonus || 0;
-      mp += effect.maxMpBonus || 0;
-      def += effect.defBonus || 0;
-      speed += (effect.speedBonus || 0) + (effect.dexBonus || 0) * dexterity.speed;
-      crit += (effect.critBonus || 0) + (effect.dexBonus || 0) * dexterity.crit;
-      dodge += (effect.dodgeBonus || 0) + (effect.dexBonus || 0) * dexterity.dodge;
-      magicResist += effect.magicResistBonus || 0;
-      critDmg += (effect.critDmgBonus || 0) * 100;
-    }
-    atk += alloc.dex * dexterity.atk;
-
-    // 国家特质加成
-    if (nation.buffs) {
-      if (nation.buffs.atkPct) atk *= (1 + nation.buffs.atkPct);
-      if (nation.buffs.defPct) def *= (1 + nation.buffs.defPct);
-      if (nation.buffs.hpPct) hp *= (1 + nation.buffs.hpPct);
-      if (nation.buffs.counter) counter += nation.buffs.counter;
-      if (nation.buffs.dodge) dodge += nation.buffs.dodge;
-      if (nation.buffs.crit) crit += nation.buffs.crit;
-    }
-
-    // 封号属性加成
-    if (this.data.royalTrials && this.data.royalTrials.completedStage > 0) {
-      for (const trial of ROYAL_TRIALS.slice(0, this.data.royalTrials.completedStage)) {
-        const tBonus = trial.statsBonus;
-        if (tBonus.atk) atk += tBonus.atk;
-        if (tBonus.def) def += tBonus.def;
-        if (tBonus.maxHp) hp += tBonus.maxHp;
-        if (tBonus.speed) speed += tBonus.speed;
-        if (tBonus.crit) crit += tBonus.crit;
-        if (tBonus.dodge) dodge += tBonus.dodge;
-        if (tBonus.counter) counter += tBonus.counter;
-        dmgBonus += tBonus.dmgBonus || 0;
-      }
-    }
-
-    // 装备加成 (考虑耐久度，耐久为0则不提供加成)
-
-    Object.values(equipped).forEach(item => {
-      if (!item || (item.reqClass && item.reqClass !== this.data.classId)) return;
-      if (item.durability !== undefined && item.durability <= 0) return; // 耐久为0失效
-
-      const enhanceMult = 1 + (item.stars || 0) * 0.12;
-
-      if (item.stats) {
-        hp += (item.stats.hp ?? item.stats.maxHp ?? 0) * enhanceMult;
-        mp += (item.stats.mp ?? item.stats.maxMp ?? 0) * enhanceMult;
-        if (item.stats.atk) atk += item.stats.atk * enhanceMult;
-        if (item.stats.def) def += item.stats.def * enhanceMult;
-        if (item.stats.speed) speed += item.stats.speed * enhanceMult;
-        if (item.stats.hit) hit += item.stats.hit;
-        if (item.stats.crit) crit += item.stats.crit;
-        if (item.stats.dodge) dodge += item.stats.dodge;
-        if (item.stats.counter) counter += item.stats.counter;
-        if (item.stats.lifesteal) lifesteal += item.stats.lifesteal;
-        atk += ((item.stats.str || 0) * 2.6 + (item.stats.int || 0) * intAttack +
-          (item.stats.dex || 0) * dexterity.atk) * enhanceMult;
-        hp += (item.stats.con || 0) * 16 * enhanceMult;
-        mp += (item.stats.int || 0) * 8 * enhanceMult;
-        def += (item.stats.con || 0) * 1.5 * enhanceMult;
-        speed += (item.stats.dex || 0) * dexterity.speed * enhanceMult;
-        crit += (item.stats.dex || 0) * dexterity.crit;
-        dodge += (item.stats.dex || 0) * dexterity.dodge;
-        critDmg += item.stats.critDmg || 0;
-        dmgResist += item.stats.dmgResist || 0;
-        magicResist += item.stats.magicResist || 0;
-        for (const key of Object.keys(bonusAttributes)) bonusAttributes[key] += item.stats[key] || 0;
-      }
-
-      if (item.gems && item.gems.length) {
-        item.gems.forEach(g => {
-          if (!g) return;
-          if (g.stat === 'atk') atk += g.val;
-          if (g.stat === 'def') def += g.val;
-          if (g.stat === 'maxHp') hp += g.val;
-          if (g.stat === 'speed') speed += g.val;
-          const rStats = g.stats || (RUNES[g.id]?.stats);
-          if (rStats) {
-            if (rStats.atk) atk += rStats.atk;
-            if (rStats.def) def += rStats.def;
-            if (rStats.hp) hp += rStats.hp;
-            if (rStats.speed) speed += rStats.speed;
-            if (rStats.crit) crit += rStats.crit;
-            if (rStats.dodge) dodge += rStats.dodge;
-            if (rStats.critDmg) critDmg += rStats.critDmg;
-            if (rStats.dmgReduce) dmgResist += rStats.dmgReduce;
-            if (rStats.dmgBoost) dmgBonus += rStats.dmgBoost;
-            applyAttributes(rStats);
-          }
-        });
-      }
-
-      // 远古符文之语共鸣加成
-      if (item.runicWord) {
-        const rw = RUNIC_WORDS.find(r => r.id === item.runicWord);
-        if (rw && rw.bonus) {
-          if (rw.bonus.atk) atk += rw.bonus.atk;
-          if (rw.bonus.def) def += rw.bonus.def;
-          if (rw.bonus.hp) hp += rw.bonus.hp;
-          if (rw.bonus.speed) speed += rw.bonus.speed;
-          if (rw.bonus.crit) crit += rw.bonus.crit;
-          if (rw.bonus.dodge) dodge += rw.bonus.dodge;
-          if (rw.bonus.critDmg) critDmg += rw.bonus.critDmg;
-          if (rw.bonus.dmgReduce) dmgResist += rw.bonus.dmgReduce;
-          applyAttributes(rw.bonus);
-        }
-      }
-
-      if (item.reforge) {
-        if (item.reforge.stat === 'counter') counter += item.reforge.val;
-        if (item.reforge.stat === 'lifesteal') lifesteal += item.reforge.val;
-        if (item.reforge.stat === 'critDmg') {
-          crit += item.reforge.val * 0.2;
-          critDmg += item.reforge.val;
-        }
-        if (item.reforge.stat === 'allStats') applyAttributes({ allStats: item.reforge.val });
-        if (item.reforge.stat === 'dmgResist') {
-          dmgResist += item.reforge.val;
-          def += item.reforge.val * 2;
-        }
-      }
-
-    });
-
-    mp += sumSet('mp');
-    hit += sumSet('hit');
-    dmgBonus += sumSet('dmgBonus');
-
-    // 原著官方套装属性加成：setBonuses 已按 2/4(/未来7) 档位过滤，统一按数值键累加，
-    // 避免逐 key 硬编码遗漏（如未来 7 件档的 atk/def 等会被静默丢弃）。现网数值与旧实现等价。
-    atk += sumSet('atk');
-    def += sumSet('def');
-    hp += sumSet('hp');
-    speed += sumSet('speed');
-    dodge += sumSet('dodge');
-    crit += sumSet('crit');
-    counter += sumSet('counter');
-    lifesteal += sumSet('lifesteal');
-    dmgResist += sumSet('dmgResist');
-    critDmg += sumSet('critDmg');
-
-    // 出战宠物属性（原作三阈值：80+ 全额，40~79 减半，<40 无效）
-    const mainPetMember = getPetParty(this.data)[0];
-    const activePetObj = mainPetMember.pet;
-    const petAttributeMultiplier = mainPetMember.attributeMultiplier || 0;
-    if (activePetObj && petAttributeMultiplier > 0) {
-      const pCfg = PET_CONFIGS[activePetObj.id];
-      if (pCfg) {
-        const aptRatio = (activePetObj.apt.str + activePetObj.apt.con) / 3000;
-        atk += Math.floor(((pCfg.baseBonus.atk || 0) * aptRatio + activePetObj.level * (pCfg.growth.atk || 3)) * petAttributeMultiplier);
-        hp += Math.floor(((pCfg.baseBonus.maxHp || 0) * aptRatio + activePetObj.level * 20) * petAttributeMultiplier);
-        def += Math.floor((pCfg.baseBonus.def || 0) * aptRatio * petAttributeMultiplier);
-        speed += Math.floor((pCfg.baseBonus.speed || 0) * petAttributeMultiplier);
-        if (pCfg.baseBonus.counter) counter += pCfg.baseBonus.counter * petAttributeMultiplier;
-        if (pCfg.baseBonus.dodge) dodge += pCfg.baseBonus.dodge * petAttributeMultiplier;
-        if (pCfg.baseBonus.crit) crit += pCfg.baseBonus.crit * petAttributeMultiplier;
-        if (pCfg.baseBonus.lifesteal) lifesteal += pCfg.baseBonus.lifesteal * petAttributeMultiplier;
-        // 四维资质全部进入有效属性：智力提供魔力，敏捷提供速度/闪避/暴击。
-        const intApt = activePetObj.apt.int || 0;
-        const dexApt = activePetObj.apt.dex || 0;
-        mp += Math.floor((intApt / 3000) * 80 * petAttributeMultiplier);
-        speed += Math.floor((dexApt / 3000) * 8 * petAttributeMultiplier);
-        dodge += (dexApt / 3000) * 4 * petAttributeMultiplier;
-        crit += (dexApt / 3000) * 4 * petAttributeMultiplier;
-      }
-      const learnedBooks = Object.values(PET_SKILL_BOOKS).filter(book =>
-        (activePetObj.skills || []).some(id => id === book.id || id === book.skillId));
-      for (const book of learnedBooks) {
-        const effect = book.effect;
-        counter += (effect.counterBonus || 0) * petAttributeMultiplier;
-        crit += (effect.critBonus || 0) * petAttributeMultiplier;
-        lifesteal += (effect.lifestealBonus || 0) * petAttributeMultiplier;
-        speed += (effect.speedBonus || 0) * petAttributeMultiplier;
-        dodge += (effect.dodgeBonus || 0) * petAttributeMultiplier;
-        dmgResist += (effect.dmgReduction || 0) * 100 * petAttributeMultiplier;
-      }
-    }
-
-    // 皇家酒馆特调麦酒 Buff
-    const drinkBuff = this.data.tavern?.drinkBuff;
-    if (drinkBuff && drinkBuff.buff) {
-      if (drinkBuff.buff.atkPct) atk *= (1 + drinkBuff.buff.atkPct);
-      if (drinkBuff.buff.dodge) dodge += drinkBuff.buff.dodge;
-      if (drinkBuff.buff.speed) speed += drinkBuff.buff.speed;
-      if (drinkBuff.buff.crit) crit += drinkBuff.buff.crit;
-    }
-
-    // 阵营要塞军衔加成
-    if (this.data.factionWar && this.data.factionWar.militaryRank) {
-      const rankCfg = MILITARY_RANKS.find(r => r.id === this.data.factionWar.militaryRank);
-      if (rankCfg && rankCfg.stats) {
-        if (rankCfg.stats.hp) hp += rankCfg.stats.hp;
-        if (rankCfg.stats.atk) atk += rankCfg.stats.atk;
-        if (rankCfg.stats.def) def += rankCfg.stats.def;
-        if (rankCfg.stats.speed) speed += rankCfg.stats.speed;
-        if (rankCfg.stats.crit) crit += rankCfg.stats.crit;
-        if (rankCfg.stats.dmgReduce) dmgResist += rankCfg.stats.dmgReduce;
-        applyAttributes(rankCfg.stats);
-      }
-    }
-
-    // 远古神圣圣遗物加成 (魔塔 50~100 层终焉成就觉醒)
-    if (this.data.relics && Array.isArray(this.data.relics.unlocked) && this.data.relics.unlocked.length > 0) {
-      const rStats = getRelicsTotalStats(this.data.relics.unlocked);
-      if (rStats.hp) hp += rStats.hp;
-      if (rStats.mp) mp += rStats.mp;
-      if (rStats.atk) atk += rStats.atk;
-      if (rStats.def) def += rStats.def;
-      if (rStats.speed) speed += rStats.speed;
-      if (rStats.crit) crit += rStats.crit;
-      if (rStats.critDmg) critDmg += rStats.critDmg;
-      if (rStats.dmgResist) dmgResist += rStats.dmgResist;
-      applyAttributes(rStats);
-    }
-
-    // Battle potions scale the complete loadout, including earned titles and companions.
-    for (const potion of this.data.estate.activePotions || []) {
-      const effect = potion.effect || {};
-      if ((potion.remainingFights ?? effect.fights ?? 0) <= 0) continue;
-      hp *= effect.hpMultiplier || 1;
-      def *= effect.defMultiplier || 1;
-      atk *= effect.atkMultiplier || 1;
-      crit += effect.critBonus || 0;
-    }
-
-    const baseStr = (cls.id === 'warrior' ? 25 : cls.id === 'hunter' ? 18 : 10) + (lvl - 1) * (cls.id === 'warrior' ? 3 : 1);
-    const baseDex = (cls.id === 'hunter' ? 26 : cls.id === 'warrior' ? 15 : 16) + (lvl - 1) * (cls.id === 'hunter' ? 3 : 1);
-    const baseInt = (cls.id === 'mage' ? 28 : cls.id === 'hunter' ? 12 : 10) + (lvl - 1) * (cls.id === 'mage' ? 3 : 1);
-    const baseCon = (cls.id === 'warrior' ? 22 : cls.id === 'hunter' ? 18 : 16) + (lvl - 1) * 2;
-
-    return {
-      hp: Math.floor(hp),
-      maxHp: Math.floor(hp),
-      mp: Math.floor(mp),
-      maxMp: Math.floor(mp),
-      atk: Math.floor(atk),
-      def: Math.floor(def),
-      speed: Math.floor(speed),
-      crit: Math.min(80, Math.floor(crit)),
-      dodge: Math.min(60, Math.floor(dodge)),
-      hit: Math.floor(hit),
-      counter: Math.min(75, Math.floor(counter)),
-      lifesteal: Math.floor(lifesteal),
-      magicResist: Math.floor(magicResist),
-      critDmg: Math.floor(critDmg),
-      dmgResist: Math.min(50, Math.floor(dmgResist)),
-      dmgBonus: Math.floor(dmgBonus),
-      skillLevelBonus,
-      doubleStrike: sumSet('doubleStrike'),
-      magicDmg: sumSet('magicDmg'),
-      finishDmg: sumSet('finishDmg'),
-      magicAbsorb: sumSet('magicAbsorb'),
-      armorBreak: sumSet('armorBreak'),
-      str: Math.floor(baseStr + alloc.str + bonusAttributes.str + passiveEffects.reduce((sum, e) => sum + (e.strBonus || 0), 0)),
-      dex: Math.floor(baseDex + alloc.dex + bonusAttributes.dex + passiveEffects.reduce((sum, e) => sum + (e.dexBonus || 0), 0)),
-      int: Math.floor(baseInt + alloc.int + bonusAttributes.int + passiveEffects.reduce((sum, e) => sum + (e.intBonus || 0), 0)),
-      con: Math.floor(baseCon + alloc.con + bonusAttributes.con),
-      baseStr,
-      baseDex,
-      baseInt,
-      baseCon
-    };
+    return heroStatsDomain.getEffectiveStats(this.data, equipped);
   }
 
   // 喂养神兽 (恢复体力)
   brewPotion(recipeId) {
-    const recipe = ALCHEMY_RECIPES.find(recipe => recipe.id === recipeId);
-    if (!recipe) return { success: false, msg: '未知魔药配方！' };
-    const learnedPoints = this.data.estate.permanentPotionPoints || 0;
-    if (recipe.effect.permanentStatsCap && learnedPoints + recipe.effect.permanentStats > recipe.effect.permanentStatsCap) return { success: false, msg: '龙血潜能秘药已累计提供100点潜能，继续炼制不会再提升；请保留草药用于战斗魔药。' };
-    const herbs = this.data.estate.herbs;
-    if (Object.entries(recipe.materials).some(([id, count]) => (herbs[id] || 0) < count)) return { success: false, msg: '草药材料不足！' };
-    if (this.data.crystal < (recipe.costCrystal || 0)) return { success: false, msg: '魔晶不足！' };
-    for (const [id, count] of Object.entries(recipe.materials)) herbs[id] -= count;
-    this.data.crystal -= recipe.costCrystal || 0;
-    if (recipe.effect.permanentStats) {
-      this.data.freeStatPoints += recipe.effect.permanentStats;
-      this.data.estate.permanentPotionPoints = learnedPoints + recipe.effect.permanentStats;
-    } else {
-      this.data.estate.activePotions = this.data.estate.activePotions.filter(potion => potion.id !== recipe.id);
-      this.data.estate.activePotions.push({ ...recipe, remainingFights: recipe.effect.fights });
-    }
-    this.triggerQuestAction('brew_potion');
-    this.notify();
-    return { success: true, msg: `成功配制【${recipe.name}】！` };
+    return estateDomain.brewPotion(this, recipeId);
   }
 
   hireMercenary(id) {
-    const merc = MERCENARIES.find(m => m.id === id);
-    if (!merc) return { success: false, msg: '未知佣兵。' };
-    if (this.data.estate.hiredMercId === id) return { success: false, msg: '该佣兵已随行。' };
-    if (this.data.gold < merc.hireCostGold) return { success: false, msg: '金币不足，无法订立誓约。' };
-    this.data.gold -= merc.hireCostGold;
-    this.data.estate.hiredMercId = id;
-    this.triggerQuestAction('hire_merc');
-    this.notify();
-    return { success: true, msg: '佣兵誓约已订立。' };
+    return estateDomain.hireMercenary(this, id);
   }
 
   harvestEstate(now = Date.now()) {
-    const estate = this.data.estate;
-    const harvestedToday = Number.isSafeInteger(estate.harvestedToday) ? estate.harvestedToday : 0;
-    const matureBatches = Math.min(2, Math.floor(this.getActionPoints() / 10));
-    const remainingToday = Math.max(0, matureBatches - harvestedToday);
-    const batches = remainingToday;
-    if (!Number.isFinite(batches) || batches < 1) {
-      return { success: false, msg: remainingToday <= 0 ? '本行动日药园与矿脉已采收完（每日最多 2 批），进入下一行动日后再来。' : '药园与矿脉尚未成熟：每累计 10 行动点成熟 1 批，完成更多行动后再来。' };
-    }
-    for (const id of ['herb_dragonblood', 'herb_starlight', 'herb_spiritflower']) {
-      estate.herbs[id] = (estate.herbs[id] || 0) + batches * 5;
-    }
-    this.data.crystal += batches * 25;
-    estate.harvestedToday = (Number.isSafeInteger(estate.harvestedToday) ? estate.harvestedToday : 0) + batches;
-    this.notify();
-    return { success: true, msg: `采收 ${batches} 批：三种草药各 +${batches * 5}，魔晶 +${batches * 25}。本行动日还可采收 ${Math.max(0, 2 - estate.harvestedToday)} 批。` };
+    return estateDomain.harvestEstate(this, now);
   }
 
   getExplorationReward(gold, crystal = 0) {
-    const bonus = MERCENARIES.find(merc => merc.id === this.data.estate.hiredMercId)?.rewardBonus;
-    return { gold: Math.floor(gold * (bonus?.goldMultiplier ?? 1)), crystal: crystal + (bonus?.crystalBonus ?? 0) };
+    return estateDomain.getExplorationReward(this.data, gold, crystal);
   }
 
   createTowerFirstClearItem(floor) {
@@ -1168,47 +800,11 @@ export class GameState {
   }
 
   startDragonChallenge(dragonId) {
-    const dragon = DRAGON_TRIALS.find(item => item.id === dragonId);
-    if (!dragon) return { success: false, msg: '未知的巨龙。' };
-    if (this.data.level < dragon.minLevel) return { success: false, msg: `等级不足！需达到 Lv.${dragon.minLevel}` };
-    if (this.data.dragon.activeChallenge) return { success: false, msg: '当前屠龙讨伐尚未结束。' };
-    this.resetDailyActivities();
-    if (!Number.isInteger(this.data.dragon.trialsLeft) || this.data.dragon.trialsLeft <= 0) return { success: false, msg: '本行动日屠龙讨伐次数已耗尽！进入下一行动日后再来。' };
-    const challengeId = this.createDungeonExpeditionId();
-    this.data.dragon.trialsLeft--;
-    this.data.dragon.activeChallenge = { dragonId, challengeId };
-    this.notify();
-    return { success: true, dragon, challengeId };
+    return activityDomain.startDragonChallenge(this, dragonId);
   }
 
   settleDragonChallenge(dragonId, challengeId, victory) {
-    const dragon = DRAGON_TRIALS.find(item => item.id === dragonId);
-    const active = this.data.dragon.activeChallenge;
-    if (!dragon || !challengeId || active?.challengeId !== challengeId || active.dragonId !== dragonId || typeof victory !== 'boolean') return { success: false, msg: '本次屠龙讨伐已结束或已变化。' };
-    this.data.dragon.activeChallenge = null;
-    if (!victory) { this.notify(); return { success: true, victory: false, drops: [] }; }
-    const reward = dragon.rewards;
-    // 每次胜利保底一件装备；三套金龙装备等概率，装备需求不高于准入等级。
-    const setId = reward.equipmentSets[Math.floor(Math.random() * reward.equipmentSets.length)];
-    const slot = ITEM_SLOTS[Math.floor(Math.random() * ITEM_SLOTS.length)].id;
-    const gear = generateEquipment(slot, dragon.minLevel, reward.equipmentQuality, setId, this.data.classId);
-    if (!Object.keys(gear.stats).length) gear.stats.hp = Math.floor((60 + dragon.minLevel * 18) * QUALITIES[reward.equipmentQuality].multiplier);
-    const drops = [gear, { ...SPECIAL_ITEMS[reward.material], count: reward.materialCount }];
-    if (reward.egg && Math.random() < reward.eggChance) drops.push({ ...SPECIAL_ITEMS.pet_egg, id: reward.egg, name: reward.egg === 'pet_egg_gold' ? '黄金宠物蛋' : '暗金宠物蛋', quality: reward.egg === 'pet_egg_gold' ? 'gold' : 'darkgold', type: 'egg', count: 1 });
-    if (reward.extraMaterial && Math.random() < reward.extraChance) drops.push({ ...SPECIAL_ITEMS[reward.extraMaterial], count: 1 });
-    drops.forEach(item => this.grantBattleLoot(item));
-    const previousClears = Number.isSafeInteger(this.data.dragon.cleared[dragonId]) && this.data.dragon.cleared[dragonId] > 0 ? this.data.dragon.cleared[dragonId] : 0;
-    const firstClear = previousClears === 0;
-    this.data.dragon.cleared[dragonId] = previousClears + 1;
-    const story = firstClear ? dragon.firstVictoryStory : dragon.repeatVictoryText;
-    if (firstClear) this.addSystemLog(`【巨龙线索】${story}`, 'quest', false);
-    this.addExp(dragon.minLevel * 250, false);
-    this.gainCurrency(reward.gold, reward.crystal, reward.prestige, false);
-    if (dragonId === 'slay_red_dragon') this.triggerQuestAction('slay_dragon', 1);
-    if (dragonId === 'slay_silver_dragon') this.triggerQuestAction('slay_silver_dragon', 1);
-    this.addActionPoints(ACTION_POINTS.dragon);
-    this.notify();
-    return { success: true, victory: true, firstClear, story, drops, exp: dragon.minLevel * 250, ...reward };
+    return activityDomain.settleDragonChallenge(this, dragonId, challengeId, victory);
   }
 
   createDungeonExpeditionId() {
@@ -1360,65 +956,28 @@ export class GameState {
         if (pet) pet.stamina = Math.max(0, (pet.stamina ?? 100) - 5);
       }
     }
-    this.data.estate.activePotions = (this.data.estate.activePotions || []).filter(potion => {
-      potion.remainingFights = (potion.remainingFights ?? potion.effect?.fights ?? 0) - 1;
-      return potion.remainingFights > 0;
-    });
+    estateDomain.advanceBattlePotions(this.data);
     this.notify();
   }
 
   getEligibleContractPets(egg) {
-    if (!egg || egg.type !== 'egg' || !Number.isSafeInteger(egg.count) || egg.count <= 0) return [];
-    const tier = egg.id === 'pet_egg_gold' ? 'gold' : egg.id === 'pet_egg_darkgold' ? 'darkgold' : null;
-    return Object.keys(PET_CONFIGS).filter(id => PET_CONFIGS[id].minLevel <= this.data.level && (!tier || PET_CONFIGS[id].defaultTier === tier) && !this.data.pets.some(pet => pet.id === id));
+    return petDomain.getEligibleContractPets(this.data, egg);
   }
 
   getContractChoices() {
-    if (!this.data.hasChosenClass || (this.data.onboardingVersion === 2 ? !this.data.questProgress.quest_13?.claimed : this.data.level < 20)) return [];
-    const ids = new Set(this.data.bag.flatMap(egg => this.getEligibleContractPets(egg)));
-    return [...ids].map(id => ({ id, name: PET_CONFIGS[id].name, trait: PET_CONFIGS[id].traitName, gold: 5000 + PET_CONFIGS[id].minLevel * 500, crystal: 50 + PET_CONFIGS[id].minLevel * 2 }));
+    return petDomain.getContractChoices(this);
   }
 
   hatchPetEgg(preferredId = null) {
-    const eggs = this.data.bag.filter(item => item.type === 'egg' && item.count > 0);
-    if (!eggs.length) return { success: false, msg: '缺少神兽契约蛋！' };
-    const choice = preferredId === null ? null : this.getContractChoices().find(choice => choice.id === preferredId);
-    if (preferredId !== null && !choice) return { success: false, msg: '这位伙伴尚不符合契约条件，或已经拥有。' };
-    if (choice && (![this.data.gold, this.data.crystal].every(Number.isFinite) || this.data.gold < choice.gold || this.data.crystal < choice.crystal)) return { success: false, msg: `赛拉的契约仪式需要${choice.gold}金币和${choice.crystal}魔晶，另消耗一枚符合条件的契约蛋。` };
-    let egg, candidates = [];
-    for (const available of eggs) {
-      candidates = this.getEligibleContractPets(available);
-      if (choice && !candidates.includes(preferredId)) continue;
-      if (candidates.length) { egg = available; break; }
-    }
-    if (!candidates.length) return { success: false, msg: '当前等级可缔约的神兽已全部拥有，请提升等级后再孵化；保留契约蛋。' };
-    const id = choice ? preferredId : candidates[Math.floor(Math.random() * candidates.length)];
-    const cfg = PET_CONFIGS[id];
-    if (choice) { this.data.gold -= choice.gold; this.data.crystal -= choice.crystal; }
-    egg.count--;
-    if (egg.count <= 0) this.data.bag = this.data.bag.filter(item => item !== egg);
-    this.data.pets.push({ id, level: 1, exp: 0, tier: cfg.defaultTier || 'gold', stamina: 100,
-      apt: { ...cfg.defaultApt }, skills: [] });
-    this.addSystemLog(`【神兽】成功孵化【${cfg.name}】！`, 'pet');
-    return { success: true, petId: id, msg: `成功孵化【${cfg.name}】！` };
+    return petDomain.hatchPetEgg(this, preferredId);
   }
 
   setActivePet(petId) {
-    return this.setPetPartySlot(0, petId);
+    return petDomain.setActivePet(this, petId);
   }
 
   setPetPartySlot(slot, petId) {
-    if (!Number.isInteger(slot) || slot < 0 || slot > 2 || (petId !== null && (!Object.hasOwn(PET_CONFIGS, petId) || !this.data.pets.some(pet => pet.id === petId)))) return { success: false, msg: '请选择已缔约的伙伴与有效位置。' };
-    const ids = getPetParty(this.data).map(member => member.pet?.id || null);
-    const previous = ids[slot];
-    const other = petId === null ? -1 : ids.indexOf(petId);
-    if (other >= 0 && other !== slot) ids[other] = previous;
-    ids[slot] = petId;
-    this.data.activePetId = ids[0];
-    this.data.supportPetIds = ids.slice(1);
-    if (slot === 0 && petId) this.triggerQuestAction('set_active_pet');
-    this.notify();
-    return { success: true };
+    return petDomain.setPetPartySlot(this, slot, petId);
   }
 
   trainClassSkill(skillId, expectedRank) {
@@ -1440,43 +999,15 @@ export class GameState {
   }
 
   washPetAptitude(petId) {
-    const pet = this.data.pets.find(pet => pet.id === petId);
-    const pill = this.data.bag.find(item => item.id === 'pill_reborn' && item.count > 0);
-    if (!pet || !pill) return { success: false, msg: '请选择已孵化的伙伴，并准备远古重铸灵药；主线使命会提供首批灵药。' };
-    pill.count--;
-    if (!pill.count) this.data.bag = this.data.bag.filter(item => item !== pill);
-    const base = pet.tier === 'purplegold' ? 2500 : pet.tier === 'darkgold' ? 1800 : 1200;
-    for (const key of ['str', 'int', 'dex', 'con']) pet.apt[key] = base + Math.floor(Math.random() * 600);
-    this.triggerQuestAction('wash_pet');
-    this.notify();
-    return { success: true };
+    return petDomain.washPetAptitude(this, petId);
   }
 
   learnPetSkill(petId, bookId) {
-    const pet = this.data.pets.find(pet => pet.id === petId);
-    const cfg = PET_SKILL_BOOKS[bookId];
-    const book = this.data.bag.find(item => (item.id === bookId || item.bookId === bookId) && (item.count ?? 1) > 0);
-    if (!pet || !cfg || !book) return { success: false, msg: '神兽或对应魔导书不存在！' };
-    if (!Array.isArray(pet.skills)) pet.skills = [];
-    if (pet.skills.includes(bookId) || pet.skills.includes(cfg.skillId)) return { success: false, msg: '神兽已掌握此技能！' };
-    if (pet.skills.length >= 4) return { success: false, msg: '技能槽已满 4 格！' };
-    pet.skills.push(bookId);
-    book.count = (book.count ?? 1) - 1;
-    if (book.count <= 0) this.data.bag = this.data.bag.filter(item => item !== book);
-    this.triggerQuestAction('learn_skill');
-    this.addSystemLog(`【神兽】${PET_CONFIGS[petId]?.name || '神兽'}领悟【${cfg.skillName}】！`, 'pet');
-    return { success: true, msg: `成功研习【${cfg.skillName}】！` };
+    return petDomain.learnPetSkill(this, petId, bookId);
   }
 
   forgetPetSkill(petId, learnedId) {
-    const pet = this.data.pets.find(pet => pet.id === petId);
-    const cfg = Object.values(PET_SKILL_BOOKS).find(book => book.id === learnedId || book.skillId === learnedId);
-    const index = pet?.skills?.indexOf(learnedId) ?? -1;
-    if (!pet || !cfg || index < 0) return { success: false, msg: '这位伙伴当前没有掌握该魔典。' };
-    pet.skills.splice(index, 1);
-    this.grantBattleLoot({ id: cfg.id, bookId: cfg.id, name: cfg.name || `远古魔导书·【${cfg.skillName}】`, type: 'skill_book', quality: cfg.quality || 'darkgold', icon: cfg.icon || 'images/items/skill_book.svg', count: 1 });
-    this.notify();
-    return { success: true, msg: `【${cfg.skillName}】已退回行囊，空出的魔典槽可学习其他技能。` };
+    return petDomain.forgetPetSkill(this, petId, learnedId);
   }
 
   setPatrolMap(id, now = Date.now()) {
@@ -1530,106 +1061,25 @@ export class GameState {
   }
 
   feedPet(petId, itemId = 'pet_food') {
-    const pet = this.data.pets.find(p => p.id === petId);
-    if (!pet) return { success: false, msg: '未找到该神兽' };
-    const foodEffects = { pet_food: 35, pet_food_basic: 15, pet_food_luxury: 60 };
-    const restore = foodEffects[itemId] || 0;
-    if (!restore) return { success: false, msg: '未知的宠物食品。' };
-    if ((pet.stamina ?? 100) >= 100) return { success: false, msg: '伙伴体力已满，无需再喂食。' };
-    const food = this.data.bag.find(i => i.id === itemId && i.count > 0);
-    if (!food) return { success: false, msg: `背包中没有【${itemId === 'pet_food' ? '魔能兽肉排' : itemId === 'pet_food_basic' ? '普通宠物口粮' : '豪华宠物饼干'}】` };
-
-    pet.stamina = Math.min(100, (pet.stamina ?? 100) + restore);
-    food.count--;
-    if (food.count <= 0) this.data.bag = this.data.bag.filter(i => i !== food);
-    this.notify();
-    return { success: true, msg: `喂养成功！${pet.name || '神兽'} 当前体力已恢复至 ${pet.stamina}/100！` };
+    return petDomain.feedPet(this, petId, itemId);
   }
 
   // 兽栏金币喂养：单机兜底，最多恢复到 60（行动日/断粮时可继续战斗）。
   feedPetWithGold(petId, targetStamina = 60) {
-    const pet = this.data.pets.find(p => p.id === petId);
-    if (!pet) return { success: false, msg: '未找到该神兽' };
-    const current = pet.stamina ?? 100;
-    const target = Math.min(60, Math.max(0, Math.floor(targetStamina)));
-    if (current >= target) return { success: false, msg: `金币喂养最多恢复到 ${target} 点体力。` };
-    const missing = target - current;
-    const cost = missing * 10;
-    if (this.data.gold < cost) return { success: false, msg: `金币不足！恢复 ${missing} 点体力需要 ${cost} 金币。` };
-    this.data.gold -= cost;
-    pet.stamina = target;
-    this.notify();
-    return { success: true, msg: `兽栏喂养完成：${pet.name || '神兽'} 体力恢复至 ${pet.stamina}/100，消耗 ${cost} 金币。` };
+    return petDomain.feedPetWithGold(this, petId, targetStamina);
   }
 
   getCompanionTrainingQuote(petId) {
-    if (this.data.onboardingVersion === 2 && !this.data.questProgress.quest_13?.claimed) return { success: false, msg: '完成古门哨站调查并交付委托后，赛拉会开启营地训练。' };
-    const pet = this.data.pets.find(pet => pet.id === petId);
-    if (!this.data.hasChosenClass || !pet || !Number.isSafeInteger(pet.level) || pet.level < 1 || pet.level >= Math.min(100, this.data.level)) return { success: false, msg: '伙伴已跟上你的等级，或尚未建立契约。' };
-    if ((pet.stamina ?? 100) < 60) return { success: false, msg: '伙伴太疲惫，请先喂养恢复至至少60体力。' };
-    if (!Number.isSafeInteger(pet.exp ?? 0) || (pet.exp ?? 0) < 0 || (pet.exp ?? 0) >= this.getNextLevelExp(pet.level)) return { success: false, msg: '伙伴经验记录异常，请重新载入。' };
-    const targetLevel = Math.min(pet.level + 5, this.data.level, 100);
-    let exp = -(pet.exp ?? 0);
-    for (let level = pet.level; level < targetLevel; level++) exp += this.getNextLevelExp(level);
-    return { success: true, petId, level: pet.level, petExp: pet.exp ?? 0, targetLevel, exp, gold: Math.max(100, Math.ceil(exp * 0.05)), crystal: (targetLevel - pet.level) * 5, food: 1 };
+    return petDomain.getCompanionTrainingQuote(this, petId);
   }
 
   trainCompanion(expected) {
-    const quote = this.getCompanionTrainingQuote(expected?.petId);
-    if (!quote.success) return quote;
-    if (['petId','level','petExp','targetLevel','exp','gold','crystal','food'].some(key => expected[key] !== quote[key])) return { success: false, msg: '伙伴成长或训练报价已变化，请重新选择。' };
-    const food = this.data.bag.find(item => item.id === 'pet_food' && Number.isSafeInteger(item.count) && item.count > 0);
-    if (!food || ![this.data.gold, this.data.crystal].every(Number.isFinite) || this.data.gold < quote.gold || this.data.crystal < quote.crystal) return { success: false, msg: `训练需要${quote.gold}金币、${quote.crystal}魔晶和1份兽肉。` };
-    const pet = this.data.pets.find(pet => pet.id === quote.petId);
-    this.data.gold -= quote.gold; this.data.crystal -= quote.crystal;
-    food.count--; if (!food.count) this.data.bag = this.data.bag.filter(item => item !== food);
-    pet.level = quote.targetLevel; pet.exp = 0;
-    this.addSystemLog(`【伙伴训练】${PET_CONFIGS[pet.id]?.name || '伙伴'}在赛拉的营地训练至${pet.level}级。特性、资质、魔典与品阶保留。`, 'pet');
-    this.notify();
-    return { success: true, msg: `伙伴已成长至${pet.level}级。训练不会超过你的等级，也不改变品阶或资质。` };
+    return petDomain.trainCompanion(this, expected);
   }
 
   // 进化神兽 (黄金->暗金->紫金)
   evolvePet(petId) {
-    const pet = this.data.pets.find(p => p.id === petId);
-    if (!pet) return { success: false, msg: '未找到神兽' };
-
-    if (pet.tier === 'gold') {
-      if (pet.level < 30) return { success: false, msg: '黄金宠物需达到 30 级方可使用进化石！' };
-      const stone = this.data.bag.find(i => i.id === 'evolution_stone' && i.count > 0);
-      if (!stone) return { success: false, msg: '缺少【进化石】！' };
-      stone.count--;
-      if (stone.count <= 0) this.data.bag = this.data.bag.filter(i => i !== stone);
-
-      pet.tier = 'darkgold';
-      pet.level = 1;
-      pet.exp = 0;
-      pet.apt.str = Math.min(4500, Math.floor(pet.apt.str * 1.35));
-      pet.apt.int = Math.min(4500, Math.floor(pet.apt.int * 1.35));
-      pet.apt.dex = Math.min(4500, Math.floor(pet.apt.dex * 1.35));
-      pet.apt.con = Math.min(4500, Math.floor(pet.apt.con * 1.35));
-      this.notify();
-      return { success: true, msg: '进化成功！神兽觉醒为【暗金神圣阶】，资质上限跃升至 4500！' };
-    } else if (pet.tier === 'darkgold') {
-      if (pet.level < 40) return { success: false, msg: '暗金宠物需达到 40 级方可使用天命石！' };
-      const stone = this.data.bag.find(i => i.id === 'destiny_stone' && i.count > 0);
-      if (!stone) return { success: false, msg: '缺少【天命石】（可通过屠银龙/金龙获得）！' };
-      stone.count--;
-      if (stone.count <= 0) this.data.bag = this.data.bag.filter(i => i !== stone);
-
-      pet.tier = 'purplegold';
-      pet.level = 1;
-      pet.exp = 0;
-      pet.apt.str = Math.min(6000, Math.floor(pet.apt.str * 1.45));
-      pet.apt.int = Math.min(6000, Math.floor(pet.apt.int * 1.45));
-      pet.apt.dex = Math.min(6000, Math.floor(pet.apt.dex * 1.45));
-      pet.apt.con = Math.min(6000, Math.floor(pet.apt.con * 1.45));
-      this.triggerQuestAction('evolve_purplegold');
-      this.addSystemLog(`【神兽觉醒】神兽突破为【紫金传奇圣兽】，资质全面暴涨！`, 'pet');
-      this.notify();
-      return { success: true, msg: '终极进化达成！神兽突破为【紫金传奇圣兽】，获得传世神圣属性！' };
-    }
-    return { success: false, msg: '该宠物已达最高紫金阶品！' };
+    return petDomain.evolvePet(this, petId);
   }
 
   getEquipmentRepairCost(item) {
@@ -1897,16 +1347,7 @@ export class GameState {
   }
 
   getEquipmentPreview(itemUid) {
-    const candidate = this.getEquippableItem(itemUid);
-    if (!candidate.success) return candidate;
-    const { item } = candidate;
-    return {
-      success: true,
-      before: this.getEffectiveStats(),
-      after: this.getEffectiveStats({ ...this.data.equipped, [item.slot]: item }),
-      currentName: this.data.equipped[item.slot]?.name || '未穿戴',
-      targetName: item.name
-    };
+    return heroStatsDomain.getEquipmentPreview(this, itemUid);
   }
 
   equipItem(itemUid) {
@@ -2035,7 +1476,7 @@ export class GameState {
     this.data.bag.push({
       ...item,
       count: item.count || 1,
-      uid: item.uid || ('it_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4))
+      uid: item.uid || ('it_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6))
     });
     return true;
   }
@@ -2170,227 +1611,50 @@ export class GameState {
 
   // 检测并更新装备激活的符文之语
   updateRunicWord(slotKey, ownedItem = null) {
-    const item = ownedItem || this.data.equipped[slotKey];
-    if (!item) return null;
-    if (!Array.isArray(item.gems) || item.gems.length < 2) {
-      item.runicWord = null;
-      item.runicWordName = null;
-      return null;
-    }
-    const runeIds = [];
-    for (let i = 0; i < item.gems.length; i++) {
-      const g = item.gems[i];
-      if (!g || !g.isRune) {
-        item.runicWord = null;
-        item.runicWordName = null;
-        return null;
-      }
-      runeIds.push(g.id);
-    }
-    const matchedRw = checkRunicWord(slotKey, runeIds);
-    if (matchedRw) {
-      item.runicWord = matchedRw.id;
-      item.runicWordName = matchedRw.name;
-      return matchedRw;
-    } else {
-      item.runicWord = null;
-      item.runicWordName = null;
-      return null;
-    }
+    return heroStatsDomain.updateRunicWord(this.data, slotKey, ownedItem);
   }
 
   // 阵营边境要塞争夺战相关方法
   getFactionWarState() {
-    return this.data.factionWar;
+    return activityDomain.getFactionWarState(this.data);
   }
 
   challengeStronghold(strongholdId) {
-    const stronghold = STRONGHOLDS.find(s => s.id === strongholdId);
-    if (!stronghold) return { success: false, msg: '未知的要塞据点！' };
-    if (this.data.level < stronghold.reqLevel) {
-      return { success: false, msg: `勇者等级未达 Lv.${stronghold.reqLevel}，无法进军该要塞！` };
-    }
-    return {
-      success: true,
-      stronghold,
-      defender: stronghold.defender
-    };
+    return activityDomain.challengeStronghold(this.data, strongholdId);
   }
 
   getTotalFactionMerit() {
-    const faction = this.data.factionWar;
-    const rankFloor = (MILITARY_RANKS.find(rank => rank.id === faction.militaryRank) || MILITARY_RANKS[0]).reqMerit;
-    const valid = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
-    return Math.max(valid(faction.totalMerit), valid(faction.merit), rankFloor);
+    return activityDomain.getTotalFactionMerit(this.data);
   }
 
   completeStrongholdVictory(strongholdId) {
-    const stronghold = STRONGHOLDS.find(s => s.id === strongholdId);
-    if (!stronghold) return { success: false, msg: '未知的要塞据点！' };
-
-    const fw = this.data.factionWar;
-    if (!fw.strongholds[strongholdId]) {
-      fw.strongholds[strongholdId] = { captured: false, progress: 0 };
-    }
-    const strongholdRecord = fw.strongholds[strongholdId];
-    if (strongholdRecord.captured) {
-      const day = this.getActionDay();
-      if (strongholdRecord.lastRepeatDay === day) {
-        return { success: false, msg: '本行动日该要塞已再度破关，进入下一行动日后再来。' };
-      }
-      strongholdRecord.lastRepeatDay = day;
-      const repeatGold = Math.floor(stronghold.goldReward * 0.2);
-      this.data.gold += repeatGold;
-      this.addSystemLog(`【边境巡防】再度攻破【${stronghold.name}】，本次为重复挑战：金币 +${repeatGold}，军勋不重复发放。`, 'battle');
-      this.addActionPoints(ACTION_POINTS.stronghold);
-      this.notify();
-      return { success: true, merit: 0, gold: repeatGold, repeat: true, promoted: null };
-    }
-    strongholdRecord.captured = true;
-    strongholdRecord.progress = 100;
-    this.reconcileQuestMilestones();
-    fw.totalMerit = this.getTotalFactionMerit() + stronghold.meritReward;
-    fw.merit = (fw.merit || 0) + stronghold.meritReward;
-    this.data.gold += stronghold.goldReward;
-
-    let promoted = null;
-    for (let i = MILITARY_RANKS.length - 1; i >= 0; i--) {
-      const rank = MILITARY_RANKS[i];
-      if (fw.totalMerit >= rank.reqMerit) {
-        if (fw.militaryRank !== rank.id) {
-          fw.militaryRank = rank.id;
-          promoted = rank;
-        }
-        break;
-      }
-    }
-
-    this.addSystemLog(`【边境大捷】成功攻克【${stronghold.name}】！缴获军饷 ${stronghold.goldReward} 金币，斩获帝国军勋 +${stronghold.meritReward}！`, 'battle');
-    if (promoted) {
-      this.addSystemLog(`【帝国嘉奖】军功赫赫！勇者阵营军衔荣升为【${promoted.name}】！`, 'quest');
-    }
-    this.addActionPoints(ACTION_POINTS.stronghold);
-    this.notify();
-    return { success: true, merit: stronghold.meritReward, gold: stronghold.goldReward, promoted };
+    return activityDomain.completeStrongholdVictory(this, strongholdId);
   }
 
   claimFactionSalary() {
-    const fw = this.data.factionWar;
-    const today = new Date().toDateString();
-    if (fw.lastResetDate !== today) {
-      fw.dailyClaimed = false;
-      fw.lastResetDate = today;
-    }
-    if (fw.dailyClaimed) {
-      return { success: false, msg: '本行动日军饷已领受，进入下一行动日后请再临军需处！' };
-    }
-    const rankCfg = MILITARY_RANKS.find(r => r.id === fw.militaryRank) || MILITARY_RANKS[0];
-    fw.dailyClaimed = true;
-    this.data.gold += rankCfg.dailySalary;
-    this.addSystemLog(`【军需处】领受【${rankCfg.name}】每日军饷：${rankCfg.dailySalary} 金币！`, 'obtain');
-    this.notify();
-    return { success: true, salary: rankCfg.dailySalary, rankName: rankCfg.name };
+    return activityDomain.claimFactionSalary(this);
   }
 
   exchangeFactionReward(rewardId) {
-    const reward = FACTION_REWARDS.find(r => r.id === rewardId);
-    if (!reward) return { success: false, msg: '未知的军勋兑换品！' };
-    const fw = this.data.factionWar;
-    if ((fw.merit || 0) < reward.costMerit) {
-      return { success: false, msg: `军勋不足！兑换需要 ${reward.costMerit} 军勋，当前拥有 ${fw.merit || 0} 军勋！` };
-    }
-    let item;
-    if (reward.id === 'rw_box') {
-      const runeKeys = ['rune_sol', 'rune_cham', 'rune_el', 'rune_lo', 'rune_jah', 'rune_ber', 'rune_dol', 'rune_ith'];
-      const randomRuneId = runeKeys[Math.floor(Math.random() * runeKeys.length)];
-      const runeCfg = RUNES[randomRuneId];
-      item = {
-        id: runeCfg.id,
-        name: runeCfg.name,
-        type: 'rune',
-        quality: runeCfg.quality,
-        icon: runeCfg.icon,
-        desc: runeCfg.desc,
-        stats: runeCfg.stats,
-        count: 1
-      };
-    } else {
-      const itemCfg = SPECIAL_ITEMS[reward.id] || { id: reward.id, name: reward.name, quality: reward.quality, icon: reward.icon, desc: reward.desc };
-      item = {
-        ...itemCfg,
-        count: 1
-      };
-    }
-    if (!this.addItemToBag(item)) return { success: false, msg: `行囊已满 (${this.data.bag.length}/${this.getBagCapacity()})，请先整理或扩容！` };
-    fw.merit -= reward.costMerit;
-    this.addSystemLog(`【军勋兑换】消耗 ${reward.costMerit} 军勋，获得【${item.name}】！`, 'obtain');
-    this.notify();
-    return { success: true, itemId: item.id, itemName: item.name, msg: `兑换成功！【${item.name}】已收入行囊！` };
+    return activityDomain.exchangeFactionReward(this, rewardId);
   }
 
   // 获取当前角斗士段位
   getArenaRank(points) {
-    let matched = ARENA_RANKS[0];
-    for (const r of ARENA_RANKS) {
-      if (points >= r.minPoints) {
-        matched = r;
-      }
-    }
-    return matched;
+    return activityDomain.getArenaRank(points);
   }
 
   startArenaChallenge(opponentId) {
-    const opponent = ARENA_OPPONENTS.find(item => item.id === opponentId);
-    if (!opponent || !Number.isInteger(this.data.level) || this.data.level < 1 || this.data.level > 100) return { success: false, msg: '无效的对手或角色等级。' };
-    this.resetDailyActivities();
-    if (this.data.arena.activeChallenge) return { success: false, msg: '当前角斗挑战尚未结束。' };
-    if (!Number.isInteger(this.data.arena.challengesLeft) || this.data.arena.challengesLeft <= 0) return { success: false, msg: '本行动日5次角斗挑战次数已耗尽。' };
-    const challengeId = this.createDungeonExpeditionId();
-    this.data.arena.challengesLeft--;
-    this.data.arena.activeChallenge = { opponentId, challengeId };
-    this.notify();
-    return { success: true, opponent, challengeId };
+    return activityDomain.startArenaChallenge(this, opponentId);
   }
 
   settleArenaChallenge(opponentId, challengeId, victory) {
-    this.resetDailyActivities();
-    const opponent = ARENA_OPPONENTS.find(item => item.id === opponentId);
-    const active = this.data.arena.activeChallenge;
-    if (!opponent || !challengeId || active?.challengeId !== challengeId || active.opponentId !== opponentId || typeof victory !== 'boolean') return { success: false, msg: '本次角斗挑战已结束或已变化。' };
-    const previousPoints = this.data.arena.points;
-    if (!Number.isSafeInteger(previousPoints) || previousPoints < 1000) return { success: false, msg: '角斗积分记录异常。' };
-    this.data.arena.activeChallenge = null;
-    this.data.arena.points = victory ? previousPoints + 25 : Math.max(1000, previousPoints - 10);
-    const rank = this.getArenaRank(this.data.arena.points);
-    this.data.arena.rankTitle = rank.title;
-    const goldReward = victory ? opponent.goldReward ?? 1000 : 200;
-    const prestigeReward = victory ? opponent.prestigeReward ?? 50 : 10;
-    const expReward = victory ? (opponent.level || 15) * 120 : 0;
-    this.gainCurrency(goldReward, 0, prestigeReward, false);
-    this.addExp(expReward, false);
-    const pointsDelta = this.data.arena.points - previousPoints;
-    if (victory) this.triggerQuestAction('arena_duel');
-    this.addSystemLog(`【王国角斗场】${victory ? '战胜' : '惜败于'}【${opponent.name}】，积分 ${pointsDelta >= 0 ? '+' : ''}${pointsDelta}（当前 ${this.data.arena.points}），声望 +${prestigeReward}、金币 +${goldReward}。`, 'battle', false);
-    if (victory) this.addActionPoints(ACTION_POINTS.arena);
-    this.notify();
-    return { success: true, victory, points: this.data.arena.points, pointsDelta, rank: rank.title, prestigeReward, goldReward, expReward };
+    return activityDomain.settleArenaChallenge(this, opponentId, challengeId, victory);
   }
 
   // 声望军需商行兑换
   buyPrestigeItem(shopItemId) {
-    const shopItem = PRESTIGE_SHOP_ITEMS.find(i => i.id === shopItemId);
-    if (!shopItem) return { success: false, msg: '商行中未找到该军需物资！' };
-
-    if (this.data.prestige < shopItem.costPrestige) {
-      return { success: false, msg: `声望不足！兑换【${shopItem.name}】需要 ${shopItem.costPrestige} 点声望（当前拥有 ${this.data.prestige} 点）！` };
-    }
-
-    if (!this.addItemToBag(shopItem.itemData)) return { success: false, msg: `行囊已满 (${this.data.bag.length}/${this.getBagCapacity()})，请先整理或扩容！` };
-    this.data.prestige -= shopItem.costPrestige;
-
-    this.addSystemLog(`【军需商行】支取 ${shopItem.costPrestige} 点声望，成功调配军需【${shopItem.name}】！`, 'obtain');
-    this.notify();
-    return { success: true, msg: `成功兑换【${shopItem.name}】！已收入行囊！` };
+    return activityDomain.buyPrestigeItem(this, shopItemId);
   }
 
   // 城市商店：读取货架（含等级/声望锁定、本日限购、可负担状态）
@@ -2691,66 +1955,19 @@ export class GameState {
 
   // 侍从管理：契印收押、整备、折磨、采矿
   captureSlaveWithSigil(slaveId) {
-    const config = SLAVE_CANDIDATES.find(item => item.id === slaveId);
-    if (!config) return { success: false, msg: '未知的侍从契印。' };
-    const list = this.data.slaves?.list || (this.data.slaves.list = []);
-    if (list.length >= 5) return { success: false, msg: '牢房最多容纳 5 名侍从。' };
-    if (list.some(slave => slave.id === slaveId)) return { success: false, msg: '该战俘已经收押，不能重复缔约。' };
-    const sigil = this.data.bag.find(item => item.id === 'slave_sigil' && Number.isInteger(item.count) && item.count > 0);
-    if (!sigil) return { success: false, msg: '缺少【侍从契印】，无法收押。' };
-    sigil.count--;
-    if (sigil.count <= 0) this.data.bag = this.data.bag.filter(item => item !== sigil);
-    list.push({
-      ...config,
-      uid: `slave_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      isComforted: false,
-      comfortUntil: 0,
-      preparedDay: 0,
-      workedTimes: 0
-    });
-    this.addSystemLog(`【庄园牢房】使用侍从契印，收押【${config.name}】。`, 'estate');
-    this.notify();
-    return { success: true, msg: `成功收押【${config.name}】为侍从。` };
+    return estateDomain.captureSlaveWithSigil(this, slaveId);
   }
 
   comfortSlave(slaveId) {
-    const slave = this.data.slaves.list.find(s => s.uid === slaveId || s.id === slaveId);
-    if (!slave) return { success: false, msg: '侍从不存在' };
-    slave.isComforted = true;
-    slave.preparedDay = this.getActionDay();
-    // UI 兼容字段：显示为已整备；实际产出加成按 preparedDay 判定。
-    slave.comfortUntil = Date.now() + 24 * 3600000;
-    this.notify();
-    return { success: true, msg: `已为侍从【${slave.name}】整备，当前行动日采矿产出提升 10%。` };
+    return estateDomain.comfortSlave(this, slaveId);
   }
 
   disciplineSlave(slaveId, now = Date.now()) {
-    const slave = this.data.slaves.list.find(s => s.uid === slaveId || s.id === slaveId);
-    if (!slave) return { success: false, msg: '侍从不存在' };
-    const day = this.getActionDay();
-    if (slave.lastDisciplineDay === day) return { success: false, msg: '本行动日该侍从已受过惩戒，进入下一行动日后再来。' };
-    slave.lastDisciplineDay = day;
-    const expGain = slave.level * 45;
-    const goldGain = slave.level * 30;
-    this.addExp(expGain);
-    this.gainCurrency(goldGain, 0, 0);
-    this.notify();
-    return { success: true, msg: `鞭挞惩戒侍从【${slave.name}】！榨取获得经验 +${expGain}，金币 +${goldGain}！` };
+    return estateDomain.disciplineSlave(this, slaveId, now);
   }
 
   assignSlaveMine(slaveId, now = Date.now()) {
-    const slave = this.data.slaves.list.find(s => s.uid === slaveId || s.id === slaveId);
-    if (!slave) return { success: false, msg: '侍从不存在' };
-    const day = this.getActionDay();
-    if (slave.lastMineDay === day) return { success: false, msg: '本行动日该侍从已采矿，进入下一行动日后再来。' };
-    slave.lastMineDay = day;
-    const prepared = slave.preparedDay === day ? 1.1 : 1;
-    const yieldCrystal = Math.floor((Math.floor(slave.level * 0.8) + 10) * prepared);
-    const yieldGold = Math.floor(slave.level * 50 * prepared);
-    this.gainCurrency(yieldGold, yieldCrystal, 0);
-    slave.workedTimes = (slave.workedTimes || 0) + 1;
-    this.notify();
-    return { success: true, msg: `役使侍从【${slave.name}】进入晶矿深处采掘！收获魔晶 +${yieldCrystal}，金币 +${yieldGold}！${prepared > 1 ? '（整备加成）' : ''}` };
+    return estateDomain.assignSlaveMine(this, slaveId, now);
   }
 
   // 任务触发器
@@ -2927,7 +2144,7 @@ export class GameState {
             reqLevel: rItem.reqLevel ?? rItem.level,
             setId: rItem.setId ?? rItem.set,
             stars: 0, durability: 100, maxDurability: 100, sockets: rItem.sockets ?? rItem.holes ?? 0, gems: []
-          } : {}), uid: 'quest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4) });
+          } : {}), uid: 'quest_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) });
         }
       });
     }
@@ -2964,202 +2181,53 @@ export class GameState {
   // 皇家酒馆与赏金悬赏令核心逻辑
   // ==========================================
   getCommissions(groups) {
-    return COMMISSIONS.filter(config => !groups || groups.includes(config.group)).map(config => ({
-      ...getCommission(config.id, this.data.nation),
-      status: this.data.commissions?.[config.id]?.status || 'available',
-      current: this.data.commissions?.[config.id]?.current || 0,
-      choiceId: this.data.commissions?.[config.id]?.choiceId,
-      progressText: config.storyBeats?.[(this.data.commissions?.[config.id]?.current || 0) - 1] || '',
-      choices: (config.rewards.equipmentChoices || []).map(item => specializeEquipment(item, this.data.classId)),
-      destination: config.requirement.event === 'tower' ? '魔塔' : MAPS.find(map => map.id === config.requirement.target)?.name,
-      lockedReason: this.data.level < config.minLevel ? `需达到 ${config.minLevel} 级`
-        : config.prerequisite && this.data.commissions?.[config.prerequisite]?.status !== 'claimed'
-          ? `先交付「${getCommission(config.prerequisite, this.data.nation).title}」` : ''
-    }));
+    return activityDomain.getCommissions(this.data, groups);
   }
 
   getCommissionEquipmentPreview(id, choiceId) {
-    const config = getCommission(id, this.data.nation);
-    const item = getCommissionEquipment(config, choiceId, this.data.classId);
-    if (!item || !this.data.hasChosenClass) return { success: false, msg: '没有可比较的委托装备。' };
-    return { success: true, before: this.getEffectiveStats(),
-      after: this.getEffectiveStats({ ...this.data.equipped, [item.slot]: item }),
-      currentName: this.data.equipped[item.slot]?.name || '未穿戴', targetName: item.name,
-      reqLevel: item.reqLevel, canEquip: this.data.level >= item.reqLevel };
+    return activityDomain.getCommissionEquipmentPreview(this, id, choiceId);
   }
 
   acceptCommission(id) {
-    const config = getCommission(id, this.data.nation);
-    if (!config || !this.data.hasChosenClass || this.data.level < config.minLevel) return { success: false, msg: '委托不存在、尚未缔约或等级不足。' };
-    if (config.prerequisite && this.data.commissions?.[config.prerequisite]?.status !== 'claimed') return { success: false, msg: `先交付「${getCommission(config.prerequisite, this.data.nation).title}」，再接续这段旅程。` };
-    if (this.data.commissions?.[id]) return { success: false, msg: '这份委托已经接取或交付。' };
-    this.data.commissions ??= {};
-    this.data.commissions[id] = { status: 'active', current: 0 };
-    this.addSystemLog(`【委托接取】${config.title}：${config.requirement.label}。`, 'quest', false);
-    this.notify();
-    return { success: true, msg: '委托已记入任务簿。接取后的胜利才计入进度。' };
+    return activityDomain.acceptCommission(this, id);
   }
 
   // Called only by successful production settlements; never by UI navigation.
   recordCommissionEvent(event, target) {
-    for (const config of COMMISSIONS) {
-      const progress = this.data.commissions?.[config.id];
-      const requirement = config.requirement;
-      if (progress?.status !== 'active' || requirement.event !== event ||
-        (requirement.target !== '*' && requirement.target !== target)) continue;
-      progress.current = Math.min(requirement.count, progress.current + 1);
-      if (config.storyBeats?.[progress.current - 1]) {
-        this.addSystemLog(`【${config.title}】${config.storyBeats[progress.current - 1]}`, 'quest', false);
-      }
-      if (progress.current === requirement.count) {
-        progress.status = 'ready';
-        this.addSystemLog(`【委托完成】${config.title}，可返回${config.group === 'nation_guide' ? '圣王大殿' : '皇家酒馆'}交付。`, 'quest', false);
-      }
-    }
+    return activityDomain.recordCommissionEvent(this, event, target);
   }
 
   claimCommission(id, choiceId) {
-    const config = getCommission(id, this.data.nation);
-    const progress = this.data.commissions?.[id];
-    if (!config || progress?.status !== 'ready' || progress.current !== config.requirement.count) return { success: false, msg: '委托尚未完成或已经领取。' };
-    const choices = config.rewards.equipmentChoices || [];
-    const chosen = choices.find(item => item.id === choiceId);
-    if ((choices.length && !chosen) || (!choices.length && choiceId !== undefined)) return { success: false, msg: '请从这份委托的装备中选择一件报酬。' };
-    // Mark first; grant the complete reward before publishing/persisting.
-    progress.status = 'claimed';
-    if (chosen) progress.choiceId = chosen.id;
-    const reward = config.rewards;
-    this.addExp(reward.exp, false);
-    this.gainCurrency(reward.gold, reward.crystal, reward.prestige, false);
-    reward.items.forEach(item => this.grantBattleLoot(item));
-    const equipment = getCommissionEquipment(config, choiceId, this.data.classId);
-    if (equipment) this.grantBattleLoot(equipment);
-    this.addSystemLog(`【委托交付】${config.title}，报酬已全额存入行囊。`, 'quest', false);
-    this.notify();
-    return { success: true, msg: `${config.ending}\n\n经验 +${reward.exp}，金币 +${reward.gold}，魔晶 +${reward.crystal}，声望 +${reward.prestige}；${reward.items.map(item => `${item.name} ×${item.count}`).join('、')}${equipment ? `；已选择【${equipment.name}】` : ''}。` };
+    return activityDomain.claimCommission(this, id, choiceId);
   }
 
   getTavernBounties() {
-    if (!this.data.tavern) {
-      this.data.tavern = {
-        bounties: TAVERN_BOUNTIES.map(b => ({ id: b.id, status: 'available' })),
-        drinkBuff: null,
-        lastResetDate: new Date().toDateString()
-      };
-    }
-    const list = this.data.tavern.bounties || [];
-    return TAVERN_BOUNTIES.map(cfg => {
-      const found = list.find(b => b.id === cfg.id);
-      return {
-        ...cfg,
-        status: found ? found.status : 'available'
-      };
-    });
+    return activityDomain.getTavernBounties(this);
   }
 
   acceptBounty(bountyId) {
-    const config = TAVERN_BOUNTIES.find(b => b.id === bountyId);
-    if (!config || this.data.level < config.reqLevel) return { success: false, msg: '悬赏不存在或等级不足。' };
-    if (!this.data.tavern) this.getTavernBounties();
-    const bounties = this.data.tavern.bounties || [];
-    let item = bounties.find(b => b.id === bountyId);
-    if (item) {
-      if (item.status !== 'available') return { success: false, msg: '该悬赏已接取或已完成，请按当前进度交令。' };
-      item.status = 'in_progress';
-    } else {
-      item = { id: bountyId, status: 'in_progress' };
-      bounties.push(item);
-    }
-    this.data.tavern.bounties = bounties;
-    this.addSystemLog(`【酒馆悬赏】成功揭下悬赏令，受命缉拿妖邪首领！`, 'quest');
-    this.notify();
-    return { success: true, msg: '成功揭榜接取悬赏令！速速前往深渊讨伐目标！' };
+    return activityDomain.acceptBounty(this, bountyId);
   }
 
   completeBountyBattle(bountyId) {
-    if (!this.data.tavern) this.getTavernBounties();
-    const bounties = this.data.tavern.bounties || [];
-    let item = bounties.find(b => b.id === bountyId);
-    if (!item || item.status !== 'in_progress') return { success: false, msg: '悬赏未接取或已结算。' };
-    item.status = 'ready_to_claim';
-    this.data.tavern.bounties = bounties;
-    this.addSystemLog(`【悬赏大捷】悬赏凶物已被彻底斩杀！速回王都酒馆悬赏榜交令领赏！`, 'quest');
-    this.addActionPoints(ACTION_POINTS.bounty);
-    this.notify();
-    return { success: true };
+    return activityDomain.completeBountyBattle(this, bountyId);
   }
 
   claimBountyReward(bountyId) {
-    const cfg = TAVERN_BOUNTIES.find(b => b.id === bountyId);
-    if (!cfg) return { success: false, msg: '未知的悬赏令！' };
-    const item = (this.data.tavern?.bounties || []).find(b => b.id === bountyId);
-    if (!item || item.status !== 'ready_to_claim') {
-      return { success: false, msg: '该悬赏尚未斩杀目标，无法领取赏金！' };
-    }
-    item.status = 'completed';
-    this.addExp(cfg.rewards.exp);
-    this.gainCurrency(cfg.rewards.gold, cfg.rewards.crystal, cfg.rewards.prestige);
-    if (cfg.rewards.items && cfg.rewards.items.length > 0) {
-      cfg.rewards.items.forEach(it => {
-        const existing = this.data.bag.find(b => b.id === it.id && !b.slot);
-        if (existing) {
-          existing.count = (existing.count || 1) + (it.count || 1);
-        } else {
-          this.data.bag.push({ ...it, uid: 'bounty_it_' + Date.now() + Math.random().toString(36).substr(2, 4) });
-        }
-      });
-    }
-    this.addSystemLog(`【赏金交令】恭贺骑士达成【${cfg.title}】！获赐赏金 ${cfg.rewards.gold} 金币、${cfg.rewards.prestige} 声望！`, 'quest');
-    this.notify();
-    return { success: true, msg: `悬赏赏金全额结清！金币 +${cfg.rewards.gold}，经验 +${cfg.rewards.exp}，声望 +${cfg.rewards.prestige}，魔晶 +${cfg.rewards.crystal}！` };
+    return activityDomain.claimBountyReward(this, bountyId);
   }
 
   orderTavernDrink(drinkId) {
-    if (!this.data.tavern) this.getTavernBounties();
-    const drink = TAVERN_DRINKS.find(d => d.id === drinkId);
-    if (!drink) return { success: false, msg: '吧台无此特调美酒！' };
-    if (this.data.gold < drink.costGold) {
-      return { success: false, msg: `金币不足！品尝【${drink.name}】需支付 ${drink.costGold} 金币！` };
-    }
-    this.data.gold -= drink.costGold;
-    this.data.tavern.drinkBuff = {
-      id: drink.id,
-      name: drink.name,
-      buff: drink.buff,
-      boughtAt: Date.now()
-    };
-    this.addSystemLog(`【皇家酒馆】骑士豪饮一杯【${drink.name}】！激活特调酒力：${drink.buff.desc}！`, 'obtain');
-    this.notify();
-    return { success: true, msg: `痛饮【${drink.name}】！全身热血沸腾，${drink.buff.desc}！效果持续整日！` };
+    return activityDomain.orderTavernDrink(this, drinkId);
   }
 
   // ================= 远古神圣圣遗物系统 =================
   checkUnlockRelics(floor, publish = true) {
-    if (!this.data.relics) this.data.relics = { unlocked: [], activeRelics: [] };
-    if (!Array.isArray(this.data.relics.unlocked)) this.data.relics.unlocked = [];
-
-    const newlyUnlocked = [];
-    const available = getUnlockedRelics(floor);
-    for (const relic of available) {
-      if (!this.data.relics.unlocked.includes(relic.id)) {
-        this.data.relics.unlocked.push(relic.id);
-        newlyUnlocked.push(relic);
-        this.addSystemLog(`【圣遗物觉醒】攻克魔塔第 ${relic.unlockFloor} 层！远古神圣圣遗物【${relic.name}】震撼觉醒，领悟神威【${relic.passiveName}】！`, 'quest', publish);
-      }
-    }
-    if (publish && newlyUnlocked.length > 0) {
-      this.notify();
-    }
-    return newlyUnlocked;
+    return heroStatsDomain.checkUnlockRelics(this, floor, publish);
   }
 
   getRelics() {
-    if (!this.data.relics) this.data.relics = { unlocked: [], activeRelics: [] };
-    const maxFloor = this.data.castle?.maxReachedFloor || 1;
-    return HOLY_RELICS.map(r => ({
-      ...r,
-      isUnlocked: (this.data.relics.unlocked || []).includes(r.id) || maxFloor >= r.unlockFloor
-    }));
+    return heroStatsDomain.getRelics(this.data);
   }
 }
 

@@ -21,7 +21,7 @@ def test_svg_assets():
         for f in files:
             full_p = os.path.join(folder, f)
             with open(full_p, 'r', encoding='utf-8') as svg_f:
-                content = svg_f.read()
+                content = svg_f.read().strip()
             assert content.startswith('<svg'), f"{f} does not start with <svg"
             assert content.endswith('</svg>'), f"{f} does not end with </svg>"
             total_svgs += 1
@@ -84,7 +84,6 @@ def test_ui_views():
         'js/ui/petView.js',
         'js/ui/charSelectModal.js',
         'js/ui/battleView.js',
-        'js/ui/tooltip.js',
         'js/ui/townView.js'
     ]
     for v in views:
@@ -92,11 +91,16 @@ def test_ui_views():
         with open(path, 'r', encoding='utf-8') as f:
             code = f.read()
         assert 'renderGameIcon' in code, f"{v} does not import/use renderGameIcon"
-    print("✓ 全部 7 大关键 UI 视图均已接入 renderGameIcon 统一矢量渲染中枢！")
+    # 行囊和装备视图绘制图标，属性浮层单独渲染文字。
+    with open(os.path.join(ROOT_DIR, 'js/ui/tooltip.js'), 'r', encoding='utf-8') as f:
+        tooltip = f.read()
+    assert 'this.el.innerHTML = this.renderItemHtml(item)' in tooltip, "Tooltip does not render item details"
+    assert not re.search(r'<(?:img|svg)\b', tooltip, re.IGNORECASE), "Tooltip embeds item artwork"
+    print("✓ 六个图标视图接入 renderGameIcon，属性浮层保留文字渲染")
 
 if __name__ == '__main__':
     print("=== 开始执行图标与美术资产自动化测试 ===")
     test_svg_assets()
     test_config_icons()
     test_ui_views()
-    print("🎉 图标与美术资产升级全量测试 100% 通过！")
+    print("图标与美术资产升级全量测试通过")

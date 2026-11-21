@@ -69,6 +69,7 @@ export const MERCENARIES = [
     icon: 'merc_bard',
     avatar: 'merc_bard',
     hireCostGold: 6000,
+    combatSpeedBonus: 25,
     rewardBonus: { goldMultiplier: 1.4, crystalBonus: 1 },
     desc: '周游列国的传奇乐手，他的琴音能点燃战士的潜能。',
     aura: '疾风战歌',
