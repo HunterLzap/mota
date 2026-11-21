@@ -34,6 +34,9 @@ class GameApp {
     this.archiveModal = null;
     this.initialized = false;
     this.saveNoticeScheduled = false;
+    this._renderScheduled = false;
+    this._scheduledViewRendered = false;
+    this._lastClassIconKey = null;
   }
 
   async init() {
@@ -95,18 +98,26 @@ class GameApp {
 
     let hadChosenClass = gameState.data.hasChosenClass;
     gameState.subscribe(() => {
-      const becameChosen = !hadChosenClass && gameState.data.hasChosenClass;
-      hadChosenClass = gameState.data.hasChosenClass;
-      this.updateTopBar();
-      this.renderJourneyGuide();
-      if (this.questTracker) this.questTracker.render();
-      if (this.systemLogView) this.systemLogView.render();
-      const curView = this.views[this.currentTab];
-      if (curView && curView.render) curView.render();
-      if (becameChosen) {
-        const quest = getQuestList(gameState.data).find(q => q.id === gameState.data.currentQuestId);
-        if (quest) this.handleQuestNavigation(quest.targetTab, quest.targetAction);
-      }
+      this._scheduledViewRendered = false;
+      if (this._renderScheduled) return;
+      this._renderScheduled = true;
+      queueMicrotask(() => {
+        this._renderScheduled = false;
+        const becameChosen = !hadChosenClass && gameState.data.hasChosenClass;
+        hadChosenClass = gameState.data.hasChosenClass;
+        this.updateTopBar();
+        this.renderJourneyGuide();
+        this.questTracker?.render();
+        this.systemLogView?.render();
+        if (becameChosen) {
+          const quest = getQuestList(gameState.data).find(q => q.id === gameState.data.currentQuestId);
+          if (quest) {
+            this.handleQuestNavigation(quest.targetTab, quest.targetAction);
+            return;
+          }
+        }
+        if (!this._scheduledViewRendered) this.views[this.currentTab]?.render();
+      });
     });
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -115,6 +126,7 @@ class GameApp {
       this.currentTab = initialTab;
     }
 
+    this.cacheTopBarElements();
     this.bindHeaderEvents();
     for (const [tab, key, label] of [
       ['hero','ui_rank','人物'],['equip','ui_equip','装备'],['bag','ui_bag','行囊'],['pets','ui_pet','神兽'],
@@ -124,7 +136,7 @@ class GameApp {
       if (button) button.innerHTML = renderGameIcon(key, { size: 'w-5 h-5', className: 'nav-art' }) + `<span>${label}</span>`;
     }
     for (const [id, key] of [['header-gold', 'coin_gold'], ['header-crystal', 'crystal'], ['header-prestige', 'ui_rank']]) {
-      const value = document.getElementById(id);
+      const value = this._topBarEls[id];
       const resource = value?.parentElement;
       if (resource && !resource.querySelector('.resource-art')) {
         resource.insertAdjacentHTML('afterbegin', renderGameIcon(key, { size: 'w-5 h-5', className: 'resource-art' }));
@@ -219,106 +231,97 @@ class GameApp {
       target?.focus({ preventScroll: true });
       return;
     }
-    this.switchTab(targetTab);
-
     // 细分建筑或子页面智能精准聚焦
     if (targetTab === 'town') {
       if (targetAction === 'enhance') {
         this.views.town.currentView = 'smithy_enhance';
-        this.views.town.render();
       } else if (targetAction === 'claim_salary') {
         this.views.town.currentView = 'palace_salary';
-        this.views.town.render();
       } else if (targetAction === 'socket_gem') {
         this.views.town.currentView = 'smithy_socket';
-        this.views.town.render();
       } else if (targetAction === 'slay_dragon' || targetAction === 'slay_silver_dragon') {
         this.views.town.currentView = 'dragons';
-        this.views.town.render();
       } else if (targetAction === 'royal_trials' || targetAction === 'complete_royal_trials') {
         this.views.town.currentView = 'palace_trials';
-        this.views.town.render();
       } else if (targetAction === 'arena_duel') {
         this.views.town.currentView = 'palace_arena';
         this.views.town.arenaSubTab = 'duel';
-        this.views.town.render();
       } else if (targetAction === 'arena_shop') {
         this.views.town.currentView = 'palace_arena';
         this.views.town.arenaSubTab = 'shop';
-        this.views.town.render();
       } else if (targetAction === 'earn_prestige') {
         this.views.town.currentView = 'tavern_bounty';
-        this.views.town.render();
       } else if (targetAction === 'reforge_gear') {
         this.views.town.currentView = 'smithy_reforge';
-        this.views.town.render();
       } else if (targetAction === 'inscribe_runes' || targetAction === 'fish') {
         this.views.town.currentView = targetAction === 'fish' ? 'fishing' : 'smithy_runes';
-        this.views.town.render();
       } else if (targetAction === 'capture_stronghold') {
         this.views.town.currentView = 'faction_war';
-        this.views.town.render();
       }
     } else if (targetTab === 'wild') {
       if (targetAction === 'grow_in_wild') {
         this.views.wild.selectedMapId = MAPS.filter(map => map.reqLevel <= gameState.data.level).at(-1).id;
-        this.views.wild.render();
       } else if (targetAction === 'slay_wild_boss') {
         this.views.wild.selectedMapId = 'forest';
-        this.views.wild.render();
-      } else if (targetAction === 'catch_thief') {
-        this.views.wild.render();
       }
     } else if (targetTab === 'pets') {
       if (targetAction === 'wash_aptitude' || targetAction === 'evolve_purplegold') {
         this.views.pets.currentSubTab = 'wash';
-        this.views.pets.render();
       } else if (targetAction === 'learn_skill') {
         this.views.pets.currentSubTab = 'skills';
-        this.views.pets.render();
       } else if (targetAction === 'set_active_pet' || targetAction === 'feed_pet') {
         this.views.pets.currentSubTab = 'overview';
         if (targetAction === 'feed_pet') this.views.pets.selectedPetId = getJourneyGuidance(gameState.data)?.petId || gameState.data.activePetId;
-        this.views.pets.render();
       }
     } else if (targetTab === 'estate') {
       if (targetAction === 'brew_potion') {
         this.views.estate.currentView = 'alchemy';
-        this.views.estate.render();
       } else if (targetAction === 'hire_merc') {
         this.views.estate.currentView = 'mercenaries';
-        this.views.estate.render();
       }
     } else if (targetTab === 'tower') {
       if (targetAction === 'use_castle_key') {
         this.views.tower.subTab = 'castle';
-        this.views.tower.render();
       } else if (targetAction === 'clear_tower_1') {
         this.views.tower.subTab = 'castle';
         this.views.tower.selectedFloor = 1;
-        this.views.tower.render();
       } else if (targetAction === 'clear_tower_10') {
         this.views.tower.subTab = 'castle';
         this.views.tower.selectedFloor = 10;
-        this.views.tower.render();
       } else if (targetAction === 'clear_tower_20') {
         this.views.tower.subTab = 'castle';
         this.views.tower.selectedFloor = 20;
-        this.views.tower.render();
-      } else if (targetAction === 'retry_finale') {
+      } else if (targetAction === 'retry_finale' || targetAction === 'clear_tower_70' || targetAction === 'clear_tower_100' || targetAction === 'withdraw_castle') {
         this.views.tower.subTab = 'castle';
-        this.views.tower.render();
-        requestAnimationFrame(() => document.querySelector('#btn-retry-finale')?.focus());
-      } else if (targetAction === 'clear_tower_70' || targetAction === 'clear_tower_100' || targetAction === 'withdraw_castle') {
-        this.views.tower.subTab = 'castle';
-        this.views.tower.render();
       } else if (targetAction === 'clear_dungeon' || targetAction === 'clear_dragon_gate' || targetAction === 'clear_spacetime_gate') {
         this.views.tower.subTab = 'dungeons';
         if (targetAction === 'clear_dragon_gate') this.views.tower.selectedGateId = 'dragon_gate';
         if (targetAction === 'clear_spacetime_gate') this.views.tower.selectedGateId = 'spacetime_gate';
-        this.views.tower.render();
       }
     }
+    this.switchTab(targetTab);
+    if (targetTab === 'tower' && targetAction === 'retry_finale') {
+      requestAnimationFrame(() => document.querySelector('#btn-retry-finale')?.focus());
+    }
+  }
+
+  cacheTopBarElements() {
+    const ids = [
+      'header-player-name', 'header-nation-badge', 'header-title-badge', 'header-player-class',
+      'header-class-icon', 'header-player-level', 'header-exp-bar', 'header-exp-text',
+      'header-gold', 'header-crystal', 'header-prestige', 'header-hp-bar',
+      'header-hp-text', 'header-mp-bar', 'header-mp-text', 'header-exp-sub',
+      'header-action-day', 'header-active-slot-text', 'classic-stat-interval', 'classic-stat-counter',
+      'classic-stat-lifesteal', 'classic-stat-magic-resist', 'classic-stat-dmg-resist', 'classic-adventure-note',
+      'classic-dock-name', 'classic-hp-orb-text', 'classic-mp-orb-text',
+      ...['atk', 'def', 'speed', 'crit', 'hit', 'dodge'].map(key => `classic-stat-${key}`)
+    ];
+    this._topBarEls = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+    this._topBarOrbs = [
+      document.querySelector('.classic-health-orb'),
+      document.querySelector('.classic-mana-orb')
+    ];
+    this._lastClassIconKey = null;
   }
 
   updateTopBar() {
@@ -331,37 +334,40 @@ class GameApp {
     const hpPercent = Math.min(100, Math.floor((stats.hp / stats.maxHp) * 100));
     const mpPercent = Math.min(100, Math.floor((stats.mp / stats.maxMp) * 100));
 
-    const elName = document.getElementById('header-player-name');
-    const elNation = document.getElementById('header-nation-badge');
-    const elTitle = document.getElementById('header-title-badge');
-    const elClass = document.getElementById('header-player-class');
-    const elClassIcon = document.getElementById('header-class-icon');
-    const elLevel = document.getElementById('header-player-level');
-    const elExpBar = document.getElementById('header-exp-bar');
-    const elExpText = document.getElementById('header-exp-text');
-    const elGold = document.getElementById('header-gold');
-    const elCrystal = document.getElementById('header-crystal');
-    const elPrestige = document.getElementById('header-prestige');
-    const elHpBar = document.getElementById('header-hp-bar');
-    const elHpText = document.getElementById('header-hp-text');
-    const elMpBar = document.getElementById('header-mp-bar');
-    const elMpText = document.getElementById('header-mp-text');
+    const elName = this._topBarEls['header-player-name'];
+    const elNation = this._topBarEls['header-nation-badge'];
+    const elTitle = this._topBarEls['header-title-badge'];
+    const elClass = this._topBarEls['header-player-class'];
+    const elClassIcon = this._topBarEls['header-class-icon'];
+    const elLevel = this._topBarEls['header-player-level'];
+    const elExpBar = this._topBarEls['header-exp-bar'];
+    const elExpText = this._topBarEls['header-exp-text'];
+    const elGold = this._topBarEls['header-gold'];
+    const elCrystal = this._topBarEls['header-crystal'];
+    const elPrestige = this._topBarEls['header-prestige'];
+    const elHpBar = this._topBarEls['header-hp-bar'];
+    const elHpText = this._topBarEls['header-hp-text'];
+    const elMpBar = this._topBarEls['header-mp-bar'];
+    const elMpText = this._topBarEls['header-mp-text'];
 
     const nation = NATIONS[data.nation] || NATIONS.aden;
     if (elName) elName.innerText = data.name;
     if (elNation) elNation.innerText = nation.name.split(' ')[0];
     if (elTitle) elTitle.innerText = data.royalTrials ? data.royalTrials.currentTitle : '见习勇者';
     if (elClass) elClass.innerText = gameState.getPromotedClassName();
-    if (elClassIcon) elClassIcon.innerHTML = renderGameIcon(cls.id, { size: 'w-full h-full' });
+    if (elClassIcon && this._lastClassIconKey !== cls.id) {
+      elClassIcon.innerHTML = renderGameIcon(cls.id, { size: 'w-full h-full' });
+      this._lastClassIconKey = cls.id;
+    }
     if (elLevel) elLevel.innerText = `Lv.${data.level}`;
     if (elExpBar) elExpBar.style.width = `${expPercent}%`;
     if (elExpText) elExpText.innerText = `${data.exp} / ${nextExp}`;
-    const elExpSub = document.getElementById('header-exp-sub');
+    const elExpSub = this._topBarEls['header-exp-sub'];
     if (elExpSub) elExpSub.innerText = `${expPercent}%`;
     if (elGold) elGold.innerText = data.gold.toLocaleString();
     if (elCrystal) elCrystal.innerText = data.crystal.toLocaleString();
     if (elPrestige) elPrestige.innerText = data.prestige.toLocaleString();
-    const elActionDay = document.getElementById('header-action-day');
+    const elActionDay = this._topBarEls['header-action-day'];
     if (elActionDay) {
       const perDay = Number.isSafeInteger(data.actionClock?.pointsPerDay) && data.actionClock.pointsPerDay > 0 ? data.actionClock.pointsPerDay : 30;
       const remaining = Math.max(0, perDay - gameState.getActionPoints());
@@ -373,9 +379,9 @@ class GameApp {
     if (elMpBar) elMpBar.style.width = `${mpPercent}%`;
     if (elMpText) elMpText.innerText = `${stats.mp} / ${stats.maxMp}`;
 
-    const elActiveSlot = document.getElementById('header-active-slot-text');
+    const elActiveSlot = this._topBarEls['header-active-slot-text'];
     if (elActiveSlot) elActiveSlot.innerText = `存档 ${storage.getActiveSlotId()}`;
-    const text = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
+    const text = (id, value) => { const element = this._topBarEls[id]; if (element) element.textContent = value; };
     for (const key of ['atk', 'def', 'speed', 'crit', 'hit', 'dodge']) {
       text(`classic-stat-${key}`, ['crit', 'hit', 'dodge'].includes(key) ? `${Math.round(stats[key])}%` : Math.round(stats[key]).toLocaleString());
     }
@@ -392,8 +398,8 @@ class GameApp {
     // 人物页立绘纵向取景：按各职业立绘最顶端（发顶/杖顶）定位，贴框顶约 10px 留白；同一精灵图，按职业设 y。
     document.documentElement.style.setProperty('--class-portrait-y', {warrior:'6.4%',mage:'3.9%',hunter:'7.5%'}[data.classId] || '0%');
     document.documentElement.style.setProperty('--class-face-position', {warrior:'12.5%',mage:'50%',hunter:'87.5%'}[data.classId] || '12.5%');
-    for (const [selector, percent] of [['.classic-health-orb', hpPercent], ['.classic-mana-orb', mpPercent]]) {
-      const orb = document.querySelector(selector);
+    const [healthOrb, manaOrb] = this._topBarOrbs;
+    for (const [orb, percent] of [[healthOrb, hpPercent], [manaOrb, mpPercent]]) {
       orb?.style.setProperty('--orb-fill', `${percent}%`);
       orb?.setAttribute('aria-valuenow', String(percent));
     }
@@ -459,7 +465,10 @@ class GameApp {
     });
     // Hide the previous pane before measuring the next view's available space.
     // Rendering mid-loop briefly gives the bag half the height when leaving pets.
-    if (this.views[tabName]) this.views[tabName].render();
+    if (this.views[tabName]) {
+      this.views[tabName].render();
+      if (this._renderScheduled) this._scheduledViewRendered = true;
+    }
     this.views.wild.setActive(tabName === 'wild');
   }
 
@@ -469,7 +478,7 @@ class GameApp {
     gameState.data.allocatedStats[type]++;
     sound.playCoin();
     gameState.notify();
-    if (this.views.hero) this.views.hero.render();
+    if (this.currentTab !== 'hero') this.views.hero?.render();
   }
 
   bindHeaderEvents() {
