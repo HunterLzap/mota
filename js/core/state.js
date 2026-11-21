@@ -43,7 +43,7 @@ export class GameState {
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     const logItem = {
-      id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
       time: timeStr,
       type, // 'obtain' | 'battle' | 'quest' | 'forge' | 'pet' | 'estate' | 'system'
       text
@@ -172,7 +172,7 @@ export class GameState {
 
       // 每日活动记录（旧字段保留兼容，不再作为判定依据）
       lastSalaryDate: null,
-      dailyResetDate: actionDayKey(1),
+      dailyResetDate: this.getResetDayKey(1),
 
       // 王国角斗场与天梯对决
       arena: {
@@ -180,7 +180,7 @@ export class GameState {
         points: 1000,
         rankTitle: '青铜角斗士',
         challengesLeft: 5,
-        lastResetDate: new Date().toDateString()
+        lastResetDate: this.getResetDayKey(1)
       },
 
       // 皇家酒馆与赏金悬赏榜
@@ -192,7 +192,7 @@ export class GameState {
           { id: 'bounty_canyon_wyvern', status: 'available' }
         ],
         drinkBuff: null,
-        lastResetDate: new Date().toDateString()
+        lastResetDate: this.getResetDayKey(1)
       },
 
       // 三大阵营边境要塞争夺战
@@ -341,6 +341,12 @@ export class GameState {
       this.data.arena.activeChallenge = null;
       this.data.actionClock = { ...createActionClock(), ...(saved.actionClock || {}) };
       this.data.dailyResetDay = Number.isSafeInteger(saved.dailyResetDay) ? saved.dailyResetDay : 1;
+      const hasLegacyResetDate = saved.actionClock && /^\w{3} \w{3} \d{2} \d{4}$/.test(saved.dailyResetDate);
+      if (hasLegacyResetDate) {
+        if (!Number.isSafeInteger(saved.dailyResetDay)) this.data.dailyResetDay = this.getActionDay();
+        this.data.dailyResetDate = this.getResetDayKey(this.data.dailyResetDay);
+      }
+      const savedResetKey = this.getResetDayKey(this.data.dailyResetDay);
       this.data.lastSalaryDay = Number.isSafeInteger(saved.lastSalaryDay) ? saved.lastSalaryDay : 0;
       this.data.lastIdleClaimDay = Number.isSafeInteger(saved.lastIdleClaimDay) ? saved.lastIdleClaimDay : 0;
       this.data.idleMinutesClaimed = Number.isSafeInteger(saved.idleMinutesClaimed) ? saved.idleMinutesClaimed : 0;
@@ -348,7 +354,7 @@ export class GameState {
       // 旧档首次迁移：建立第 1 行动日并刷新每日配额；不追溯宠物体力，也不发放额外资源。
       if (!saved.actionClock) {
         this.data.dailyResetDay = 1;
-        this.data.dailyResetDate = actionDayKey(1);
+        this.data.dailyResetDate = this.getResetDayKey(1);
         this.data.castle.entriesLeft = 3;
         this.data.dungeon.entriesLeft = 5;
         this.data.dragon.trialsLeft = 4;
@@ -358,6 +364,11 @@ export class GameState {
 
       // 皇家酒馆数据迁移
       this.data.tavern = { ...defaults.tavern, ...(saved.tavern || {}) };
+      for (const activity of ['arena', 'tavern']) {
+        const savedKey = saved[activity]?.lastResetDate;
+        this.data[activity].lastResetDate = saved.actionClock && /^action-day-\d+$/.test(savedKey)
+          ? savedKey : savedResetKey;
+      }
       if (!Array.isArray(this.data.tavern.bounties) || this.data.tavern.bounties.length === 0) {
         this.data.tavern.bounties = defaults.tavern.bounties;
       }
@@ -466,6 +477,10 @@ export class GameState {
     return Number.isSafeInteger(day) && day > 0 ? day : 1;
   }
 
+  getResetDayKey(day = this.getActionDay()) {
+    return actionDayKey(day);
+  }
+
   // 当前行动日进度（0 ~ pointsPerDay-1）
   getActionPoints() {
     const points = this.data.actionClock?.points;
@@ -498,16 +513,17 @@ export class GameState {
     const currentDay = this.getActionDay();
     const forcedByLegacy = typeof target === 'string' && !/^action-day-\d+$/.test(target);
     const targetDay = Number.isSafeInteger(target) && target > 0 ? target : currentDay;
-    const legacyDateMismatch = typeof this.data.dailyResetDate === 'string' && this.data.dailyResetDate !== actionDayKey(currentDay);
+    const legacyDateMismatch = typeof this.data.dailyResetDate === 'string' && this.data.dailyResetDate !== this.getResetDayKey();
     if (!forcedByLegacy && !legacyDateMismatch && this.data.dailyResetDay === targetDay) return false;
     this.data.dailyResetDay = targetDay;
-    this.data.dailyResetDate = actionDayKey(targetDay);
+    const resetKey = this.getResetDayKey(targetDay);
+    this.data.dailyResetDate = resetKey;
     this.data.castle.entriesLeft = 3;
     this.data.dungeon.entriesLeft = 5;
     this.data.dragon.trialsLeft = 4;
     this.data.arena.challengesLeft = 5;
     this.data.arena.activeChallenge = null;
-    this.data.arena.lastResetDate = actionDayKey(targetDay);
+    this.data.arena.lastResetDate = resetKey;
     const previousBounties = Array.isArray(this.data.tavern.bounties) ? this.data.tavern.bounties : [];
     this.data.tavern.bounties = TAVERN_BOUNTIES.map(bounty => {
       const previous = previousBounties.find(entry => entry.id === bounty.id);
@@ -516,9 +532,9 @@ export class GameState {
       return { id: bounty.id, status: 'available' };
     });
     this.data.tavern.drinkBuff = null;
-    this.data.tavern.lastResetDate = actionDayKey(targetDay);
+    this.data.tavern.lastResetDate = resetKey;
     this.data.factionWar.dailyClaimed = false;
-    this.data.factionWar.lastResetDate = actionDayKey(targetDay);
+    this.data.factionWar.lastResetDate = resetKey;
     this.data.estate.harvestedToday = 0;
     this.data.lastIdleClaimDay = 0;
     this.data.idleMinutesClaimed = 0;
@@ -2035,7 +2051,7 @@ export class GameState {
     this.data.bag.push({
       ...item,
       count: item.count || 1,
-      uid: item.uid || ('it_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4))
+      uid: item.uid || ('it_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6))
     });
     return true;
   }
@@ -2927,7 +2943,7 @@ export class GameState {
             reqLevel: rItem.reqLevel ?? rItem.level,
             setId: rItem.setId ?? rItem.set,
             stars: 0, durability: 100, maxDurability: 100, sockets: rItem.sockets ?? rItem.holes ?? 0, gems: []
-          } : {}), uid: 'quest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4) });
+          } : {}), uid: 'quest_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6) });
         }
       });
     }
@@ -3044,7 +3060,7 @@ export class GameState {
       this.data.tavern = {
         bounties: TAVERN_BOUNTIES.map(b => ({ id: b.id, status: 'available' })),
         drinkBuff: null,
-        lastResetDate: new Date().toDateString()
+        lastResetDate: this.getResetDayKey()
       };
     }
     const list = this.data.tavern.bounties || [];
@@ -3105,7 +3121,7 @@ export class GameState {
         if (existing) {
           existing.count = (existing.count || 1) + (it.count || 1);
         } else {
-          this.data.bag.push({ ...it, uid: 'bounty_it_' + Date.now() + Math.random().toString(36).substr(2, 4) });
+          this.data.bag.push({ ...it, uid: 'bounty_it_' + Date.now() + Math.random().toString(36).slice(2, 6) });
         }
       });
     }
