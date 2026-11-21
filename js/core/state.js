@@ -1,8 +1,6 @@
 // 全局状态管理器与深度单机属性计算 (100% 贴合《魔塔世界》百度百科原著)
 import { CLASSES, getClassSkills, getSkillTraining } from '../config/classes.js';
 import { getPetParty } from './petParty.js';
-import { PET_CONFIGS } from '../config/pets.js';
-import { PET_SKILL_BOOKS } from '../config/petSkills.js';
 import { ITEM_SLOTS, QUALITIES, OFFICIAL_SETS, SPECIAL_ITEMS, REFORGE_AFFIXES, generateEquipment, specializeEquipment, applyCanonicalItemName, getSocketCap, hasDurability } from '../config/items.js';
 import { DUNGEON_GATES, DUNGEON_CLEAR_SUPPLIES, DUNGEON_FIRST_CLEAR_STORIES, getDungeonFloorGuard, generateDungeonDrop } from '../config/dungeons.js';
 import { DRAGON_TRIALS } from '../config/dragonSlaying.js';
@@ -26,6 +24,7 @@ import { getTowerFloorData, LANDMARK_BOSSES } from '../config/towerLevels.js';
 import { canRetryFinale } from './journey.js';
 import { createActionClock, actionDayKey, ACTION_POINTS } from './actionClock.js';
 import * as heroStatsDomain from './domains/heroStatsDomain.js';
+import * as petDomain from './domains/petDomain.js';
 
 export class GameState {
   constructor() {
@@ -562,12 +561,7 @@ export class GameState {
   }
 
   addPetExperience(pet, amount) {
-    if (!pet || !Number.isFinite(amount) || amount <= 0) return;
-    pet.exp = (pet.exp || 0) + amount;
-    while (pet.level < 100 && pet.exp >= this.getNextLevelExp(pet.level)) {
-      pet.exp -= this.getNextLevelExp(pet.level);
-      pet.level++;
-    }
+    return petDomain.addPetExperience(this, pet, amount);
   }
 
   addExp(amount, publish = true, grantPets = true) {
@@ -1071,57 +1065,23 @@ export class GameState {
   }
 
   getEligibleContractPets(egg) {
-    if (!egg || egg.type !== 'egg' || !Number.isSafeInteger(egg.count) || egg.count <= 0) return [];
-    const tier = egg.id === 'pet_egg_gold' ? 'gold' : egg.id === 'pet_egg_darkgold' ? 'darkgold' : null;
-    return Object.keys(PET_CONFIGS).filter(id => PET_CONFIGS[id].minLevel <= this.data.level && (!tier || PET_CONFIGS[id].defaultTier === tier) && !this.data.pets.some(pet => pet.id === id));
+    return petDomain.getEligibleContractPets(this.data, egg);
   }
 
   getContractChoices() {
-    if (!this.data.hasChosenClass || (this.data.onboardingVersion === 2 ? !this.data.questProgress.quest_13?.claimed : this.data.level < 20)) return [];
-    const ids = new Set(this.data.bag.flatMap(egg => this.getEligibleContractPets(egg)));
-    return [...ids].map(id => ({ id, name: PET_CONFIGS[id].name, trait: PET_CONFIGS[id].traitName, gold: 5000 + PET_CONFIGS[id].minLevel * 500, crystal: 50 + PET_CONFIGS[id].minLevel * 2 }));
+    return petDomain.getContractChoices(this);
   }
 
   hatchPetEgg(preferredId = null) {
-    const eggs = this.data.bag.filter(item => item.type === 'egg' && item.count > 0);
-    if (!eggs.length) return { success: false, msg: '缺少神兽契约蛋！' };
-    const choice = preferredId === null ? null : this.getContractChoices().find(choice => choice.id === preferredId);
-    if (preferredId !== null && !choice) return { success: false, msg: '这位伙伴尚不符合契约条件，或已经拥有。' };
-    if (choice && (![this.data.gold, this.data.crystal].every(Number.isFinite) || this.data.gold < choice.gold || this.data.crystal < choice.crystal)) return { success: false, msg: `赛拉的契约仪式需要${choice.gold}金币和${choice.crystal}魔晶，另消耗一枚符合条件的契约蛋。` };
-    let egg, candidates = [];
-    for (const available of eggs) {
-      candidates = this.getEligibleContractPets(available);
-      if (choice && !candidates.includes(preferredId)) continue;
-      if (candidates.length) { egg = available; break; }
-    }
-    if (!candidates.length) return { success: false, msg: '当前等级可缔约的神兽已全部拥有，请提升等级后再孵化；保留契约蛋。' };
-    const id = choice ? preferredId : candidates[Math.floor(Math.random() * candidates.length)];
-    const cfg = PET_CONFIGS[id];
-    if (choice) { this.data.gold -= choice.gold; this.data.crystal -= choice.crystal; }
-    egg.count--;
-    if (egg.count <= 0) this.data.bag = this.data.bag.filter(item => item !== egg);
-    this.data.pets.push({ id, level: 1, exp: 0, tier: cfg.defaultTier || 'gold', stamina: 100,
-      apt: { ...cfg.defaultApt }, skills: [] });
-    this.addSystemLog(`【神兽】成功孵化【${cfg.name}】！`, 'pet');
-    return { success: true, petId: id, msg: `成功孵化【${cfg.name}】！` };
+    return petDomain.hatchPetEgg(this, preferredId);
   }
 
   setActivePet(petId) {
-    return this.setPetPartySlot(0, petId);
+    return petDomain.setActivePet(this, petId);
   }
 
   setPetPartySlot(slot, petId) {
-    if (!Number.isInteger(slot) || slot < 0 || slot > 2 || (petId !== null && (!Object.hasOwn(PET_CONFIGS, petId) || !this.data.pets.some(pet => pet.id === petId)))) return { success: false, msg: '请选择已缔约的伙伴与有效位置。' };
-    const ids = getPetParty(this.data).map(member => member.pet?.id || null);
-    const previous = ids[slot];
-    const other = petId === null ? -1 : ids.indexOf(petId);
-    if (other >= 0 && other !== slot) ids[other] = previous;
-    ids[slot] = petId;
-    this.data.activePetId = ids[0];
-    this.data.supportPetIds = ids.slice(1);
-    if (slot === 0 && petId) this.triggerQuestAction('set_active_pet');
-    this.notify();
-    return { success: true };
+    return petDomain.setPetPartySlot(this, slot, petId);
   }
 
   trainClassSkill(skillId, expectedRank) {
@@ -1143,43 +1103,15 @@ export class GameState {
   }
 
   washPetAptitude(petId) {
-    const pet = this.data.pets.find(pet => pet.id === petId);
-    const pill = this.data.bag.find(item => item.id === 'pill_reborn' && item.count > 0);
-    if (!pet || !pill) return { success: false, msg: '请选择已孵化的伙伴，并准备远古重铸灵药；主线使命会提供首批灵药。' };
-    pill.count--;
-    if (!pill.count) this.data.bag = this.data.bag.filter(item => item !== pill);
-    const base = pet.tier === 'purplegold' ? 2500 : pet.tier === 'darkgold' ? 1800 : 1200;
-    for (const key of ['str', 'int', 'dex', 'con']) pet.apt[key] = base + Math.floor(Math.random() * 600);
-    this.triggerQuestAction('wash_pet');
-    this.notify();
-    return { success: true };
+    return petDomain.washPetAptitude(this, petId);
   }
 
   learnPetSkill(petId, bookId) {
-    const pet = this.data.pets.find(pet => pet.id === petId);
-    const cfg = PET_SKILL_BOOKS[bookId];
-    const book = this.data.bag.find(item => (item.id === bookId || item.bookId === bookId) && (item.count ?? 1) > 0);
-    if (!pet || !cfg || !book) return { success: false, msg: '神兽或对应魔导书不存在！' };
-    if (!Array.isArray(pet.skills)) pet.skills = [];
-    if (pet.skills.includes(bookId) || pet.skills.includes(cfg.skillId)) return { success: false, msg: '神兽已掌握此技能！' };
-    if (pet.skills.length >= 4) return { success: false, msg: '技能槽已满 4 格！' };
-    pet.skills.push(bookId);
-    book.count = (book.count ?? 1) - 1;
-    if (book.count <= 0) this.data.bag = this.data.bag.filter(item => item !== book);
-    this.triggerQuestAction('learn_skill');
-    this.addSystemLog(`【神兽】${PET_CONFIGS[petId]?.name || '神兽'}领悟【${cfg.skillName}】！`, 'pet');
-    return { success: true, msg: `成功研习【${cfg.skillName}】！` };
+    return petDomain.learnPetSkill(this, petId, bookId);
   }
 
   forgetPetSkill(petId, learnedId) {
-    const pet = this.data.pets.find(pet => pet.id === petId);
-    const cfg = Object.values(PET_SKILL_BOOKS).find(book => book.id === learnedId || book.skillId === learnedId);
-    const index = pet?.skills?.indexOf(learnedId) ?? -1;
-    if (!pet || !cfg || index < 0) return { success: false, msg: '这位伙伴当前没有掌握该魔典。' };
-    pet.skills.splice(index, 1);
-    this.grantBattleLoot({ id: cfg.id, bookId: cfg.id, name: cfg.name || `远古魔导书·【${cfg.skillName}】`, type: 'skill_book', quality: cfg.quality || 'darkgold', icon: cfg.icon || 'images/items/skill_book.svg', count: 1 });
-    this.notify();
-    return { success: true, msg: `【${cfg.skillName}】已退回行囊，空出的魔典槽可学习其他技能。` };
+    return petDomain.forgetPetSkill(this, petId, learnedId);
   }
 
   setPatrolMap(id, now = Date.now()) {
@@ -1233,106 +1165,25 @@ export class GameState {
   }
 
   feedPet(petId, itemId = 'pet_food') {
-    const pet = this.data.pets.find(p => p.id === petId);
-    if (!pet) return { success: false, msg: '未找到该神兽' };
-    const foodEffects = { pet_food: 35, pet_food_basic: 15, pet_food_luxury: 60 };
-    const restore = foodEffects[itemId] || 0;
-    if (!restore) return { success: false, msg: '未知的宠物食品。' };
-    if ((pet.stamina ?? 100) >= 100) return { success: false, msg: '伙伴体力已满，无需再喂食。' };
-    const food = this.data.bag.find(i => i.id === itemId && i.count > 0);
-    if (!food) return { success: false, msg: `背包中没有【${itemId === 'pet_food' ? '魔能兽肉排' : itemId === 'pet_food_basic' ? '普通宠物口粮' : '豪华宠物饼干'}】` };
-
-    pet.stamina = Math.min(100, (pet.stamina ?? 100) + restore);
-    food.count--;
-    if (food.count <= 0) this.data.bag = this.data.bag.filter(i => i !== food);
-    this.notify();
-    return { success: true, msg: `喂养成功！${pet.name || '神兽'} 当前体力已恢复至 ${pet.stamina}/100！` };
+    return petDomain.feedPet(this, petId, itemId);
   }
 
   // 兽栏金币喂养：单机兜底，最多恢复到 60（行动日/断粮时可继续战斗）。
   feedPetWithGold(petId, targetStamina = 60) {
-    const pet = this.data.pets.find(p => p.id === petId);
-    if (!pet) return { success: false, msg: '未找到该神兽' };
-    const current = pet.stamina ?? 100;
-    const target = Math.min(60, Math.max(0, Math.floor(targetStamina)));
-    if (current >= target) return { success: false, msg: `金币喂养最多恢复到 ${target} 点体力。` };
-    const missing = target - current;
-    const cost = missing * 10;
-    if (this.data.gold < cost) return { success: false, msg: `金币不足！恢复 ${missing} 点体力需要 ${cost} 金币。` };
-    this.data.gold -= cost;
-    pet.stamina = target;
-    this.notify();
-    return { success: true, msg: `兽栏喂养完成：${pet.name || '神兽'} 体力恢复至 ${pet.stamina}/100，消耗 ${cost} 金币。` };
+    return petDomain.feedPetWithGold(this, petId, targetStamina);
   }
 
   getCompanionTrainingQuote(petId) {
-    if (this.data.onboardingVersion === 2 && !this.data.questProgress.quest_13?.claimed) return { success: false, msg: '完成古门哨站调查并交付委托后，赛拉会开启营地训练。' };
-    const pet = this.data.pets.find(pet => pet.id === petId);
-    if (!this.data.hasChosenClass || !pet || !Number.isSafeInteger(pet.level) || pet.level < 1 || pet.level >= Math.min(100, this.data.level)) return { success: false, msg: '伙伴已跟上你的等级，或尚未建立契约。' };
-    if ((pet.stamina ?? 100) < 60) return { success: false, msg: '伙伴太疲惫，请先喂养恢复至至少60体力。' };
-    if (!Number.isSafeInteger(pet.exp ?? 0) || (pet.exp ?? 0) < 0 || (pet.exp ?? 0) >= this.getNextLevelExp(pet.level)) return { success: false, msg: '伙伴经验记录异常，请重新载入。' };
-    const targetLevel = Math.min(pet.level + 5, this.data.level, 100);
-    let exp = -(pet.exp ?? 0);
-    for (let level = pet.level; level < targetLevel; level++) exp += this.getNextLevelExp(level);
-    return { success: true, petId, level: pet.level, petExp: pet.exp ?? 0, targetLevel, exp, gold: Math.max(100, Math.ceil(exp * 0.05)), crystal: (targetLevel - pet.level) * 5, food: 1 };
+    return petDomain.getCompanionTrainingQuote(this, petId);
   }
 
   trainCompanion(expected) {
-    const quote = this.getCompanionTrainingQuote(expected?.petId);
-    if (!quote.success) return quote;
-    if (['petId','level','petExp','targetLevel','exp','gold','crystal','food'].some(key => expected[key] !== quote[key])) return { success: false, msg: '伙伴成长或训练报价已变化，请重新选择。' };
-    const food = this.data.bag.find(item => item.id === 'pet_food' && Number.isSafeInteger(item.count) && item.count > 0);
-    if (!food || ![this.data.gold, this.data.crystal].every(Number.isFinite) || this.data.gold < quote.gold || this.data.crystal < quote.crystal) return { success: false, msg: `训练需要${quote.gold}金币、${quote.crystal}魔晶和1份兽肉。` };
-    const pet = this.data.pets.find(pet => pet.id === quote.petId);
-    this.data.gold -= quote.gold; this.data.crystal -= quote.crystal;
-    food.count--; if (!food.count) this.data.bag = this.data.bag.filter(item => item !== food);
-    pet.level = quote.targetLevel; pet.exp = 0;
-    this.addSystemLog(`【伙伴训练】${PET_CONFIGS[pet.id]?.name || '伙伴'}在赛拉的营地训练至${pet.level}级。特性、资质、魔典与品阶保留。`, 'pet');
-    this.notify();
-    return { success: true, msg: `伙伴已成长至${pet.level}级。训练不会超过你的等级，也不改变品阶或资质。` };
+    return petDomain.trainCompanion(this, expected);
   }
 
   // 进化神兽 (黄金->暗金->紫金)
   evolvePet(petId) {
-    const pet = this.data.pets.find(p => p.id === petId);
-    if (!pet) return { success: false, msg: '未找到神兽' };
-
-    if (pet.tier === 'gold') {
-      if (pet.level < 30) return { success: false, msg: '黄金宠物需达到 30 级方可使用进化石！' };
-      const stone = this.data.bag.find(i => i.id === 'evolution_stone' && i.count > 0);
-      if (!stone) return { success: false, msg: '缺少【进化石】！' };
-      stone.count--;
-      if (stone.count <= 0) this.data.bag = this.data.bag.filter(i => i !== stone);
-
-      pet.tier = 'darkgold';
-      pet.level = 1;
-      pet.exp = 0;
-      pet.apt.str = Math.min(4500, Math.floor(pet.apt.str * 1.35));
-      pet.apt.int = Math.min(4500, Math.floor(pet.apt.int * 1.35));
-      pet.apt.dex = Math.min(4500, Math.floor(pet.apt.dex * 1.35));
-      pet.apt.con = Math.min(4500, Math.floor(pet.apt.con * 1.35));
-      this.notify();
-      return { success: true, msg: '进化成功！神兽觉醒为【暗金神圣阶】，资质上限跃升至 4500！' };
-    } else if (pet.tier === 'darkgold') {
-      if (pet.level < 40) return { success: false, msg: '暗金宠物需达到 40 级方可使用天命石！' };
-      const stone = this.data.bag.find(i => i.id === 'destiny_stone' && i.count > 0);
-      if (!stone) return { success: false, msg: '缺少【天命石】（可通过屠银龙/金龙获得）！' };
-      stone.count--;
-      if (stone.count <= 0) this.data.bag = this.data.bag.filter(i => i !== stone);
-
-      pet.tier = 'purplegold';
-      pet.level = 1;
-      pet.exp = 0;
-      pet.apt.str = Math.min(6000, Math.floor(pet.apt.str * 1.45));
-      pet.apt.int = Math.min(6000, Math.floor(pet.apt.int * 1.45));
-      pet.apt.dex = Math.min(6000, Math.floor(pet.apt.dex * 1.45));
-      pet.apt.con = Math.min(6000, Math.floor(pet.apt.con * 1.45));
-      this.triggerQuestAction('evolve_purplegold');
-      this.addSystemLog(`【神兽觉醒】神兽突破为【紫金传奇圣兽】，资质全面暴涨！`, 'pet');
-      this.notify();
-      return { success: true, msg: '终极进化达成！神兽突破为【紫金传奇圣兽】，获得传世神圣属性！' };
-    }
-    return { success: false, msg: '该宠物已达最高紫金阶品！' };
+    return petDomain.evolvePet(this, petId);
   }
 
   getEquipmentRepairCost(item) {
