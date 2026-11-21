@@ -63,3 +63,6 @@ output/
 
 # Original-game reference screenshots (local reference only)
 项目UI截图/
+
+# SlopGuard local tool metadata
+.slopguard/
