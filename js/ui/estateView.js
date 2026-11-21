@@ -10,8 +10,9 @@ import { atmosphere } from '../effects/atmosphere.js';
 import { renderGameIcon } from './iconHelper.js';
 
 export class EstateView {
-  constructor(containerId) {
+  constructor(containerId, onSwitchTab) {
     this.container = document.getElementById(containerId);
+    this.onSwitchTab = onSwitchTab;
     // 子页面路由：'hub' | 'alchemy' | 'resources' | 'mercenaries' | 'slaves'
     this.currentView = 'hub';
   }
@@ -22,6 +23,10 @@ export class EstateView {
 
   set currentSubTab(v) {
     this.currentView = v;
+  }
+
+  navigate({ view } = {}) {
+    if (view !== undefined) this.currentView = view;
   }
 
   render() {
@@ -537,7 +542,7 @@ export class EstateView {
             () => {
               gameState.claimQuestReward('quest_8');
               gameModal.alert('传世镶嵌金刚钻已入行囊！已为你开启下一阶段主线【终焉试炼 · 斩落石魔】，向无尽魔塔第 10 层领主进军吧！', '主线推进', () => {
-                if (window.switchMainTab) window.switchMainTab('tower');
+                this.onSwitchTab?.('tower');
               });
             },
             () => this.render(),

@@ -14,8 +14,14 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&'
 // 1. 【人物面板】(Hero Profile View)
 // ==========================================
 export class HeroView {
-  constructor(containerId) {
+  constructor(containerId, onSwitchTab, onAddStat) {
     this.container = document.getElementById(containerId);
+    this.onSwitchTab = onSwitchTab;
+    this.onAddStat = onAddStat;
+  }
+
+  navigate({ panel } = {}) {
+    if (panel !== undefined) this.currentPanel = panel;
   }
 
   render() {
@@ -121,12 +127,12 @@ export class HeroView {
     if (recommended) recommended.onclick = () => {
       const result = gameState.allocateRecommendedStats();
       if (result.success) gameModal.toast(`已分配${result.points}点潜能，其中${result.health}点增强体魄。`);
-      this.container.querySelector('#btn-recommended-stats, #btn-open-class-skills')?.focus({ preventScroll: true });
+      queueMicrotask(() => this.container.querySelector('#btn-recommended-stats, #btn-open-class-skills')?.focus({ preventScroll: true }));
     };
     this.container.querySelectorAll('.btn-add-stat').forEach(btn => {
       btn.addEventListener('click', () => {
         const type = btn.getAttribute('data-stat');
-        if (window.addStat) window.addStat(type);
+        this.onAddStat?.(type);
         const next = this.container.querySelector(`.btn-add-stat[data-stat="${type}"]:not(:disabled)`)
           || this.container.querySelector('#btn-open-class-skills');
         next?.focus({ preventScroll: true });
@@ -136,14 +142,14 @@ export class HeroView {
     const btnGotoEquip = document.getElementById('btn-quick-goto-equip');
     if (btnGotoEquip) {
       btnGotoEquip.addEventListener('click', () => {
-        if (window.switchMainTab) window.switchMainTab('equip');
+        this.onSwitchTab?.('equip');
       });
     }
 
     const btnGotoBag = document.getElementById('btn-quick-to-bag');
     if (btnGotoBag) {
       btnGotoBag.addEventListener('click', () => {
-        if (window.switchMainTab) window.switchMainTab('bag');
+        this.onSwitchTab?.('bag');
       });
     }
   }
@@ -153,8 +159,9 @@ export class HeroView {
 // 2. 【装备面板】(Equipment Paperdoll View)
 // ==========================================
 export class EquipView {
-  constructor(containerId) {
+  constructor(containerId, onSwitchTab) {
     this.container = document.getElementById(containerId);
+    this.onSwitchTab = onSwitchTab;
     this.setTab = null;
   }
 
@@ -346,15 +353,7 @@ export class EquipView {
     });
     this.container.querySelectorAll('[data-browse-slot]').forEach(button => {
       button.onclick = () => {
-        const bag = window.appInstance?.views?.bag;
-        if (bag) {
-          bag.bagFilter = 'equip';
-          bag.bagSlot = button.dataset.browseSlot;
-          bag.page = 0;
-          bag.selectedItemUid = null;
-          bag.wearableOnly = false;
-        }
-        window.switchMainTab?.('bag');
+        this.onSwitchTab?.('bag', { equipmentSlot: button.dataset.browseSlot });
         document.getElementById('bag-slot-filter')?.focus({ preventScroll: true });
       };
     });
@@ -362,7 +361,7 @@ export class EquipView {
     const btnAuto = document.getElementById('btn-auto-equip-strongest');
     if (btnAuto) {
       btnAuto.addEventListener('click', () => {
-        if (window.switchMainTab) window.switchMainTab('bag');
+        this.onSwitchTab?.('bag');
       });
     }
 
@@ -370,13 +369,7 @@ export class EquipView {
     const btnSmithy = document.getElementById('btn-quick-goto-smithy');
     if (btnSmithy) {
       btnSmithy.addEventListener('click', () => {
-        if (window.switchMainTab) {
-          window.switchMainTab('town');
-          if (window.appInstance?.views?.town) {
-            window.appInstance.views.town.currentView = 'smithy';
-            window.appInstance.views.town.render();
-          }
-        }
+        this.onSwitchTab?.('town', { view: 'smithy' });
       });
     }
 
@@ -384,7 +377,7 @@ export class EquipView {
     const btnGotoBag = document.getElementById('btn-goto-bag-from-equip');
     if (btnGotoBag) {
       btnGotoBag.addEventListener('click', () => {
-        if (window.switchMainTab) window.switchMainTab('bag');
+        this.onSwitchTab?.('bag');
       });
     }
 

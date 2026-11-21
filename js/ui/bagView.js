@@ -49,9 +49,10 @@ export function getBagItemDestination(item) {
 }
 
 export class BagView {
-  constructor(containerId, onSwitchTab) {
+  constructor(containerId, onSwitchTab, onQuestNavigate) {
     this.container = document.getElementById(containerId);
     this.onSwitchTab = onSwitchTab;
+    this.onQuestNavigate = onQuestNavigate;
     this.bagFilter = 'all'; // 'all' | 'equip' | 'consumable' | 'material'
     this.selectedItemUid = null;
     this.page = 0;
@@ -93,6 +94,15 @@ export class BagView {
       columns: Math.max(1, Math.floor((innerW + gap) / (cell + gap))),
       rows: Math.max(1, Math.floor((innerH + gap) / (cell + gap)))
     };
+  }
+
+  navigate({ equipmentSlot } = {}) {
+    if (equipmentSlot === undefined) return;
+    this.bagFilter = 'equip';
+    this.bagSlot = equipmentSlot;
+    this.page = 0;
+    this.selectedItemUid = null;
+    this.wearableOnly = false;
   }
 
   render() {
@@ -266,7 +276,7 @@ export class BagView {
     if (destinationButton) destinationButton.onclick = () => {
       const current = gameState.data.bag.find(item => (item.uid || item.id) === this.selectedItemUid);
       const destination = getBagItemDestination(current);
-      if (destination) window.appInstance.handleQuestNavigation(destination.tab, destination.action);
+      if (destination) this.onQuestNavigate?.(destination.tab, destination.action);
     };
     for (const [id, delta] of [['btn-bag-page-prev', -1], ['btn-bag-page-next', 1]]) {
       const button = this.container.querySelector('#' + id);
@@ -374,13 +384,7 @@ export class BagView {
     const btnEgg = document.getElementById('btn-bag-use-egg');
     if (btnEgg) {
       btnEgg.addEventListener('click', () => {
-        if (window.switchMainTab) {
-          window.switchMainTab('pets');
-          if (window.appInstance?.views?.pets) {
-            window.appInstance.views.pets.currentSubTab = 'overview';
-            window.appInstance.views.pets.render();
-          }
-        }
+        this.onSwitchTab?.('pets', { section: 'overview' });
       });
     }
 
@@ -388,13 +392,7 @@ export class BagView {
     const btnWash = document.getElementById('btn-bag-goto-wash');
     if (btnWash) {
       btnWash.addEventListener('click', () => {
-        if (window.switchMainTab) {
-          window.switchMainTab('pets');
-          if (window.appInstance?.views?.pets) {
-            window.appInstance.views.pets.currentSubTab = 'wash';
-            window.appInstance.views.pets.render();
-          }
-        }
+        this.onSwitchTab?.('pets', { section: 'wash' });
       });
     }
   }
@@ -433,14 +431,12 @@ export class BagView {
       const res = gameState.equipItem(item.uid || item.id);
       gameModal.toast(res.msg);
     } else if (item.type === 'egg') {
-      window.switchMainTab?.('pets');
-      window.appInstance?.views?.pets && (window.appInstance.views.pets.currentSubTab = 'overview', window.appInstance.views.pets.render());
+      this.onSwitchTab?.('pets', { section: 'overview' });
     } else if (item.id === 'pill_reborn') {
-      window.switchMainTab?.('pets');
-      window.appInstance?.views?.pets && (window.appInstance.views.pets.currentSubTab = 'wash', window.appInstance.views.pets.render());
+      this.onSwitchTab?.('pets', { section: 'wash' });
     } else {
       const dest = getBagItemDestination(item);
-      if (dest) window.appInstance?.handleQuestNavigation?.(dest.tab, dest.action);
+      if (dest) this.onQuestNavigate?.(dest.tab, dest.action);
       else gameModal.toast('该物品暂无可作用途');
     }
     this.render();

@@ -1,5 +1,28 @@
 // Shared progression curve and finite investigations earned through real battles.
 import { DUNGEON_GATES } from './dungeons.js';
+
+export const JOURNEY_DIALOGUE = {
+  guard: {
+    instructions: '接受委托后领取武器和护胸，再去行囊穿戴。',
+    accepted: '罗兰交给你武器和护胸。先穿好，再出城。',
+    speaker: { name: '守备官罗兰', portrait: 'warrior' },
+    labels: { confirmLabel: '接受委托', cancelLabel: '稍后' }
+  },
+  epilogue: {
+    title: '王都的归途',
+    text: [
+      '罗兰：巡逻队的幸存者已经回家。城外的道路终于恢复了往来。',
+      '米拉：最初只是一份寻人的委托，没想到我们能走到这里。谢谢你没有放弃。',
+      '赛拉：你的伙伴也该休息一下了。古门里还有未知的故事，等你准备好，我们再出发。',
+      '你可以继续探索未通关的古门、培养新的伙伴，或挑战角斗场。'
+    ].join('\n\n')
+  },
+  investigation(event, exp) {
+    const experience = exp ? `经验 +${exp}，` : '调查经验已随战斗获得，';
+    return `${event.speaker}：调查记录已经收好。补给和口粮交给你，继续追查下一条线索。\n\n${experience}声望 +${event.prestige}，伙伴口粮 x3。`;
+  }
+};
+
 export const levelExperience = level => Math.floor(100 * Math.pow(level, 1.8) + level * 80);
 const budget = (from, to) => Array.from({ length: to - from }, (_, i) => levelExperience(from + i)).reduce((a, b) => a + b, 0);
 const episode = (id, title, speaker, text, action, target, count, from, to, prestige) => ({ id, title, speaker, text, action, target, count, exp: budget(from, to), prestige });

@@ -45,8 +45,9 @@ const SMITHY_TABS = [
 ];
 
 export class TownView {
-  constructor(containerId, onOpenBattle) {
+  constructor(containerId, onOpenBattle, onSwitchTab) {
     this.container = document.getElementById(containerId);
+    this.onSwitchTab = onSwitchTab;
     this.onOpenBattle = onOpenBattle;
     this.commissionChoices = {};
     
@@ -84,6 +85,16 @@ export class TownView {
     this.socketGemPage = 0;
     this.bountyPage = 0;
     this.runeMatPage = 0;
+  }
+
+  navigate({ view, arenaTab } = {}) {
+    if (view !== undefined) this.currentView = view;
+    if (arenaTab !== undefined) this.arenaSubTab = arenaTab;
+  }
+
+  getAtmospherePreset() {
+    if (this.currentView.startsWith('smithy') || this.currentView === 'dragons') return 'forge';
+    return this.currentView === 'fishing' ? 'forest' : 'palace';
   }
 
   render() {
@@ -2203,12 +2214,10 @@ export class TownView {
         const entry = gameState.getCommissions().find(config => config.id === button.dataset.commissionGo);
         if (entry?.status !== 'active') return;
         if (entry.requirement.event === 'tower') {
-          window.appInstance.views.tower.subTab = 'castle';
-          window.switchMainTab('tower');
+          this.onSwitchTab?.('tower', { section: 'castle' });
           document.querySelector('#btn-start-redwood, #btn-challenge-castle-floor')?.focus();
         } else {
-          window.appInstance.views.wild.selectedMapId = entry.requirement.target;
-          window.switchMainTab('wild');
+          this.onSwitchTab?.('wild', { mapId: entry.requirement.target });
           document.querySelector(entry.requirement.event === 'wild_boss' ? '#btn-fight-wild-boss' : '.btn-fight-mob')?.focus();
         }
       });
@@ -2276,7 +2285,7 @@ export class TownView {
     });
 
     this.container.querySelector('#btn-workshop-bag')?.addEventListener('click', () => {
-      window.switchMainTab?.('bag');
+      this.onSwitchTab?.('bag');
     });
     const bagPrev = this.container.querySelector('#smithy-bag-prev');
     if (bagPrev) bagPrev.addEventListener('click', () => {
@@ -2316,7 +2325,7 @@ export class TownView {
             () => {
               gameState.claimQuestReward('quest_1');
               gameModal.alert('丰厚犒赏已存入行囊！已自动为你开启下一阶段主线【工欲善其事 · 装备升星】，先打开行囊穿戴职业武器和防具，再前往铁匠铺升星。', '主线推进', () => {
-                if (window.switchMainTab) window.switchMainTab('bag');
+                this.onSwitchTab?.('bag');
               });
             },
             () => {
@@ -2346,7 +2355,7 @@ export class TownView {
               () => {
                 gameState.claimQuestReward('quest_2');
                 gameModal.alert('丰厚犒赏已存入行囊！已为你开启下一阶段主线【远古契约 · 神兽随行】，前往神兽圣境孵化契约蛋，再将伙伴设为出战主宠。', '主线推进', () => {
-                  if (window.switchMainTab) window.switchMainTab('pets');
+                  this.onSwitchTab?.('pets');
                 });
               },
               () => {
@@ -2681,7 +2690,7 @@ export class TownView {
               () => {
                 gameState.claimQuestReward('quest_16');
                 gameModal.alert('犒赏已发放！新主线【密林梦魇 · 斩杀狼王】已开启，前往野外征战微光森林诛灭驻地领主暗夜狼王吧！', '主线推进', () => {
-                  if (window.switchMainTab) window.switchMainTab('wild');
+                  this.onSwitchTab?.('wild');
                 });
               },
               () => this.render(),
@@ -2737,7 +2746,7 @@ export class TownView {
                   () => {
                     gameState.claimQuestReward('quest_14');
                     gameModal.alert('犒赏已存入行囊！已为你开启终章主线【魔塔破界 · 决战飞龙】，挺进魔塔第 20 层直面关底恶龙吧！', '主线推进', () => {
-                      if (window.switchMainTab) window.switchMainTab('tower');
+                      this.onSwitchTab?.('tower');
                     });
                   },
                   () => this.render(),
