@@ -20,8 +20,9 @@ export function getPlayerActionSpeed(stats, data, isPvp = false) {
   const auras = isPvp ? [] : getClassSkills(data.classId, stats.skillLevelBonus || 0, data).filter(skill => skill.category === 'aura');
   const auraBoost = auras.reduce((sum, skill) => sum + (skill.effect?.teamSpeedBoost || 0), 0);
   const speed = Number.isFinite(stats.speed) ? Math.max(0, stats.speed) : 0;
+  const merc = MERCENARIES.find(merc => merc.id === data.estate?.hiredMercId);
   return speed * (1 + (traits.speedBoostPct || 0)) * (1 + auraBoost) +
-    (data.estate?.hiredMercId === 'merc_bard' ? 25 : 0);
+    (merc?.combatSpeedBonus || 0);
 }
 
 export function getPlayerActionInterval(stats, data, isPvp = false) {
@@ -33,6 +34,18 @@ export function getPlayerSynergyStrike(data) {
   const merc = MERCENARIES.find(merc => merc.id === data.estate?.hiredMercId);
   if (!main.active && !merc) return null;
   return getSynergyStrike(data.classId, merc?.id || '', main.active ? main.pet.id : '');
+}
+
+function cacheActionInterval(classId) {
+  let lastSpeed;
+  let lastInterval;
+  return speed => {
+    if (lastInterval === undefined || !Object.is(speed, lastSpeed)) {
+      lastInterval = getActionInterval(speed, classId);
+      lastSpeed = speed;
+    }
+    return lastInterval;
+  };
 }
 
 export function runCombat(playerStats, enemyStats, playerData, enemyData, options = {}) {
@@ -47,9 +60,11 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData, option
   let acting = null;
   const actionCounts = { player: 0, enemy: 0 };
   const actionProgress = { player: 0, enemy: 0 };
+  const playerIntervalFor = cacheActionInterval(cls.id);
+  const enemyIntervalFor = cacheActionInterval(enemyClassId);
   const record = entry => logs.push({ ...entry, playerMp: p.mp, enemyMp: e.mp, time: Number(elapsed.toFixed(4)), actor: acting,
     action: acting ? actionCounts[acting] : null,
-    playerInterval: getActionInterval(p.speed, cls.id), enemyInterval: getActionInterval(e.speed, enemyClassId) });
+    playerInterval: playerIntervalFor(p.speed), enemyInterval: enemyIntervalFor(e.speed) });
   const configuredAbilities = enemyData.abilities ?? enemyStats.abilities ?? [];
   const enemyAbilities = Array.isArray(configuredAbilities) ? configuredAbilities.filter(ability => Number.isInteger(ability.interval) && ability.interval >= 2) : [];
   const enemyRebirth = enemyData.rebirth ?? enemyStats.rebirth;
@@ -240,7 +255,7 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData, option
       record({
         turn: 0,
         type: 'passive',
-        message: `【佣兵援护】${hiredMerc.name} 拨动鲁特琴奏响【${hiredMerc.aura}】，行动速度提升 25 点！`,
+        message: `【佣兵援护】${hiredMerc.name} 拨动鲁特琴奏响【${hiredMerc.aura}】，行动速度提升 ${hiredMerc.combatSpeedBonus} 点！`,
         playerHp: p.hp,
         enemyHp: e.hp
       });
@@ -289,15 +304,15 @@ export function runCombat(playerStats, enemyStats, playerData, enemyData, option
   // Immutable opening values for the battle panel, after aura/party/relic modifiers.
   const panelStats = entity => Object.fromEntries(['hp', 'maxHp', 'mp', 'maxMp', 'atk', 'def', 'speed', 'hit', 'dodge', 'crit', 'counter'].map(key => [key, entity[key]]));
   const initialStats = { player: { ...panelStats(p), dmgResist: playerStats.dmgResist || 0 }, enemy: { ...panelStats(e), dmgResist: 0 } };
-  const initialIntervals = { player: getActionInterval(p.speed, cls.id), enemy: getActionInterval(e.speed, enemyClassId) };
+  const initialIntervals = { player: playerIntervalFor(p.speed), enemy: enemyIntervalFor(e.speed) };
 
   // 两条独立行动进度。中途减速保留已经积累的进度，只改变剩余时间。
   while (p.hp > 0 && e.hp > 0 && turn <= maxTurns) {
     const boundary = turn * 10;
     while (p.hp > 0 && e.hp > 0) {
       acting = null;
-      const playerInterval = getActionInterval(p.speed, cls.id);
-      const enemyInterval = getActionInterval(e.speed, enemyClassId);
+      const playerInterval = playerIntervalFor(p.speed);
+      const enemyInterval = enemyIntervalFor(e.speed);
       const playerWait = Math.max(0, 1 - actionProgress.player) * playerInterval;
       const enemyWait = Math.max(0, 1 - actionProgress.enemy) * enemyInterval;
       const wait = Math.min(playerWait, enemyWait);
