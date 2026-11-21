@@ -1,5 +1,5 @@
-import { GameState } from '../js/core/state.js';
-import { CLASSES } from '../js/config/classes.js';
+import { GameState } from '../../js/core/state.js';
+import { CLASSES } from '../../js/config/classes.js';
 
 const original = { ...CLASSES.hunter.growth };
 for (const growth of [
